@@ -21,6 +21,7 @@
   let buildings: MasterData[] = [];
   let rooms: Room[] = [];
   let projects: MasterData[] = [];
+  let years: number[] = [];
 
   // Form data
   let formData = {
@@ -31,11 +32,13 @@
     assetTypeId: null as number | null,
     activityId: null as number | null,
     fundId: null as number | null,
+    fiscalYearId: null as number | null,
     price: '',
     acquisitionSourceId: null as number | null,
     acquisitionMethodId: null as number | null,
     acquisitionDate: '',
     company: '',
+    sizeDetail: '',
     buildingId: null as number | null,
     roomId: null as number | null,
     projectId: null as number | null,
@@ -75,11 +78,21 @@
       buildings = (await buildRes.json()).data || [];
       rooms = (await roomRes.json()).data || [];
       projects = (await projRes.json()).data || [];
-    } catch (err) {
-      console.error('Error fetching master data:', err);
-      errorMessage = 'เกิดข้อผิดพลาดในการโหลดข้อมูล';
-    }
-  }
+
+      const currentYearBE = new Date().getFullYear() + 543;
+      const startYearBE = 2540;
+
+      years = Array.from(
+        { length: currentYearBE - startYearBE + 1 },
+        (_, i) => currentYearBE - i
+      );
+
+
+        } catch (err) {
+          console.error('Error fetching master data:', err);
+          errorMessage = 'เกิดข้อผิดพลาดในการโหลดข้อมูล';
+        }
+      }
 
   // Filter rooms by selected building
   $: filteredRooms = formData.buildingId 
@@ -115,8 +128,11 @@
         assetTypeId: formData.assetTypeId || null,
         activityId: formData.activityId || null,
         fundId: formData.fundId || null,
+        fiscalYearId: formData.fundId || null,
         acquisitionSourceId: formData.acquisitionSourceId || null,
         acquisitionMethodId: formData.acquisitionMethodId || null,
+        company: formData.company || null,
+        sizeDetail: formData.sizeDetail || null,
         buildingId: formData.buildingId || null,
         roomId: formData.roomId || null,
         projectId: formData.projectId || null
@@ -192,11 +208,12 @@
             <label class="label">
               กิจกรรม <span class="required">*</span>
             </label>
-            <input 
-              type="text" 
-              class="input" 
-              placeholder="กิจกรรม"
-            />
+            <select bind:value={formData.activityId} class="input">
+              <option value={null}>กรุณาเลือก</option>
+              {#each activities as act}
+                <option value={act.id}>{act.name}</option>
+              {/each}
+            </select>
           </div>
 
           <!-- กองทุน -->
@@ -217,8 +234,11 @@
             <label class="label">
               ปีงบประมาณ <span class="required">*</span>
             </label>
-            <select class="input">
-              <option>กรุณาเลือก</option>
+            <select bind:value={formData.fiscalYearId} class="input">
+              <option value={null}>กรุณาเลือก</option>
+              {#each years as year}
+                <option value={year}>{year}</option>
+              {/each}
             </select>
           </div>
 
@@ -315,10 +335,13 @@
           <!-- ทรัพย์สินเดิมก่อน -->
           <div class="form-group">
             <label class="label">
-              ทรัพย์สินเดิมก่อน <span class="required">*</span>
+              ทรัพย์สินได้มาโดย <span class="required">*</span>
             </label>
-            <select class="input">
-              <option>กรุณาเลือก</option>
+            <select bind:value={formData.acquisitionSourceId} class="input">
+              <option value={null}>กรุณาเลือก</option>
+              {#each acquisitionSources as source}
+                <option value={source.id}>{source.name}</option>
+              {/each}
             </select>
           </div>
 
@@ -352,7 +375,7 @@
             <label class="label">
               ขนาดและลักษณะ <span class="required">*</span>
             </label>
-            <input type="text" class="input" />
+            <input type="text" bind:value={formData.sizeDetail} class="input" />
           </div>
 
           <!-- อาคารที่ตั้ง -->
