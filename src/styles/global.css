@@ -1,0 +1,74 @@
+:root {
+  --font-thai: 'Noto Serif Thai', serif;
+}
+
+/* ======================
+        HEADINGS
+====================== */
+
+.text-h1 {
+  font-family: var(--font-thai);
+  font-size: 48px;
+  line-height: 77px;
+  font-weight: 700;
+}
+
+.text-h2 {
+  font-family: var(--font-thai);
+  font-size: 36px;
+  line-height: 58px;
+  font-weight: 700;
+}
+
+.text-h3 {
+  font-family: var(--font-thai);
+  font-size: 24px;
+  line-height: 38px;
+  font-weight: 700;
+}
+
+/* ======================
+          BODY
+====================== */
+
+.text-b1 {
+  font-family: var(--font-thai);
+  font-size: 24px;
+  line-height: 38px;
+  font-weight: 600;
+}
+
+.text-b2 {
+  font-family: var(--font-thai);
+  font-size: 24px;
+  line-height: 38px;
+  font-weight: 500;
+}
+
+.text-b3 {
+  font-family: var(--font-thai);
+  font-size: 20px;
+  line-height: 32px;
+  font-weight: 500;
+}
+
+.text-b4 {
+  font-family: var(--font-thai);
+  font-size: 18px;
+  line-height: 28px;
+  font-weight: 400;
+}
+
+.text-b5 {
+  font-family: var(--font-thai);
+  font-size: 18px;
+  line-height: 28px;
+  font-weight: 600;
+}
+
+.text-b6 {
+  font-family: var(--font-thai);
+  font-size: 16px;
+  line-height: 24px;
+  font-weight: 400;
+}
