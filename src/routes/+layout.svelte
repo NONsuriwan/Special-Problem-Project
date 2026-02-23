@@ -10,7 +10,7 @@
 <div class="min-h-screen bg-gray-50">
   <Sidebar />
   <main class="ml-(--sidebar-w)">
-    <Topbar title={data?.title ?? 'แดชบอร์ด'} />
+    <Topbar />
     <section class="p-6">
       <slot />
     </section>

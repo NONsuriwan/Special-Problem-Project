@@ -195,8 +195,7 @@
   <!-- Header -->
   <div class="header">
     <div>
-      <h1 class="title">สืบค้นครุภัณฑ์</h1>
-      <p class="subtitle">ค้นหา จัดการ และเพิ่มครุภัณฑ์</p>
+      <h1 class="title text-h3">สืบค้นครุภัณฑ์</h1>
     </div>
     <div class="header-actions">
       <button class="btn-secondary">ค้นหา</button>

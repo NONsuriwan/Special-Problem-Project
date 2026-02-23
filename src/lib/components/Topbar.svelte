@@ -1,12 +1,12 @@
 <script lang="ts">
-  export let title = '';
+  import { pageTitle, pageSubtitle } from "$lib/stores/pageTitle";
 </script>
 
-<header class="h-20 w-full border-b bg-white/80 backdrop-blur flex items-center justify-between px-6">
-  <h1 class="text-2xl font-extrabold">{title}</h1>
-  <div class="flex items-center gap-3">
-    <button class="rounded-lg bg-brand-500 text-white px-3 py-2 text-sm hover:bg-brand-600">
-      เข้าสู่ระบบ
-    </button>
+<header class="h-24 w-full border-b bg-white/80 backdrop-blur flex items-center justify-between px-6">
+  <div>
+    <h1 class="text-h2">{$pageTitle}</h1>
+    {#if $pageSubtitle}
+      <p class="text-b4 text-gray-500">{$pageSubtitle}</p>
+    {/if}
   </div>
 </header>

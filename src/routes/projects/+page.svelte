@@ -148,8 +148,7 @@
   <!-- Header -->
   <div class="header">
     <div>
-      <h1 class="title">สืบค้นโครงการ</h1>
-      <p class="subtitle">ค้นหา จัดการ และเพิ่มโครงการ</p>
+      <h1 class="title text-h3">สืบค้นโครงการ</h1>
     </div>
   </div>
 

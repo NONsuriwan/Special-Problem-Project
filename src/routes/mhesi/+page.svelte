@@ -181,8 +181,7 @@
   <!-- Header -->
   <div class="header">
     <div>
-      <h1 class="title">สืบค้นเลข อว.</h1>
-      <p class="subtitle">ค้นหา จัดการ และเพิ่มกิจกรรม</p>
+      <h1 class="title text-h3">สืบค้นเลข อว.</h1>
     </div>
   </div>
 
@@ -193,11 +192,11 @@
         <svg class="search-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
         </svg>
-        <input 
-          bind:value={q} 
+        <input
+          bind:value={q}
           on:keydown={(e) => e.key === 'Enter' && handleSearch()}
-          placeholder="ค้นหา" 
-          class="search-input"
+          placeholder="ค้นหา"
+          class="text-b6 search-input"
         />
         <button class="camera-btn">
           <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -206,8 +205,8 @@
           </svg>
         </button>
       </div>
-      <button class="btn-search" on:click={handleSearch}>ค้นหา</button>
-      <button class="btn-add" on:click={handleAddMhesi}>เพิ่มเลข อว</button>
+      <button class="text-b5 btn-search" on:click={handleSearch}>ค้นหา</button>
+      <button class="text-b5 btn-add" on:click={handleAddMhesi}>เพิ่มเลข อว</button>
     </div>
   </div>
 

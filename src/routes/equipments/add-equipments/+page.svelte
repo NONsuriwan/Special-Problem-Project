@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
+  import Dropdown from '$lib/components/Dropdown.svelte';
 
   type MasterData = {
     id: number;
@@ -55,7 +56,7 @@
   async function fetchMasterData() {
     try {
       const [
-        deptRes, actRes, fundRes, typeRes, srcRes, methodRes, 
+        deptRes, actRes, fundRes, typeRes, srcRes, methodRes,
         buildRes, roomRes, projRes
       ] = await Promise.all([
         fetch('http://localhost:3000/api/masters/departments'),
@@ -95,7 +96,7 @@
       }
 
   // Filter rooms by selected building
-  $: filteredRooms = formData.buildingId 
+  $: filteredRooms = formData.buildingId
     ? rooms.filter(r => r.buildingId === formData.buildingId)
     : rooms;
 
@@ -154,7 +155,7 @@
 
       // Success
       showSuccessModal = true;
-      
+
       // Redirect after 1.5 seconds
       setTimeout(() => {
         goto('/equipments');
@@ -181,8 +182,7 @@
     <!-- Header -->
     <div class="header">
       <div>
-        <h1 class="title">เพิ่มครุภัณฑ์</h1>
-        <p class="subtitle">เพิ่มครุภัณฑ์</p>
+        <h1 class="text-h2">การเพิ่มครุภัณฑ์</h1>
       </div>
     </div>
 
@@ -195,12 +195,11 @@
             <label class="label">
               หน่วยงาน <span class="required">*</span>
             </label>
-            <select bind:value={formData.departmentId} class="input">
-              <option value={null}>กรุณาเลือก</option>
-              {#each departments as dept}
-                <option value={dept.id}>{dept.name}</option>
-              {/each}
-            </select>
+            <Dropdown
+              fullWidth
+              options={departments.map(d => ({ value: d.id, label: d.name }))}
+              bind:value={formData.departmentId}
+            />
           </div>
 
           <!-- กิจกรรม -->
@@ -208,12 +207,11 @@
             <label class="label">
               กิจกรรม <span class="required">*</span>
             </label>
-            <select bind:value={formData.activityId} class="input">
-              <option value={null}>กรุณาเลือก</option>
-              {#each activities as act}
-                <option value={act.id}>{act.name}</option>
-              {/each}
-            </select>
+            <Dropdown
+              fullWidth
+              options={activities.map(a => ({ value: a.id, label: a.name }))}
+              bind:value={formData.activityId}
+            />
           </div>
 
           <!-- กองทุน -->
@@ -221,12 +219,11 @@
             <label class="label">
               กองทุน <span class="required">*</span>
             </label>
-            <select bind:value={formData.fundId} class="input">
-              <option value={null}>กรุณาเลือก</option>
-              {#each funds as fund}
-                <option value={fund.id}>{fund.name}</option>
-              {/each}
-            </select>
+            <Dropdown
+              fullWidth
+              options={funds.map(f => ({ value: f.id, label: f.name }))}
+              bind:value={formData.fundId}
+            />
           </div>
 
           <!-- ปีงบประมาณ -->
@@ -234,12 +231,11 @@
             <label class="label">
               ปีงบประมาณ <span class="required">*</span>
             </label>
-            <select bind:value={formData.fiscalYearId} class="input">
-              <option value={null}>กรุณาเลือก</option>
-              {#each years as year}
-                <option value={year}>{year}</option>
-              {/each}
-            </select>
+            <Dropdown
+              fullWidth
+              options={years.map(y => ({ value: y, label: String(y) }))}
+              bind:value={formData.fiscalYearId}
+            />
           </div>
 
           <!-- รหัสสินทรัพย์ -->
@@ -247,9 +243,12 @@
             <label class="label">
               รหัสสินทรัพย์ <span class="required">*</span>
             </label>
-            <input 
-              type="text" 
+            <input
+              type="text"
+              inputmode="numeric"
+              pattern="[0-9]*"
               bind:value={formData.assetCode}
+              on:input={(e) => { formData.assetCode = e.currentTarget.value.replace(/[^0-9]/g, ''); }}
               class="input"
               required
             />
@@ -260,8 +259,8 @@
             <label class="label">
               ชื่อสินทรัพย์ <span class="required">*</span>
             </label>
-            <input 
-              type="text" 
+            <input
+              type="text"
               bind:value={formData.assetName}
               class="input"
               required
@@ -273,8 +272,8 @@
             <label class="label">
               หมายเลขสินทรัพย์ <span class="required">*</span>
             </label>
-            <input 
-              type="text" 
+            <input
+              type="text"
               bind:value={formData.assetNumber}
               class="input"
             />
@@ -291,12 +290,11 @@
             <label class="label">
               ประเภท <span class="required">*</span>
             </label>
-            <select bind:value={formData.assetTypeId} class="input">
-              <option value={null}>กรุณาเลือก</option>
-              {#each assetTypes as type}
-                <option value={type.id}>{type.name}</option>
-              {/each}
-            </select>
+            <Dropdown
+              fullWidth
+              options={assetTypes.map(t => ({ value: t.id, label: t.name }))}
+              bind:value={formData.assetTypeId}
+            />
           </div>
 
           <!-- ราคา -->
@@ -304,11 +302,14 @@
             <label class="label">
               ราคา <span class="required">*</span>
             </label>
-            <input 
-              type="number" 
-              bind:value={formData.price}
+            <input
+              type="text"
+              inputmode="numeric"
+              pattern="[0-9]*"
+              bind:value={formData.assetCode}
+              on:input={(e) => { formData.assetCode = e.currentTarget.value.replace(/[^0-9]/g, ''); }}
               class="input"
-              step="0.01"
+              required
             />
           </div>
 
@@ -325,8 +326,8 @@
             <label class="label">
               วันที่ได้มา <span class="required">*</span>
             </label>
-            <input 
-              type="date" 
+            <input
+              type="date"
               bind:value={formData.acquisitionDate}
               class="input"
             />
@@ -337,12 +338,11 @@
             <label class="label">
               ทรัพย์สินได้มาโดย <span class="required">*</span>
             </label>
-            <select bind:value={formData.acquisitionSourceId} class="input">
-              <option value={null}>กรุณาเลือก</option>
-              {#each acquisitionSources as source}
-                <option value={source.id}>{source.name}</option>
-              {/each}
-            </select>
+            <Dropdown
+              fullWidth
+              options={acquisitionSources.map(s => ({ value: s.id, label: s.name }))}
+              bind:value={formData.acquisitionSourceId}
+            />
           </div>
 
           <!-- วิธีการได้มา -->
@@ -350,12 +350,11 @@
             <label class="label">
               วิธีการได้มา <span class="required">*</span>
             </label>
-            <select bind:value={formData.acquisitionMethodId} class="input">
-              <option value={null}>กรุณาเลือก</option>
-              {#each acquisitionMethods as method}
-                <option value={method.id}>{method.name}</option>
-              {/each}
-            </select>
+            <Dropdown
+              fullWidth
+              options={acquisitionMethods.map(m => ({ value: m.id, label: m.name }))}
+              bind:value={formData.acquisitionMethodId}
+            />
           </div>
 
           <!-- บริษัท -->
@@ -363,8 +362,8 @@
             <label class="label">
               บริษัท <span class="required">*</span>
             </label>
-            <input 
-              type="text" 
+            <input
+              type="text"
               bind:value={formData.company}
               class="input"
             />
@@ -383,12 +382,11 @@
             <label class="label">
               อาคารที่ตั้ง <span class="required">*</span>
             </label>
-            <select bind:value={formData.buildingId} class="input">
-              <option value={null}>กรุณาเลือก</option>
-              {#each buildings as building}
-                <option value={building.id}>{building.name}</option>
-              {/each}
-            </select>
+            <Dropdown
+              fullWidth
+              options={buildings.map(b => ({ value: b.id, label: b.name }))}
+              bind:value={formData.buildingId}
+            />
           </div>
 
           <!-- ห้องที่ตั้ง -->
@@ -396,12 +394,11 @@
             <label class="label">
               ห้องที่ตั้ง <span class="required">*</span>
             </label>
-            <select bind:value={formData.roomId} class="input">
-              <option value={null}>กรุณาเลือก</option>
-              {#each filteredRooms as room}
-                <option value={room.id}>{room.name}</option>
-              {/each}
-            </select>
+            <Dropdown
+              fullWidth
+              options={filteredRooms.map(r => ({ value: r.id, label: r.name }))}
+              bind:value={formData.roomId}
+            />
           </div>
 
           <!-- โครงการ -->
@@ -409,18 +406,17 @@
             <label class="label">
               โครงการ <span class="required">*</span>
             </label>
-            <select bind:value={formData.projectId} class="input">
-              <option value={null}>กรุณาเลือก</option>
-              {#each projects as project}
-                <option value={project.id}>{project.name}</option>
-              {/each}
-            </select>
+            <Dropdown
+              fullWidth
+              options={projects.map(p => ({ value: p.id, label: p.name }))}
+              bind:value={formData.projectId}
+            />
           </div>
 
           <!-- หมายเหตุ -->
           <div class="form-group">
             <label class="label">หมายเหตุ</label>
-            <textarea 
+            <textarea
               bind:value={formData.note}
               class="input textarea"
               rows="3"
@@ -433,8 +429,8 @@
               เอกสารแนบ <span class="required">*</span>
             </label>
             <div class="file-upload">
-              <input 
-                type="file" 
+              <input
+                type="file"
                 id="file-input"
                 on:change={handleFileChange}
                 accept=".pdf,.jpg,.jpeg,.png"
@@ -467,15 +463,15 @@
 
         <!-- Form Actions -->
         <div class="form-actions">
-          <button 
-            type="submit" 
+          <button
+            type="submit"
             class="btn-submit"
             disabled={loading}
           >
             {loading ? 'กำลังบันทึก...' : 'บันทึก'}
           </button>
-          <button 
-            type="button" 
+          <button
+            type="button"
             class="btn-cancel"
             on:click={handleCancel}
             disabled={loading}
