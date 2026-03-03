@@ -1,6 +1,6 @@
 <script lang="ts">
-  import StatCard from '$lib/components/StatCard.svelte';
-  import Dropdown from '$lib/components/Dropdown.svelte';
+  import StatCard from '$lib/components/ui/StatCard.svelte';
+  import Dropdown from '$lib/components/ui/Dropdown.svelte';
 
   const stats = [
     { label: 'ครุภัณฑ์ทั้งหมด', value: 'X,XXX', icon: '📦' },

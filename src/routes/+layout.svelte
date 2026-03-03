@@ -1,8 +1,8 @@
 <script lang="ts">
   import '../app.css';
   import type { LayoutData } from './+layout';
-  import Sidebar from '$lib/components/Sidebar.svelte';
-  import Topbar from '$lib/components/Topbar.svelte';
+  import Sidebar from '$lib/components/layout/Sidebar.svelte';
+  import Topbar from '$lib/components/layout/Topbar.svelte';
   
   export let data: LayoutData;
 </script>

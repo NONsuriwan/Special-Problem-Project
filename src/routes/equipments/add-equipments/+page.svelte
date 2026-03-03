@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
-  import Dropdown from '$lib/components/Dropdown.svelte';
+  import Dropdown from '$lib/components/ui/Dropdown.svelte';
 
   type MasterData = {
     id: number;
