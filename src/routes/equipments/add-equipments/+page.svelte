@@ -50,7 +50,17 @@
   let loading = false;
   let showSuccessModal = false;
   let errorMessage = '';
-  let attachmentFile: File | null = null;
+  let attachmentFiles: File[] = [];
+
+  function getFileType(file: File): 'pdf' | 'image' | 'other' {
+    if (file.type === 'application/pdf') return 'pdf';
+    if (file.type.startsWith('image/')) return 'image';
+    return 'other';
+  }
+
+  function removeFile(index: number) {
+    attachmentFiles = attachmentFiles.filter((_, i) => i !== index);
+  }
 
   // Fetch all master data
   async function fetchMasterData() {
@@ -104,7 +114,11 @@
   function handleFileChange(e: Event) {
     const target = e.target as HTMLInputElement;
     if (target.files && target.files.length > 0) {
-      attachmentFile = target.files[0];
+      const newFiles = Array.from(target.files).filter(
+        nf => !attachmentFiles.some(ef => ef.name === nf.name)
+      );
+      attachmentFiles = [...attachmentFiles, ...newFiles];
+      target.value = '';
     }
   }
 
@@ -207,10 +221,14 @@
             <label class="label">
               กิจกรรม <span class="required">*</span>
             </label>
-            <Dropdown
-              fullWidth
-              options={activities.map(a => ({ value: a.id, label: a.name }))}
-              bind:value={formData.activityId}
+            <input
+              type="text"
+              inputmode="numeric"
+              pattern="[0-9]*"
+              bind:value={formData.assetCode}
+              on:input={(e) => { formData.assetCode = e.currentTarget.value.replace(/[^0-9]/g, ''); }}
+              class="input"
+              required
             />
           </div>
 
@@ -282,7 +300,27 @@
           <!-- ถึง -->
           <div class="form-group">
             <label class="label">ถึง</label>
-            <input type="text" class="input" />
+            <div class="range-input">
+              <input
+              type="text"
+              inputmode="numeric"
+              pattern="[0-9]*"
+              bind:value={formData.assetCode}
+              on:input={(e) => { formData.assetCode = e.currentTarget.value.replace(/[^0-9]/g, ''); }}
+              class="input"
+              required
+            />
+              <span class="range-separator">-</span>
+              <input
+              type="text"
+              inputmode="numeric"
+              pattern="[0-9]*"
+              bind:value={formData.assetCode}
+              on:input={(e) => { formData.assetCode = e.currentTarget.value.replace(/[^0-9]/g, ''); }}
+              class="input"
+              required
+            />
+            </div>
           </div>
 
           <!-- ประเภท -->
@@ -434,19 +472,39 @@
                 id="file-input"
                 on:change={handleFileChange}
                 accept=".pdf,.jpg,.jpeg,.png"
+                multiple
                 hidden
               />
               <label for="file-input" class="file-upload-label">
                 <svg class="upload-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                 </svg>
-                <div class="upload-text">
-                  <p class="upload-title">คลิกเพื่อเปิดไฟล์แนบ หรือลากไฟล์มาวางที่นี่</p>
-                  {#if attachmentFile}
-                    <p class="file-name">{attachmentFile.name}</p>
-                  {/if}
-                </div>
+                <p class="upload-title">คลิกเพื่อเปิดไฟล์แนบ หรือลากไฟล์มาวางที่นี่</p>
               </label>
+
+              {#if attachmentFiles.length > 0}
+                <div class="file-list">
+                  {#each attachmentFiles as file, i}
+                    <div class="file-item">
+                      <button class="file-remove" type="button" on:click={() => removeFile(i)}>✕</button>
+                      {#if getFileType(file) === 'pdf'}
+                        <svg class="file-icon pdf-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                      {:else if getFileType(file) === 'image'}
+                        <svg class="file-icon image-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                      {:else}
+                        <svg class="file-icon other-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                      {/if}
+                      <span class="file-item-name">{file.name}</span>
+                    </div>
+                  {/each}
+                </div>
+              {/if}
             </div>
           </div>
         </div>
@@ -584,6 +642,22 @@
     min-height: 80px;
   }
 
+  .range-input {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .range-input .input {
+    flex: 1;
+  }
+
+  .range-separator {
+    color: #374151;
+    font-weight: 500;
+    flex-shrink: 0;
+  }
+
   /* File Upload */
   .file-upload {
     border: 2px dashed #d1d5db;
@@ -619,13 +693,64 @@
   .upload-title {
     font-size: 0.875rem;
     margin: 0;
+    color: #6b7280;
   }
 
-  .file-name {
-    font-size: 0.875rem;
-    color: #ffa200;
-    font-weight: 500;
-    margin-top: 0.5rem;
+  .file-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin-top: 1.25rem;
+    justify-content: center;
+  }
+
+  .file-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.375rem;
+    position: relative;
+    width: 72px;
+  }
+
+  .file-icon {
+    width: 2.5rem;
+    height: 2.5rem;
+  }
+
+  .pdf-icon { color: #ef4444; }
+  .image-icon { color: #3b82f6; }
+  .other-icon { color: #6b7280; }
+
+  .file-item-name {
+    font-size: 0.65rem;
+    color: #374151;
+    text-align: center;
+    word-break: break-all;
+    line-height: 1.3;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .file-remove {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: #ef4444;
+    color: white;
+    border: none;
+    cursor: pointer;
+    font-size: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    line-height: 1;
   }
 
   /* Error Banner */
