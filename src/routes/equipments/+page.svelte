@@ -302,31 +302,12 @@
 </div>
 
 <style>
-  .page-container {
-    background: #e5e5e5;
-    min-height: 100vh;
-    padding: 2rem;
-  }
-
-  /* Header */
+  /* Header with actions layout (overrides shared .header) */
   .header {
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
     margin-bottom: 1.5rem;
-  }
-
-  .title {
-    font-size: 2rem;
-    font-weight: 700;
-    color: #1f2937;
-    margin: 0 0 0.25rem 0;
-  }
-
-  .subtitle {
-    font-size: 0.875rem;
-    color: #6b7280;
-    margin: 0;
   }
 
   .header-actions {
@@ -366,7 +347,7 @@
     background: #f9fafb;
   }
 
-  /* Search */
+  /* Search wrapper (unique to this page) */
   .search-container {
     margin-bottom: 1rem;
   }
@@ -376,148 +357,19 @@
     max-width: 700px;
   }
 
-  .search-icon {
-    position: absolute;
-    left: 1rem;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 1.25rem;
-    height: 1.25rem;
-    color: #9ca3af;
-  }
-
-  .search-input {
-    width: 100%;
-    padding: 0.75rem 3.5rem 0.75rem 3rem;
-    border: 1px solid #d1d5db;
-    border-radius: 0.5rem;
-    font-size: 0.875rem;
-    background: white;
-  }
-
-  .search-input:focus {
-    outline: none;
-    border-color: #ffa200;
-    box-shadow: 0 0 0 3px rgba(255, 162, 0, 0.1);
-  }
-
-  .camera-btn {
-    position: absolute;
-    right: 0.5rem;
-    top: 50%;
-    transform: translateY(-50%);
-    background: white;
-    border: 1px solid #d1d5db;
-    padding: 0.5rem;
-    border-radius: 0.375rem;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  .camera-btn svg {
-    width: 1.25rem;
-    height: 1.25rem;
-    color: #6b7280;
-  }
-
-  .camera-btn:hover {
-    background: #f9fafb;
-  }
-
-  /* Tabs */
-  .tabs-container {
-    display: flex;
-    gap: 0.75rem;
-    margin-bottom: 1.5rem;
-    align-items: center;
-  }
-
-  .filter-btn {
-    background: white;
-    border: 1px solid #d1d5db;
-    padding: 0.625rem;
-    border-radius: 0.5rem;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-  }
-
-  .filter-btn svg {
-    width: 1.25rem;
-    height: 1.25rem;
-    color: #6b7280;
-  }
-
-  .filter-btn:hover {
-    background: #f9fafb;
-  }
-
-  .tabs {
-    display: flex;
-    gap: 0.5rem;
-    overflow-x: auto;
-    padding: 0.25rem 0;
-  }
-
-  .tab {
-    background: white;
-    border: none;
-    padding: 0.625rem 1.25rem;
-    border-radius: 1.5rem;
-    font-size: 0.875rem;
-    font-weight: 500;
-    color: #6b7280;
-    cursor: pointer;
-    white-space: nowrap;
-    transition: all 0.2s;
-  }
-
-  .tab:hover {
-    background: #f9fafb;
-  }
-
-  .tab.active {
-    background: #ffa200;
-    color: white;
-  }
-
-  /* Table */
-  .table-container {
-    background: white;
-    border-radius: 0.75rem;
-    overflow: hidden;
-    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
-  }
-
-  .table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 0.875rem;
-  }
-
-  .table thead {
-    background: #f9fafb;
-  }
-
+  /* Table (different padding + no uppercase) */
   .table th {
     padding: 0.875rem 1rem;
-    text-align: left;
-    font-weight: 600;
-    color: #374151;
-    border-bottom: 1px solid #e5e7eb;
+    text-transform: none;
+    font-size: 0.875rem;
+    letter-spacing: normal;
   }
 
   .table td {
     padding: 0.875rem 1rem;
-    color: #1f2937;
-    border-bottom: 1px solid #f3f4f6;
   }
 
-  /* Clickable Row Styles */
+  /* Clickable Row */
   .clickable-row {
     cursor: pointer;
     transition: all 0.2s ease;
@@ -535,14 +387,6 @@
   .clickable-row:focus {
     outline: 2px solid #ffa200;
     outline-offset: -2px;
-  }
-
-  .table tbody tr:last-child td {
-    border-bottom: none;
-  }
-
-  .text-right {
-    text-align: right;
   }
 
   /* Status Badge */
@@ -577,61 +421,5 @@
   .status-disposed {
     background: #f3f4f6;
     color: #4b5563;
-  }
-
-  /* Loading */
-  .loading {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 3rem;
-    background: white;
-    border-radius: 0.75rem;
-  }
-
-  .spinner {
-    width: 2rem;
-    height: 2rem;
-    border: 3px solid #f3f4f6;
-    border-top-color: #ffa200;
-    border-radius: 50%;
-    animation: spin 0.8s linear infinite;
-  }
-
-  @keyframes spin {
-    to { transform: rotate(360deg); }
-  }
-
-  .loading p {
-    margin-top: 1rem;
-    color: #6b7280;
-  }
-
-  /* Error & Empty */
-  .error-box, .empty-box {
-    background: white;
-    padding: 3rem;
-    border-radius: 0.75rem;
-    text-align: center;
-  }
-
-  .error-box p {
-    color: #dc2626;
-    margin-bottom: 1rem;
-  }
-
-  .retry-btn {
-    background: #ffa200;
-    color: white;
-    border: none;
-    padding: 0.5rem 1rem;
-    border-radius: 0.375rem;
-    font-size: 0.875rem;
-    cursor: pointer;
-  }
-
-  .empty-box p {
-    color: #6b7280;
   }
 </style>

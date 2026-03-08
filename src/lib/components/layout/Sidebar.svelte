@@ -19,7 +19,7 @@
       label: "เลข อว.",
       icon: "🧾",
       children: [
-        { href: "/mhesi", label: "ลงทะเบียนเลข อว.", subtitle: "เพิ่มเลข อว. ใหม่เข้าสู่ระบบ" },
+        { href: "/mhesi/add-mhesi", label: "ลงทะเบียนเลข อว.", subtitle: "เพิ่มเลข อว. ใหม่เข้าสู่ระบบ" },
         { href: "/mhesi", label: "สืบค้นเลข อว.", subtitle: "ค้นหา จัดการ และเพิ่มกิจกรรม" },
       ]
     },
@@ -27,7 +27,7 @@
       label: "โครงการ",
       icon: "📁",
       children: [
-        { href: "/projects", label: "ลงทะเบียนโครงการ", subtitle: "เพิ่มโครงการใหม่เข้าสู่ระบบ" },
+        { href: "/projects/add-project", label: "ลงทะเบียนโครงการ", subtitle: "เพิ่มโครงการใหม่เข้าสู่ระบบ" },
         { href: "/projects", label: "สืบค้นโครงการ", subtitle: "ค้นหา จัดการ และเพิ่มโครงการ" },
       ]
     },
@@ -163,8 +163,8 @@
         <img src="https://ui-avatars.com/api/?name=Sommoot" alt="User" />
       </div>
       <div class="flex-1 min-w-0">
-        <p class="text-sm font-semibold truncate">นายสมมุติ มีอยู่จริง</p>
-        <p class="text-[10px] opacity-80 truncate">sommoot@kmitl.ac.th</p>
+        <p class="text-b6 font-semibold truncate">นายสมมุติ มีอยู่จริง</p>
+        <p class="text-[12px] opacity-80 truncate">sommoot@kmitl.ac.th</p>
       </div>
       <button class="text-white/60 hover:text-white transition-colors">
         <span class="text-xs">•••</span>

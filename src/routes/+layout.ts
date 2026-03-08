@@ -1,9 +1,8 @@
-export const load = async () => {
-  return {
-    title: 'แดชบอร์ด'
-  };
-};
+import type { LayoutLoad } from './$types';
 
-export type LayoutData = {
-  title?: string;
+export const load: LayoutLoad = async ({ data }) => {
+  return {
+    title: 'แดชบอร์ด',
+    ...data   // forward session from +layout.server.ts
+  };
 };

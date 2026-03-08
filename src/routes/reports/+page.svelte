@@ -1,5 +1,5 @@
 <script lang="ts">
-  import Dropdown from '$lib/components/Dropdown.svelte';
+  import Dropdown from '$lib/components/ui/Dropdown.svelte';
 
   let tab: 'ครุภัณฑ์' | 'เลข อว.' | 'โครงการ' = 'ครุภัณฑ์';
   let category = 'ทั้งหมด';

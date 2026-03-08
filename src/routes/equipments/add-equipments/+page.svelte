@@ -27,8 +27,12 @@
   // Form data
   let formData = {
     assetCode: '',
+    assetCodeFrom: '',
+    assetCodeTo: '',
+    activityCode: '',
     assetName: '',
     assetNumber: '',
+    unit: '',
     departmentId: null as number | null,
     assetTypeId: null as number | null,
     activityId: null as number | null,
@@ -50,6 +54,7 @@
   let loading = false;
   let showSuccessModal = false;
   let errorMessage = '';
+  let errors: Record<string, boolean> = {};
   let attachmentFiles: File[] = [];
 
   function getFileType(file: File): 'pdf' | 'image' | 'other' {
@@ -125,10 +130,30 @@
   // Submit form
   async function handleSubmit() {
     errorMessage = '';
+    errors = {};
 
-    // Validation
-    if (!formData.assetCode || !formData.assetName) {
-      errorMessage = 'กรุณากรอกข้อมูลที่จำเป็น (รหัสครุภัณฑ์และชื่อครุภัณฑ์)';
+    if (!formData.departmentId) errors.departmentId = true;
+    if (!formData.activityCode.trim()) errors.activityCode = true;
+    if (!formData.fundId) errors.fundId = true;
+    if (!formData.fiscalYearId) errors.fiscalYearId = true;
+    if (!formData.assetCode.trim()) errors.assetCode = true;
+    if (!formData.assetName.trim()) errors.assetName = true;
+    if (!formData.assetNumber.trim()) errors.assetNumber = true;
+    if (!formData.assetTypeId) errors.assetTypeId = true;
+    if (!formData.price.trim()) errors.price = true;
+    if (!formData.unit.trim()) errors.unit = true;
+    if (!formData.acquisitionDate) errors.acquisitionDate = true;
+    if (!formData.acquisitionSourceId) errors.acquisitionSourceId = true;
+    if (!formData.acquisitionMethodId) errors.acquisitionMethodId = true;
+    if (!formData.company.trim()) errors.company = true;
+    if (!formData.sizeDetail.trim()) errors.sizeDetail = true;
+    if (!formData.buildingId) errors.buildingId = true;
+    if (!formData.roomId) errors.roomId = true;
+    if (!formData.projectId) errors.projectId = true;
+    if (attachmentFiles.length === 0) errors.attachments = true;
+
+    if (Object.keys(errors).length > 0) {
+      errorMessage = 'กรุณากรอกข้อมูลที่จำเป็นให้ครบทุกช่อง';
       return;
     }
 
@@ -205,7 +230,7 @@
       <form on:submit|preventDefault={handleSubmit}>
         <div class="form-grid">
           <!-- หน่วยงาน -->
-          <div class="form-group">
+          <div class="form-group" class:error-wrapper={errors.departmentId}>
             <label class="label">
               หน่วยงาน <span class="required">*</span>
             </label>
@@ -225,15 +250,15 @@
               type="text"
               inputmode="numeric"
               pattern="[0-9]*"
-              bind:value={formData.assetCode}
-              on:input={(e) => { formData.assetCode = e.currentTarget.value.replace(/[^0-9]/g, ''); }}
+              bind:value={formData.activityCode}
+              on:input={(e) => { formData.activityCode = e.currentTarget.value.replace(/[^0-9]/g, ''); }}
               class="input"
-              required
+              class:input-error={errors.activityCode}
             />
           </div>
 
           <!-- กองทุน -->
-          <div class="form-group">
+          <div class="form-group" class:error-wrapper={errors.fundId}>
             <label class="label">
               กองทุน <span class="required">*</span>
             </label>
@@ -245,7 +270,7 @@
           </div>
 
           <!-- ปีงบประมาณ -->
-          <div class="form-group">
+          <div class="form-group" class:error-wrapper={errors.fiscalYearId}>
             <label class="label">
               ปีงบประมาณ <span class="required">*</span>
             </label>
@@ -268,7 +293,7 @@
               bind:value={formData.assetCode}
               on:input={(e) => { formData.assetCode = e.currentTarget.value.replace(/[^0-9]/g, ''); }}
               class="input"
-              required
+              class:input-error={errors.assetCode}
             />
           </div>
 
@@ -281,7 +306,7 @@
               type="text"
               bind:value={formData.assetName}
               class="input"
-              required
+              class:input-error={errors.assetName}
             />
           </div>
 
@@ -294,6 +319,7 @@
               type="text"
               bind:value={formData.assetNumber}
               class="input"
+              class:input-error={errors.assetNumber}
             />
           </div>
 
@@ -302,29 +328,27 @@
             <label class="label">ถึง</label>
             <div class="range-input">
               <input
-              type="text"
-              inputmode="numeric"
-              pattern="[0-9]*"
-              bind:value={formData.assetCode}
-              on:input={(e) => { formData.assetCode = e.currentTarget.value.replace(/[^0-9]/g, ''); }}
-              class="input"
-              required
-            />
+                type="text"
+                inputmode="numeric"
+                pattern="[0-9]*"
+                bind:value={formData.assetCodeFrom}
+                on:input={(e) => { formData.assetCodeFrom = e.currentTarget.value.replace(/[^0-9]/g, ''); }}
+                class="input"
+              />
               <span class="range-separator">-</span>
               <input
-              type="text"
-              inputmode="numeric"
-              pattern="[0-9]*"
-              bind:value={formData.assetCode}
-              on:input={(e) => { formData.assetCode = e.currentTarget.value.replace(/[^0-9]/g, ''); }}
-              class="input"
-              required
-            />
+                type="text"
+                inputmode="numeric"
+                pattern="[0-9]*"
+                bind:value={formData.assetCodeTo}
+                on:input={(e) => { formData.assetCodeTo = e.currentTarget.value.replace(/[^0-9]/g, ''); }}
+                class="input"
+              />
             </div>
           </div>
 
           <!-- ประเภท -->
-          <div class="form-group">
+          <div class="form-group" class:error-wrapper={errors.assetTypeId}>
             <label class="label">
               ประเภท <span class="required">*</span>
             </label>
@@ -342,12 +366,11 @@
             </label>
             <input
               type="text"
-              inputmode="numeric"
-              pattern="[0-9]*"
-              bind:value={formData.assetCode}
-              on:input={(e) => { formData.assetCode = e.currentTarget.value.replace(/[^0-9]/g, ''); }}
+              inputmode="decimal"
+              bind:value={formData.price}
+              on:input={(e) => { formData.price = e.currentTarget.value.replace(/[^0-9.]/g, ''); }}
               class="input"
-              required
+              class:input-error={errors.price}
             />
           </div>
 
@@ -356,7 +379,12 @@
             <label class="label">
               หน่วยนับ <span class="required">*</span>
             </label>
-            <input type="text" class="input" />
+            <input
+              type="text"
+              bind:value={formData.unit}
+              class="input"
+              class:input-error={errors.unit}
+            />
           </div>
 
           <!-- วันที่ได้มา -->
@@ -368,11 +396,12 @@
               type="date"
               bind:value={formData.acquisitionDate}
               class="input"
+              class:input-error={errors.acquisitionDate}
             />
           </div>
 
           <!-- ทรัพย์สินเดิมก่อน -->
-          <div class="form-group">
+          <div class="form-group" class:error-wrapper={errors.acquisitionSourceId}>
             <label class="label">
               ทรัพย์สินได้มาโดย <span class="required">*</span>
             </label>
@@ -384,7 +413,7 @@
           </div>
 
           <!-- วิธีการได้มา -->
-          <div class="form-group">
+          <div class="form-group" class:error-wrapper={errors.acquisitionMethodId}>
             <label class="label">
               วิธีการได้มา <span class="required">*</span>
             </label>
@@ -404,6 +433,7 @@
               type="text"
               bind:value={formData.company}
               class="input"
+              class:input-error={errors.company}
             />
           </div>
 
@@ -412,11 +442,16 @@
             <label class="label">
               ขนาดและลักษณะ <span class="required">*</span>
             </label>
-            <input type="text" bind:value={formData.sizeDetail} class="input" />
+            <input
+              type="text"
+              bind:value={formData.sizeDetail}
+              class="input"
+              class:input-error={errors.sizeDetail}
+            />
           </div>
 
           <!-- อาคารที่ตั้ง -->
-          <div class="form-group">
+          <div class="form-group" class:error-wrapper={errors.buildingId}>
             <label class="label">
               อาคารที่ตั้ง <span class="required">*</span>
             </label>
@@ -428,7 +463,7 @@
           </div>
 
           <!-- ห้องที่ตั้ง -->
-          <div class="form-group">
+          <div class="form-group" class:error-wrapper={errors.roomId}>
             <label class="label">
               ห้องที่ตั้ง <span class="required">*</span>
             </label>
@@ -440,7 +475,7 @@
           </div>
 
           <!-- โครงการ -->
-          <div class="form-group">
+          <div class="form-group" class:error-wrapper={errors.projectId}>
             <label class="label">
               โครงการ <span class="required">*</span>
             </label>
@@ -466,7 +501,7 @@
             <label class="label">
               เอกสารแนบ <span class="required">*</span>
             </label>
-            <div class="file-upload">
+            <div class="file-upload" class:file-upload-error={errors.attachments}>
               <input
                 type="file"
                 id="file-input"
@@ -558,83 +593,8 @@
 {/if}
 
 <style>
-  .page-container {
-    background: #e5e5e5;
-    min-height: 100vh;
-    padding: 2rem;
-  }
-
-  .content-wrapper {
-    max-width: 1200px;
-    margin: 0 auto;
-  }
-
-  /* Header */
-  .header {
-    margin-bottom: 1.5rem;
-  }
-
-  .title {
-    font-size: 2rem;
-    font-weight: 700;
-    color: #1f2937;
-    margin: 0 0 0.25rem 0;
-  }
-
-  .subtitle {
-    font-size: 0.875rem;
-    color: #6b7280;
-    margin: 0;
-  }
-
-  /* Form Card */
-  .form-card {
-    background: white;
-    border-radius: 0.75rem;
-    padding: 2rem;
-    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
-  }
-
-  /* Form Grid */
-  .form-grid {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 1.5rem;
-    margin-bottom: 2rem;
-  }
-
-  .form-group {
-    display: flex;
-    flex-direction: column;
-  }
-
-  .form-group.full-width {
-    grid-column: 1 / -1;
-  }
-
-  .label {
-    font-size: 0.875rem;
-    font-weight: 500;
-    color: #374151;
-    margin-bottom: 0.5rem;
-  }
-
-  .required {
-    color: #dc2626;
-  }
-
-  .input {
-    padding: 0.625rem 0.875rem;
-    border: 1px solid #d1d5db;
-    border-radius: 0.5rem;
-    font-size: 0.875rem;
-    transition: all 0.2s;
-  }
-
-  .input:focus {
-    outline: none;
-    border-color: #ffa200;
-    box-shadow: 0 0 0 3px rgba(255, 162, 0, 0.1);
+  .file-upload-error {
+    border-color: #dc2626 !important;
   }
 
   .textarea {
@@ -751,140 +711,5 @@
     justify-content: center;
     padding: 0;
     line-height: 1;
-  }
-
-  /* Error Banner */
-  .error-banner {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    background: #fef2f2;
-    border: 1px solid #fecaca;
-    border-radius: 0.5rem;
-    padding: 1rem;
-    margin-bottom: 1.5rem;
-    color: #dc2626;
-  }
-
-  .error-icon {
-    width: 1.25rem;
-    height: 1.25rem;
-    flex-shrink: 0;
-  }
-
-  /* Form Actions */
-  .form-actions {
-    display: flex;
-    justify-content: center;
-    gap: 1rem;
-  }
-
-  .btn-submit, .btn-cancel {
-    padding: 0.75rem 2.5rem;
-    border-radius: 0.5rem;
-    font-size: 0.875rem;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.2s;
-    border: none;
-  }
-
-  .btn-submit {
-    background: #ffa200;
-    color: white;
-  }
-
-  .btn-submit:hover:not(:disabled) {
-    background: #e69200;
-  }
-
-  .btn-submit:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-  }
-
-  .btn-cancel {
-    background: white;
-    color: #374151;
-    border: 1px solid #d1d5db;
-  }
-
-  .btn-cancel:hover:not(:disabled) {
-    background: #f9fafb;
-  }
-
-  /* Modal */
-  .modal-overlay {
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.5);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 50;
-    animation: fadeIn 0.2s;
-  }
-
-  .modal-content {
-    background: white;
-    border-radius: 0.75rem;
-    padding: 2rem;
-    max-width: 400px;
-    text-align: center;
-    animation: scaleIn 0.2s;
-  }
-
-  .success-icon {
-    width: 4rem;
-    height: 4rem;
-    background: #dcfce7;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin: 0 auto 1rem;
-  }
-
-  .success-icon svg {
-    width: 2rem;
-    height: 2rem;
-    color: #16a34a;
-  }
-
-  .modal-title {
-    font-size: 1.25rem;
-    font-weight: 600;
-    color: #1f2937;
-    margin: 0 0 0.5rem 0;
-  }
-
-  .modal-text {
-    color: #6b7280;
-    margin: 0;
-  }
-
-  @keyframes fadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
-  }
-
-  @keyframes scaleIn {
-    from { transform: scale(0.9); }
-    to { transform: scale(1); }
-  }
-
-  /* Responsive */
-  @media (max-width: 768px) {
-    .form-grid {
-      grid-template-columns: 1fr;
-    }
-
-    .page-container {
-      padding: 1rem;
-    }
-
-    .form-card {
-      padding: 1.5rem;
-    }
   }
 </style>
