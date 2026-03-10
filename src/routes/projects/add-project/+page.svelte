@@ -39,7 +39,7 @@
 
   async function fetchMasterData() {
     try {
-      const res = await fetch('http://localhost:3000/api/masters/acquisition-sources');
+      const res = await fetch('http://localhost:3000/api/masters/acquisition-sources', { credentials: 'include' });
       if (res.ok) {
         const data = await res.json();
         acquisitionSources = data.data || [];
@@ -79,6 +79,7 @@
 
       const response = await fetch('http://localhost:3000/api/projects', {
         method: 'POST',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(submitData),
       });

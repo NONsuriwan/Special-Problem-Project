@@ -119,9 +119,9 @@
             class="w-full flex items-center justify-between px-4 py-3 rounded-lg hover:bg-black/5 transition-colors
                   {l.children.some(child => isActive(currentPath, child.href)) ? 'bg-white/20' : ''}"
           >
-            <div class="flex items-center-safe gap-4">
+            <div class="flex items-end gap-4">
               <span class="text-2xl">{l.icon}</span>
-              <span class="text-b6">{l.label}</span>
+              <span class="text-b6 ">{l.label}</span>
             </div>
             <span class="text-[10px] transform transition-transform {openMenus[l.label] ? 'rotate-180' : ''}">
               ▼
@@ -134,9 +134,10 @@
                 <a
                   href={child.href}
                   on:click={() => selectChild(child.label, child.subtitle ?? '')}
-                  class="block pl-20 py-2 text-b6 hover:translate-x-1 transition-all
-                        {selectedChildLabel === child.label ? 'font-bold underline underline-offset-4' : ''}"
+                  class="flex items-center gap-2 pl-14 py-2 text-b6 hover:translate-x-1 transition-all
+                        {selectedChildLabel === child.label ? 'font-bold' : 'opacity-85'}"
                 >
+                  <span class="text-white/60 text-base">›</span>
                   {child.label}
                 </a>
               {/each}

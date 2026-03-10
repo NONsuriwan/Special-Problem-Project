@@ -4,9 +4,10 @@
 
   type Asset = {
     id: number;
-    assetCode: string;
-    assetName: string;
-    assetTypeId: number | null;
+    uuid: string;
+    equipmentCode: string;
+    equipmentName: string;
+    equipmentTypeId: number | null;
     status: string;
     acquisitionDate: string | null;
     price: string | null;
@@ -36,6 +37,14 @@
   let loading = true;
   let error = '';
 
+  // Pagination state
+  let currentPage = 1;
+  let limit = 10;
+  let totalItems = 0;
+  let totalPages = 0;
+
+  const limitOptions = [10, 25, 50, 100];
+
   // Master data
   let assetTypes: MasterData[] = [];
   let buildings: MasterData[] = [];
@@ -59,9 +68,9 @@
   async function fetchMasterData() {
     try {
       const [typesRes, buildingsRes, roomsRes] = await Promise.all([
-        fetch('http://localhost:3000/api/masters/asset-types'),
-        fetch('http://localhost:3000/api/masters/buildings'),
-        fetch('http://localhost:3000/api/masters/rooms')
+        fetch('http://localhost:3000/api/masters/equipment-types', { credentials: 'include' }),
+        fetch('http://localhost:3000/api/masters/buildings', { credentials: 'include' }),
+        fetch('http://localhost:3000/api/masters/rooms', { credentials: 'include' })
       ]);
 
       if (typesRes.ok) {
@@ -89,17 +98,23 @@
     try {
       loading = true;
       error = '';
-      
-      const response = await fetch('http://localhost:3000/api/assets?limit=100');
-      
+
+      const url = new URL('http://localhost:3000/api/equipment');
+      url.searchParams.set('page', String(currentPage));
+      url.searchParams.set('limit', String(limit));
+
+      const response = await fetch(url.toString(), { credentials: 'include' });
+
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
-      
+
       const result: ApiResponse = await response.json();
-      
+
       if (result.success && result.data) {
         items = result.data;
+        totalItems = result.pagination?.total ?? 0;
+        totalPages = result.pagination?.totalPages ?? 0;
       } else {
         throw new Error('Invalid response format');
       }
@@ -111,8 +126,34 @@
     }
   }
 
+  function goToPage(p: number) {
+    if (p < 1 || p > totalPages) return;
+    currentPage = p;
+    fetchAssets();
+  }
+
+  function onLimitChange(e: Event) {
+    limit = parseInt((e.target as HTMLSelectElement).value);
+    currentPage = 1;
+    fetchAssets();
+  }
+
+  // Page numbers to show (max 5 around current page)
+  $: pageNumbers = (() => {
+    if (totalPages <= 7) return Array.from({ length: totalPages }, (_, i) => i + 1);
+    const pages: (number | '...')[] = [];
+    if (currentPage <= 4) {
+      pages.push(1, 2, 3, 4, 5, '...', totalPages);
+    } else if (currentPage >= totalPages - 3) {
+      pages.push(1, '...', totalPages - 4, totalPages - 3, totalPages - 2, totalPages - 1, totalPages);
+    } else {
+      pages.push(1, '...', currentPage - 1, currentPage, currentPage + 1, '...', totalPages);
+    }
+    return pages;
+  })();
+
   // Get name from ID
-  function getAssetTypeName(id: number | null): string {
+  function getEquipmentTypeName(id: number | null): string {
     if (!id) return '-';
     return assetTypes.find(t => t.id === id)?.name || `ID: ${id}`;
   }
@@ -129,19 +170,19 @@
 
   // Filter rows based on search and category
   $: rows = items.filter((x) => {
-    const typeName = getAssetTypeName(x.assetTypeId);
+    const typeName = getEquipmentTypeName(x.equipmentTypeId);
     const buildingName = getBuildingName(x.buildingId);
     const roomName = getRoomName(x.roomId);
-    
-    const byQuery = q === '' || 
-      [x.assetCode, x.assetName, typeName, buildingName, roomName]
+
+    const byQuery = q === '' ||
+      [x.equipmentCode, x.equipmentName, typeName, buildingName, roomName]
         .join(' ')
         .toLowerCase()
         .includes(q.toLowerCase());
-    
+
     const byFilter = filter === 'ทั้งหมด' || typeName === filter;
     const byTab = activeTab === 'ทั้งหมด' || typeName === activeTab;
-    
+
     return byFilter && byQuery && byTab;
   });
 
@@ -165,8 +206,10 @@
   // Map status to Thai
   function getStatusText(status: string): string {
     const statusMap: Record<string, string> = {
+      'normal': 'ปกติ',
       'available': 'ปกติ',
       'borrowed': 'ถูกยืม',
+      'repair': 'กำลังซ่อม',
       'repairing': 'กำลังซ่อม',
       'unavailable': 'ไม่พร้อมใช้งาน',
       'disposed': 'จำหน่ายแล้ว'
@@ -180,8 +223,8 @@
   }
 
   // Navigate to equipment detail page
-  function handleRowClick(assetId: number) {
-    goto(`/equipments/detail/${assetId}`);
+  function handleRowClick(uuid: string) {
+    goto(`/equipments/detail/${uuid}`);
   }
 
   // Load data on mount
@@ -258,7 +301,8 @@
       <p>ไม่พบข้อมูลครุภัณฑ์</p>
     </div>
   {:else}
-    <div class="table-container">
+    <div class="card-wrapper">
+    <div class="table-container table-no-radius">
       <table class="table">
         <thead>
           <tr>
@@ -274,16 +318,16 @@
         </thead>
         <tbody>
           {#each rows as r (r.id)}
-            <tr 
-              class="clickable-row" 
-              on:click={() => handleRowClick(r.id)}
-              on:keydown={(e) => e.key === 'Enter' && handleRowClick(r.id)}
+            <tr
+              class="clickable-row"
+              on:click={() => handleRowClick(r.uuid)}
+              on:keydown={(e) => e.key === 'Enter' && handleRowClick(r.uuid)}
               tabindex="0"
               role="button"
             >
-              <td>{r.assetCode}</td>
-              <td>{r.assetName}</td>
-              <td>{getAssetTypeName(r.assetTypeId)}</td>
+              <td>{r.equipmentCode}</td>
+              <td>{r.equipmentName}</td>
+              <td>{getEquipmentTypeName(r.equipmentTypeId)}</td>
               <td>
                 <span class="status-badge status-{r.status}">
                   {getStatusText(r.status)}
@@ -297,6 +341,59 @@
           {/each}
         </tbody>
       </table>
+    </div>
+
+    <!-- Pagination -->
+
+    <div class="pagination-bar">
+      <div class="pagination-info">
+        <span class="pagination-label">แสดง</span>
+        <select class="limit-select" value={limit} on:change={onLimitChange}>
+          {#each limitOptions as opt}
+            <option value={opt}>{opt}</option>
+          {/each}
+        </select>
+        <span class="pagination-label">รายการต่อหน้า</span>
+        <span class="pagination-count">
+          ({totalItems.toLocaleString('th-TH')} รายการทั้งหมด)
+        </span>
+      </div>
+
+      <div class="pagination-nav">
+        <button
+          class="page-btn nav-btn"
+          disabled={currentPage === 1}
+          on:click={() => goToPage(currentPage - 1)}
+          aria-label="หน้าก่อนหน้า"
+        >
+          <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+          </svg>
+        </button>
+
+        {#each pageNumbers as p}
+          {#if p === '...'}
+            <span class="page-ellipsis">…</span>
+          {:else}
+            <button
+              class="page-btn {currentPage === p ? 'active' : ''}"
+              on:click={() => goToPage(p)}
+            >{p}</button>
+          {/if}
+        {/each}
+
+        <button
+          class="page-btn nav-btn"
+          disabled={currentPage === totalPages}
+          on:click={() => goToPage(currentPage + 1)}
+          aria-label="หน้าถัดไป"
+        >
+          <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+          </svg>
+        </button>
+      </div>
+    </div>
     </div>
   {/if}
 </div>
@@ -398,11 +495,13 @@
     font-weight: 500;
   }
 
+  .status-normal,
   .status-available {
     background: #dcfce7;
     color: #166534;
   }
 
+  .status-repair,
   .status-repairing {
     background: #fef3c7;
     color: #92400e;
@@ -421,5 +520,122 @@
   .status-disposed {
     background: #f3f4f6;
     color: #4b5563;
+  }
+
+  /* Card wrapper — holds table + pagination as one card */
+  .card-wrapper {
+    background: white;
+    border-radius: 0.75rem;
+    overflow: hidden;
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+  }
+
+  /* Remove default card styles from table-container when inside wrapper */
+  .table-no-radius {
+    border-radius: 0 !important;
+    box-shadow: none !important;
+  }
+
+  /* Pagination */
+  .pagination-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.875rem 1.25rem;
+    background: white;
+    border-top: 1px solid #f3f4f6;
+  }
+
+  .pagination-info {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: #6b7280;
+    font-size: 0.875rem;
+  }
+
+  .pagination-label {
+    color: #6b7280;
+  }
+
+  .pagination-count {
+    color: #9ca3af;
+    font-size: 0.8125rem;
+    margin-left: 0.25rem;
+  }
+
+  .limit-select {
+    appearance: none;
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 0.375rem;
+    padding: 0.25rem 1.75rem 0.25rem 0.625rem;
+    font-size: 0.875rem;
+    color: #374151;
+    cursor: pointer;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.5rem center;
+    transition: border-color 0.15s;
+  }
+
+  .limit-select:focus {
+    outline: none;
+    border-color: #ffa200;
+    box-shadow: 0 0 0 2px rgba(255, 162, 0, 0.15);
+  }
+
+  .pagination-nav {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+  }
+
+  .page-btn {
+    min-width: 2rem;
+    height: 2rem;
+    padding: 0 0.5rem;
+    border: 1px solid #e5e7eb;
+    border-radius: 0.375rem;
+    background: white;
+    color: #374151;
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s;
+  }
+
+  .page-btn:hover:not(:disabled):not(.active) {
+    border-color: #ffa200;
+    color: #ffa200;
+    background: #fffbf5;
+  }
+
+  .page-btn.active {
+    background: #ffa200;
+    border-color: #ffa200;
+    color: white;
+    font-weight: 600;
+    box-shadow: 0 1px 4px rgba(255, 162, 0, 0.35);
+  }
+
+  .page-btn:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+  }
+
+  .nav-btn {
+    color: #6b7280;
+  }
+
+  .page-ellipsis {
+    min-width: 2rem;
+    text-align: center;
+    color: #9ca3af;
+    font-size: 0.875rem;
+    user-select: none;
   }
 </style>

@@ -7,7 +7,7 @@
   export let data: LayoutData;
 </script>
 
-{#if data.session}
+{#if data.isAuthenticated}
   <div class="min-h-screen bg-gray-50">
     <Sidebar />
     <main class="ml-(--sidebar-w)">

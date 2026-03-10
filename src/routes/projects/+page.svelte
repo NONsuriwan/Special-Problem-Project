@@ -49,7 +49,7 @@
   // ดึงข้อมูล Master Data
   async function fetchMasterData() {
     try {
-      const sourcesRes = await fetch(`${API_URL}/api/masters/acquisition-sources`);
+      const sourcesRes = await fetch(`${API_URL}/api/masters/acquisition-sources`, { credentials: 'include' });
       
       if (sourcesRes.ok) {
         const data = await sourcesRes.json();
@@ -68,7 +68,7 @@
       const url = new URL(`${API_URL}/api/projects`);
       if (searchQuery) url.searchParams.append('search', searchQuery);
 
-      const res = await fetch(url.toString());
+      const res = await fetch(url.toString(), { credentials: 'include' });
       const result: ApiResponse = await res.json();
 
       if (result.success) {

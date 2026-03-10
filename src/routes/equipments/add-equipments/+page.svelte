@@ -12,6 +12,8 @@
     buildingId: number;
   };
 
+  type Project = { id: number; projectName: string };
+
   // Master data lists
   let departments: MasterData[] = [];
   let activities: MasterData[] = [];
@@ -21,7 +23,7 @@
   let acquisitionMethods: MasterData[] = [];
   let buildings: MasterData[] = [];
   let rooms: Room[] = [];
-  let projects: MasterData[] = [];
+  let projects: Project[] = [];
   let years: number[] = [];
 
   // Form data
@@ -74,15 +76,15 @@
         deptRes, actRes, fundRes, typeRes, srcRes, methodRes,
         buildRes, roomRes, projRes
       ] = await Promise.all([
-        fetch('http://localhost:3000/api/masters/departments'),
-        fetch('http://localhost:3000/api/masters/activities'),
-        fetch('http://localhost:3000/api/masters/funds'),
-        fetch('http://localhost:3000/api/masters/asset-types'),
-        fetch('http://localhost:3000/api/masters/acquisition-sources'),
-        fetch('http://localhost:3000/api/masters/acquisition-methods'),
-        fetch('http://localhost:3000/api/masters/buildings'),
-        fetch('http://localhost:3000/api/masters/rooms'),
-        fetch('http://localhost:3000/api/projects')
+        fetch('http://localhost:3000/api/masters/departments', { credentials: 'include' }),
+        fetch('http://localhost:3000/api/masters/activities', { credentials: 'include' }),
+        fetch('http://localhost:3000/api/masters/funds', { credentials: 'include' }),
+        fetch('http://localhost:3000/api/masters/equipment-types', { credentials: 'include' }),
+        fetch('http://localhost:3000/api/masters/acquisition-sources', { credentials: 'include' }),
+        fetch('http://localhost:3000/api/masters/acquisition-methods', { credentials: 'include' }),
+        fetch('http://localhost:3000/api/masters/buildings', { credentials: 'include' }),
+        fetch('http://localhost:3000/api/masters/rooms', { credentials: 'include' }),
+        fetch('http://localhost:3000/api/projects', { credentials: 'include' })
       ]);
 
       departments = (await deptRes.json()).data || [];
@@ -150,7 +152,6 @@
     if (!formData.buildingId) errors.buildingId = true;
     if (!formData.roomId) errors.roomId = true;
     if (!formData.projectId) errors.projectId = true;
-    if (attachmentFiles.length === 0) errors.attachments = true;
 
     if (Object.keys(errors).length > 0) {
       errorMessage = 'กรุณากรอกข้อมูลที่จำเป็นให้ครบทุกช่อง';
@@ -160,26 +161,35 @@
     loading = true;
 
     try {
-      // Prepare data
+      // Map frontend field names to backend schema names
       const submitData = {
-        ...formData,
-        price: formData.price ? parseFloat(formData.price) : null,
+        numberPrefix: formData.assetNumber || '',
+        start: formData.assetCodeFrom ? parseInt(formData.assetCodeFrom) : 1,
+        end: formData.assetCodeTo ? parseInt(formData.assetCodeTo) : undefined,
+        equipmentCode: formData.assetCode,
+        equipmentName: formData.assetName,
+        equipmentTypeId: formData.assetTypeId || null,
         departmentId: formData.departmentId || null,
-        assetTypeId: formData.assetTypeId || null,
         activityId: formData.activityId || null,
         fundId: formData.fundId || null,
-        fiscalYearId: formData.fundId || null,
+        fiscalYear: formData.fiscalYearId || null,
+        price: formData.price ? parseFloat(formData.price) : null,
+        unit: formData.unit || null,
         acquisitionSourceId: formData.acquisitionSourceId || null,
         acquisitionMethodId: formData.acquisitionMethodId || null,
+        acquisitionDate: formData.acquisitionDate || null,
         company: formData.company || null,
         sizeDetail: formData.sizeDetail || null,
         buildingId: formData.buildingId || null,
         roomId: formData.roomId || null,
-        projectId: formData.projectId || null
+        projectId: formData.projectId || null,
+        note: formData.note || null,
+        status: 'normal',
       };
 
-      const response = await fetch('http://localhost:3000/api/assets', {
+      const response = await fetch('http://localhost:3000/api/equipment', {
         method: 'POST',
+        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
         },
@@ -481,7 +491,7 @@
             </label>
             <Dropdown
               fullWidth
-              options={projects.map(p => ({ value: p.id, label: p.name }))}
+              options={projects.map(p => ({ value: p.id, label: p.projectName }))}
               bind:value={formData.projectId}
             />
           </div>
@@ -499,9 +509,9 @@
           <!-- เอกสารแนบ -->
           <div class="form-group full-width">
             <label class="label">
-              เอกสารแนบ <span class="required">*</span>
+              เอกสารแนบ
             </label>
-            <div class="file-upload" class:file-upload-error={errors.attachments}>
+            <div class="file-upload">
               <input
                 type="file"
                 id="file-input"

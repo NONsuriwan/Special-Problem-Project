@@ -5,7 +5,7 @@
   interface MhesiRecord {
     id: number;
     mhesiNumber: string;
-    facultyId: number | null;
+    departmentId: number | null;
     supportUnitId: number | null;
     planId: number | null;
     projectId: number | null;
@@ -40,7 +40,6 @@
   let error = '';
 
   // Master data
-  let faculties: MasterData[] = [];
   let supportUnits: MasterData[] = [];
   let plans: MasterData[] = [];
   let projects: Project[] = [];
@@ -59,17 +58,11 @@
   // ดึงข้อมูล Master Data
   async function fetchMasterData() {
     try {
-      const [facultiesRes, supportUnitsRes, plansRes, projectsRes] = await Promise.all([
-        fetch(`${API_URL}/api/masters/faculties`),
-        fetch(`${API_URL}/api/masters/support-units`),
-        fetch(`${API_URL}/api/masters/plans`),
-        fetch(`${API_URL}/api/projects`)
+      const [supportUnitsRes, plansRes, projectsRes] = await Promise.all([
+        fetch(`${API_URL}/api/masters/support-units`, { credentials: 'include' }),
+        fetch(`${API_URL}/api/masters/plan-sections`, { credentials: 'include' }),
+        fetch(`${API_URL}/api/projects`, { credentials: 'include' })
       ]);
-
-      if (facultiesRes.ok) {
-        const data = await facultiesRes.json();
-        faculties = data.data || [];
-      }
 
       if (supportUnitsRes.ok) {
         const data = await supportUnitsRes.json();
@@ -98,7 +91,7 @@
       const url = new URL(`${API_URL}/api/mhesi`);
       if (searchQuery) url.searchParams.append('search', searchQuery);
 
-      const res = await fetch(url.toString());
+      const res = await fetch(url.toString(), { credentials: 'include' });
       const result: ApiResponse = await res.json();
 
       if (result.success) {
@@ -115,11 +108,6 @@
   }
 
   // ฟังก์ชันแปลง ID เป็นชื่อ
-  function getFacultyName(id: number | null): string {
-    if (!id) return '-';
-    return faculties.find(f => f.id === id)?.name || '-';
-  }
-
   function getSupportUnitName(id: number | null): string {
     if (!id) return '-';
     return supportUnits.find(s => s.id === id)?.name || '-';

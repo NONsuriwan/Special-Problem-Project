@@ -34,10 +34,10 @@
   async function fetchMasterData() {
     try {
       const [mhesiRes, supportUnitsRes, plansRes, projectsRes] = await Promise.all([
-        fetch('http://localhost:3000/api/mhesi'),
-        fetch('http://localhost:3000/api/masters/support-units'),
-        fetch('http://localhost:3000/api/masters/plans'),
-        fetch('http://localhost:3000/api/projects'),
+        fetch('http://localhost:3000/api/mhesi', { credentials: 'include' }),
+        fetch('http://localhost:3000/api/masters/support-units', { credentials: 'include' }),
+        fetch('http://localhost:3000/api/masters/plan-sections', { credentials: 'include' }),
+        fetch('http://localhost:3000/api/projects', { credentials: 'include' }),
       ]);
 
       if (mhesiRes.ok) {
@@ -80,8 +80,9 @@
 
     loading = true;
     try {
+      const selectedMhesi = mhesiOptions.find(m => m.id === formData.mhesiId);
       const submitData = {
-        mhesiId: formData.mhesiId,
+        mhesiNumber: selectedMhesi?.mhesiNumber || '',
         supportUnitId: formData.supportUnitId,
         planId: formData.planId,
         projectId: formData.projectId,
@@ -93,6 +94,7 @@
 
       const response = await fetch('http://localhost:3000/api/mhesi', {
         method: 'POST',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(submitData),
       });

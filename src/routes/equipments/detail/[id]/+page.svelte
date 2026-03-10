@@ -5,16 +5,17 @@
 
   type Asset = {
     id: number;
-    assetCode: string;
-    assetName: string;
-    assetNumber: string | null;
-    assetTypeId: number | null;
+    uuid: string;
+    equipmentCode: string;
+    equipmentName: string;
+    equipmentNumber: string | null;
+    equipmentTypeId: number | null;
     departmentId: number | null;
     activityId: number | null;
     fundId: number | null;
-    fiscalYearId: number | null;
+    fiscalYear: number | null;
     price: string | null;
-    unitId: number | null;
+    unit: string | null;
     acquisitionSourceId: number | null;
     acquisitionMethodId: number | null;
     acquisitionDate: string | null;
@@ -85,15 +86,15 @@
         methodRes,
         projRes
       ] = await Promise.all([
-        fetch('http://localhost:3000/api/masters/asset-types'),
-        fetch('http://localhost:3000/api/masters/departments'),
-        fetch('http://localhost:3000/api/masters/activities'),
-        fetch('http://localhost:3000/api/masters/funds'),
-        fetch('http://localhost:3000/api/masters/buildings'),
-        fetch('http://localhost:3000/api/masters/rooms'),
-        fetch('http://localhost:3000/api/masters/acquisition-sources'),
-        fetch('http://localhost:3000/api/masters/acquisition-methods'),
-        fetch('http://localhost:3000/api/projects')
+        fetch('http://localhost:3000/api/masters/equipment-types', { credentials: 'include' }),
+        fetch('http://localhost:3000/api/masters/departments', { credentials: 'include' }),
+        fetch('http://localhost:3000/api/masters/activities', { credentials: 'include' }),
+        fetch('http://localhost:3000/api/masters/funds', { credentials: 'include' }),
+        fetch('http://localhost:3000/api/masters/buildings', { credentials: 'include' }),
+        fetch('http://localhost:3000/api/masters/rooms', { credentials: 'include' }),
+        fetch('http://localhost:3000/api/masters/acquisition-sources', { credentials: 'include' }),
+        fetch('http://localhost:3000/api/masters/acquisition-methods', { credentials: 'include' }),
+        fetch('http://localhost:3000/api/projects', { credentials: 'include' })
       ]);
 
       if (typesRes.ok) assetTypes = (await typesRes.json()).data || [];
@@ -116,8 +117,7 @@
       loading = true;
       error = '';
 
-      const response = await fetch(`http://localhost:3000/api/assets/${assetId}`);
-      console.log('Fetch asset response:', response);
+      const response = await fetch(`http://localhost:3000/api/equipment/${assetId}`, { credentials: 'include' });
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
@@ -141,7 +141,7 @@
   // Fetch attachments
   async function fetchAttachments() {
     try {
-      const response = await fetch(`http://localhost:3000/api/attachments/asset/${assetId}`);
+      const response = await fetch(`http://localhost:3000/api/equipment/${assetId}/attachments`, { credentials: 'include' });
       if (response.ok) {
         const result = await response.json();
         attachments = result.data || [];
@@ -183,8 +183,10 @@
 
   function getStatusText(status: string): string {
     const statusMap: Record<string, string> = {
+      'normal': 'ปกติ',
       'available': 'ปกติ',
       'borrowed': 'ถูกยืม',
+      'repair': 'กำลังซ่อม',
       'repairing': 'กำลังซ่อม',
       'unavailable': 'ไม่พร้อมใช้งาน',
       'disposed': 'จำหน่ายแล้ว'
@@ -194,8 +196,10 @@
 
   function getStatusColor(status: string): string {
     const colorMap: Record<string, string> = {
+      'normal': 'status-available',
       'available': 'status-available',
       'borrowed': 'status-borrowed',
+      'repair': 'status-repairing',
       'repairing': 'status-repairing',
       'unavailable': 'status-unavailable',
       'disposed': 'status-disposed'
@@ -239,8 +243,8 @@
     <div class="header">
       <div>
         <h1 class="title">รายละเอียดครุภัณฑ์</h1>
-        <p class="subtitle">{asset.assetName}</p>
-        <p class="code">{asset.assetCode}</p>
+        <p class="subtitle">{asset.equipmentName}</p>
+        <p class="code">{asset.equipmentCode}</p>
       </div>
       <div class="header-actions">
         <button class="btn-secondary" on:click={handleBack}>
@@ -292,7 +296,7 @@
             <div class="detail-icon">📋</div>
             <div>
               <div class="detail-label">รหัสสินทรัพย์</div>
-              <div class="detail-value">{asset.assetNumber || '-'}</div>
+              <div class="detail-value">{asset.equipmentCode || '-'}</div>
             </div>
           </div>
 
@@ -300,7 +304,7 @@
             <div class="detail-icon">🏷️</div>
             <div>
               <div class="detail-label">หมายเลขสินทรัพย์</div>
-              <div class="detail-value">{asset.assetCode}</div>
+              <div class="detail-value">{asset.equipmentNumber || '-'}</div>
             </div>
           </div>
 
@@ -308,7 +312,7 @@
             <div class="detail-icon">📝</div>
             <div>
               <div class="detail-label">หน่วยนับ</div>
-              <div class="detail-value">ชิ้น</div>
+              <div class="detail-value">{asset.unit || '-'}</div>
             </div>
           </div>
 
@@ -316,7 +320,7 @@
             <div class="detail-icon">📊</div>
             <div>
               <div class="detail-label">ประเภท</div>
-              <div class="detail-value">{getMasterName(assetTypes, asset.assetTypeId)}</div>
+              <div class="detail-value">{getMasterName(assetTypes, asset.equipmentTypeId)}</div>
             </div>
           </div>
 
