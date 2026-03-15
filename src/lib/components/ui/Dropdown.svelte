@@ -10,6 +10,7 @@
   const dispatch = createEventDispatcher<{ change: any }>();
 
   let isOpen = false;
+  let wrapperEl: HTMLDivElement;
 
   $: selectedLabel = options.find(o => o.value === value)?.label ?? placeholder;
 
@@ -22,7 +23,23 @@
     isOpen = false;
     dispatch('change', option.value);
   }
+
+  function handleClickOutside(e: MouseEvent) {
+    if (isOpen && wrapperEl && !wrapperEl.contains(e.target as Node)) {
+      isOpen = false;
+    }
+  }
+
+  function handleWheel(e: WheelEvent) {
+    const el = e.currentTarget as HTMLElement;
+    const { scrollTop, scrollHeight, clientHeight } = el;
+    const atTop = scrollTop === 0 && e.deltaY < 0;
+    const atBottom = scrollTop + clientHeight >= scrollHeight && e.deltaY > 0;
+    if (atTop || atBottom) e.preventDefault();
+  }
 </script>
+
+<svelte:window on:click|capture={handleClickOutside} />
 
 <style>
   .dropdown-wrapper {
@@ -82,15 +99,14 @@
     top: 100%;
     left: 0;
     right: 0;
+    margin-top: 4px;
     background: white;
     border: 1px solid #d1d5db;
     border-radius: 8px;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    z-index: 10;
-    min-width: 150px;
-    margin-top: 4px;
-    max-height: 200px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+    max-height: 220px;
     overflow-y: auto;
+    z-index: 9999;
   }
 
   .dropdown-item {
@@ -115,14 +131,14 @@
   }
 </style>
 
-<div class="dropdown-wrapper" class:full-width={fullWidth}>
+<div class="dropdown-wrapper" class:full-width={fullWidth} bind:this={wrapperEl}>
   <button class="dropdown-button {isOpen ? 'open' : ''}" on:click={toggle} type="button">
     <span class={value === null ? 'placeholder' : ''}>{selectedLabel}</span>
     <span class="chevron"></span>
   </button>
   {#if isOpen}
-    <div class="dropdown-menu" transition:slide={{ duration: 150 }}>
-      {#each options as option}
+    <div class="dropdown-menu" transition:slide={{ duration: 150 }} on:wheel|passive={false} on:wheel={handleWheel}>
+      {#each options as option, i (option.value ?? i)}
         <button
           class="dropdown-item {value === option.value ? 'active' : ''}"
           on:click={() => select(option)}

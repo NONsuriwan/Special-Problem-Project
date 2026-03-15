@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
   import Dropdown from '$lib/components/ui/Dropdown.svelte';
+  import ThaiDatePicker from '$lib/components/ui/ThaiDatePicker.svelte';
 
   type MasterData = { id: number; name: string };
   type Project = { id: number; projectName: string };
@@ -15,7 +16,7 @@
 
   // Form data
   let formData = {
-    mhesiId: null as number | null,
+    mhesiNumber: '',
     facultyName: 'วิทยาศาสตร์',
     supportUnitId: null as number | null,
     planId: null as number | null,
@@ -30,6 +31,23 @@
   let showSuccessModal = false;
   let errorMessage = '';
   let errors: Record<string, boolean> = {};
+
+  // Combobox state
+  let mhesiOpen = false;
+  let mhesiInputEl: HTMLInputElement;
+
+  $: mhesiFiltered = formData.mhesiNumber
+    ? mhesiOptions.filter(o => o.mhesiNumber.toLowerCase().includes(formData.mhesiNumber.toLowerCase()))
+    : mhesiOptions;
+
+  function selectMhesi(value: string) {
+    formData.mhesiNumber = value;
+    mhesiOpen = false;
+  }
+
+  function onMhesiBlur() {
+    setTimeout(() => { mhesiOpen = false; }, 150);
+  }
 
   async function fetchMasterData() {
     try {
@@ -66,7 +84,7 @@
     errorMessage = '';
     errors = {};
 
-    if (!formData.mhesiId) errors.mhesiId = true;
+    if (!formData.mhesiNumber.trim()) errors.mhesiNumber = true;
     if (!formData.supportUnitId) errors.supportUnitId = true;
     if (!formData.planId) errors.planId = true;
     if (!formData.projectId) errors.projectId = true;
@@ -80,9 +98,8 @@
 
     loading = true;
     try {
-      const selectedMhesi = mhesiOptions.find(m => m.id === formData.mhesiId);
       const submitData = {
-        mhesiNumber: selectedMhesi?.mhesiNumber || '',
+        mhesiNumber: formData.mhesiNumber.trim(),
         supportUnitId: formData.supportUnitId,
         planId: formData.planId,
         projectId: formData.projectId,
@@ -98,11 +115,12 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(submitData),
       });
+      if (response.status === 401) { window.location.href = '/login'; return; }
 
       const result = await response.json();
 
       if (!response.ok) {
-        throw new Error(result.message || 'เกิดข้อผิดพลาดในการบันทึกข้อมูล');
+        throw new Error('เกิดข้อผิดพลาดในการบันทึกข้อมูล');
       }
 
       showSuccessModal = true;
@@ -117,6 +135,22 @@
 
   function handleCancel() {
     goto('/mhesi');
+  }
+
+  function isoToBeDisplay(iso: string): string {
+    if (!iso) return '';
+    const [year, month, day] = iso.split('-');
+    if (!year || !month || !day) return '';
+    return `${day}/${month}/${parseInt(year) + 543}`;
+  }
+
+  function beDisplayToIso(be: string): string {
+    const parts = be.trim().split('/');
+    if (parts.length !== 3) return '';
+    const [day, month, beYear] = parts;
+    const ceYear = parseInt(beYear) - 543;
+    if (isNaN(ceYear) || ceYear < 1900 || ceYear > 2100) return '';
+    return `${ceYear}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
   }
 
   onMount(fetchMasterData);
@@ -135,14 +169,49 @@
         <div class="form-grid">
 
           <!-- เลข อว. -->
-          <div class="form-group full-width" class:error-wrapper={errors.mhesiId}>
+          <div class="form-group full-width">
             <label class="label">เลข อว. <span class="required">*</span></label>
-            <Dropdown
-              fullWidth
-              options={mhesiOptions.map(m => ({ value: m.id, label: m.mhesiNumber }))}
-              bind:value={formData.mhesiId}
-              placeholder="กรุณาเลือก"
-            />
+            <div class="combobox-wrapper">
+              <input
+                bind:this={mhesiInputEl}
+                type="text"
+                bind:value={formData.mhesiNumber}
+                class="input combobox-input"
+                class:input-error={errors.mhesiNumber}
+                placeholder="กรอกหรือเลือกเลข อว."
+                autocomplete="off"
+                on:focus={() => (mhesiOpen = true)}
+                on:input={() => (mhesiOpen = true)}
+                on:blur={onMhesiBlur}
+              />
+              <button
+                type="button"
+                class="combobox-chevron"
+                tabindex="-1"
+                on:mousedown|preventDefault={() => {
+                  mhesiOpen = !mhesiOpen;
+                  mhesiInputEl.focus();
+                }}
+              >
+                <span class="chevron-icon" class:open={mhesiOpen}></span>
+              </button>
+              {#if mhesiOpen && mhesiFiltered.length > 0}
+                <ul class="combobox-list">
+                  {#each mhesiFiltered as opt, i (opt.id ?? i)}
+                    <li>
+                      <button
+                        type="button"
+                        class="combobox-option"
+                        class:selected={formData.mhesiNumber === opt.mhesiNumber}
+                        on:mousedown|preventDefault={() => selectMhesi(opt.mhesiNumber)}
+                      >
+                        {opt.mhesiNumber}
+                      </button>
+                    </li>
+                  {/each}
+                </ul>
+              {/if}
+            </div>
           </div>
 
           <!-- คณะ -->
@@ -203,11 +272,10 @@
           <!-- วันที่ -->
           <div class="form-group">
             <label class="label">วันที่ <span class="required">*</span></label>
-            <input
-              type="date"
+            <ThaiDatePicker
               bind:value={formData.date}
-              class="input"
-              class:input-error={errors.date}
+              error={errors.date}
+              inputClass="input"
             />
           </div>
 
@@ -275,6 +343,32 @@
 {/if}
 
 <style>
+  .date-wrapper {
+    position: relative;
+  }
+
+  .date-picker-hidden {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    width: 100%;
+    cursor: pointer;
+  }
+
+  .date-display {
+    cursor: pointer;
+    padding-right: 2.5rem;
+  }
+
+  .cal-icon {
+    position: absolute;
+    right: 0.75rem;
+    top: 50%;
+    transform: translateY(-50%);
+    pointer-events: none;
+    color: #9ca3af;
+  }
+
   .input-readonly {
     background: #f9fafb;
     color: #6b7280;
@@ -284,5 +378,88 @@
   .input-readonly:focus {
     border-color: #d1d5db;
     box-shadow: none;
+  }
+
+  /* Combobox */
+  .combobox-wrapper {
+    position: relative;
+  }
+
+  .combobox-input {
+    width: 100%;
+    padding-right: 2.5rem;
+  }
+
+  .combobox-input:focus {
+    border-color: #ffa200;
+    box-shadow: 0 0 0 3px rgba(255, 162, 0, 0.1);
+    outline: none;
+  }
+
+  .combobox-chevron {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    color: #374151;
+    display: flex;
+    align-items: center;
+    pointer-events: auto;
+  }
+
+  .chevron-icon {
+    width: 0;
+    height: 0;
+    border-left: 5px solid transparent;
+    border-right: 5px solid transparent;
+    border-top: 6px solid currentColor;
+    transition: transform 0.3s ease;
+  }
+
+  .chevron-icon.open {
+    transform: rotate(180deg);
+  }
+
+  .combobox-list {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    right: 0;
+    background: white;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    z-index: 50;
+    max-height: 200px;
+    overflow-y: auto;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  .combobox-option {
+    width: 100%;
+    text-align: left;
+    background: none;
+    border: none;
+    padding: 8px 12px;
+    font-size: 14px;
+    color: #374151;
+    cursor: pointer;
+    transition: background-color 0.2s;
+  }
+
+  .combobox-option:hover {
+    background: #f3f4f6;
+  }
+
+  .combobox-option.selected {
+    background: #fef3f2;
+    color: #ffa200;
+    font-weight: 500;
   }
 </style>

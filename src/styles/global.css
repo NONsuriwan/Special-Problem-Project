@@ -72,3 +72,24 @@
   line-height: 24px;
   font-weight: 400;
 }
+
+.text-b7 {
+  font-family: var(--font-thai);
+  font-size: 14px;
+  line-height: 21px;
+  font-weight: 400;
+}
+
+.text-b8 {
+  font-family: var(--font-thai);
+  font-size: 12px;
+  line-height: 18px;
+  font-weight: 400;
+}
+
+.text-b9 {
+  font-family: var(--font-thai);
+  font-size: 10px;
+  line-height: 15px;
+  font-weight: 400;
+}

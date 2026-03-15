@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
   import Dropdown from '$lib/components/ui/Dropdown.svelte';
+  import ThaiDatePicker from '$lib/components/ui/ThaiDatePicker.svelte';
 
   type MasterData = { id: number; name: string };
 
@@ -83,11 +84,12 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(submitData),
       });
+      if (response.status === 401) { window.location.href = '/login'; return; }
 
       const result = await response.json();
 
       if (!response.ok) {
-        throw new Error(result.message || 'เกิดข้อผิดพลาดในการบันทึกข้อมูล');
+        throw new Error('เกิดข้อผิดพลาดในการบันทึกข้อมูล');
       }
 
       showSuccessModal = true;
@@ -102,6 +104,22 @@
 
   function handleCancel() {
     goto('/projects');
+  }
+
+  function isoToBeDisplay(iso: string): string {
+    if (!iso) return '';
+    const [year, month, day] = iso.split('-');
+    if (!year || !month || !day) return '';
+    return `${day}/${month}/${parseInt(year) + 543}`;
+  }
+
+  function beDisplayToIso(be: string): string {
+    const parts = be.trim().split('/');
+    if (parts.length !== 3) return '';
+    const [day, month, beYear] = parts;
+    const ceYear = parseInt(beYear) - 543;
+    if (isNaN(ceYear) || ceYear < 1900 || ceYear > 2100) return '';
+    return `${ceYear}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
   }
 
   onMount(fetchMasterData);
@@ -144,11 +162,10 @@
           <!-- วันที่ -->
           <div class="form-group">
             <label class="label">วันที่ <span class="required">*</span></label>
-            <input
-              type="date"
+            <ThaiDatePicker
               bind:value={formData.projectDate}
-              class="input"
-              class:input-error={errors.projectDate}
+              error={errors.projectDate}
+              inputClass="input"
             />
           </div>
 
@@ -239,6 +256,32 @@
 {/if}
 
 <style>
+  .date-wrapper {
+    position: relative;
+  }
+
+  .date-picker-hidden {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    width: 100%;
+    cursor: pointer;
+  }
+
+  .date-display {
+    cursor: pointer;
+    padding-right: 2.5rem;
+  }
+
+  .cal-icon {
+    position: absolute;
+    right: 0.75rem;
+    top: 50%;
+    transform: translateY(-50%);
+    pointer-events: none;
+    color: #9ca3af;
+  }
+
   .textarea {
     resize: vertical;
     min-height: 100px;

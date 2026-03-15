@@ -8,6 +8,20 @@
   --sidebar-w: 260px;
 }
 
+body, input, textarea, select, button {
+  font-family: var(--font-thai);
+}
+
 @theme {
   --color-brand-500: #ffa200;
+}
+
+/* Remove number input spinners globally */
+input[type=number]::-webkit-inner-spin-button,
+input[type=number]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type=number] {
+  -moz-appearance: textfield;
 }

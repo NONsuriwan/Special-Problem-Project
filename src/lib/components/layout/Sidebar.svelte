@@ -1,6 +1,7 @@
 <script lang="ts">
   import { slide } from 'svelte/transition';
   import { page } from "$app/stores";
+  import { onMount } from 'svelte';
   import { pageTitle, pageSubtitle } from "$lib/stores/pageTitle";
 
   // ข้อมูลเมนูตามรายการที่คุณระบุ
@@ -45,7 +46,7 @@
     openMenus[label] = !openMenus[label];
   }
 
-  // ตรวจสอบสถานะ Active ของ URL [cite: 2]
+  // ตรวจสอบสถานะ Active ของ URL
   $: currentPath = $page.url.pathname;
   const isActive = (p: string, href: string) =>
     p === href || (href !== "/" && p.startsWith(href));
@@ -76,7 +77,6 @@
         break;
       }
       if (l.children) {
-        // หา child ที่ตรงกับ selectedChildLabel ก่อน ถ้าไม่มีค่อยใช้ first match
         const clicked = selectedChildLabel
           ? l.children.find(c => c.label === selectedChildLabel && c.href && isActive(currentPath, c.href))
           : null;
@@ -91,6 +91,65 @@
       if (found) break;
     }
   }
+
+  // ── User / Auth ──────────────────────────────
+  type UserInfo = {
+    uuid: string;
+    email: string;
+    firstName: string | null;
+    lastName: string | null;
+    role: string;
+  };
+
+  let userInfo: UserInfo | null = null;
+  let showUserMenu = false;
+  let loggingOut = false;
+
+  $: displayName = userInfo
+    ? [userInfo.firstName, userInfo.lastName].filter(Boolean).join(' ') || userInfo.email
+    : '—';
+
+  $: avatarUrl = userInfo
+    ? `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=ffffff&color=f39c12&bold=true`
+    : `https://ui-avatars.com/api/?name=U&background=ffffff&color=f39c12`;
+
+  async function fetchUser() {
+    try {
+      const res = await fetch('http://localhost:3000/api/auth/me', { credentials: 'include' });
+      if (res.ok) {
+        const result = await res.json();
+        userInfo = result.data;
+      }
+    } catch (_) { /* ไม่แสดง error */ }
+  }
+
+  async function logout() {
+    loggingOut = true;
+    try {
+      await fetch('http://localhost:3000/api/auth/logout', {
+        method: 'POST',
+        credentials: 'include',
+      });
+    } finally {
+      loggingOut = false;
+      showUserMenu = false;
+      // hard reload เพื่อให้ server hooks reset สถานะ auth ใหม่
+      window.location.href = '/login';
+    }
+  }
+
+  function handleClickOutside(e: MouseEvent) {
+    const target = e.target as HTMLElement;
+    if (!target.closest('.user-bar')) {
+      showUserMenu = false;
+    }
+  }
+
+  onMount(() => {
+    fetchUser();
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  });
 </script>
 
 <aside
@@ -158,17 +217,34 @@
     {/each}
   </nav>
 
-  <div class="p-4 bg-black/5 border-t border-white/10">
+  <!-- User bar -->
+  <div class="user-bar relative p-4 bg-black/5 border-t border-white/10">
+    <!-- Popup menu — appears above -->
+    {#if showUserMenu}
+      <div class="user-popup" transition:slide={{ duration: 150 }}>
+        <button class="user-popup-logout" on:click={logout} disabled={loggingOut}>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h6a2 2 0 012 2v1"/>
+          </svg>
+          {loggingOut ? 'กำลังออกจากระบบ...' : 'ออกจากระบบ'}
+        </button>
+      </div>
+    {/if}
+
     <div class="flex items-center gap-3">
-      <div class="w-10 h-10 rounded-full overflow-hidden border-2 border-white/50 bg-gray-200">
-        <img src="https://ui-avatars.com/api/?name=Sommoot" alt="User" />
+      <div class="w-10 h-10 rounded-full overflow-hidden border-2 border-white/50 bg-white/20 shrink-0">
+        <img src={avatarUrl} alt="User" class="w-full h-full object-cover" />
       </div>
       <div class="flex-1 min-w-0">
-        <p class="text-b6 font-semibold truncate">นายสมมุติ มีอยู่จริง</p>
-        <p class="text-[12px] opacity-80 truncate">sommoot@kmitl.ac.th</p>
+        <p class="text-b6 font-semibold truncate">{displayName}</p>
+        <p class="text-[12px] opacity-80 truncate">{userInfo?.email ?? '—'}</p>
       </div>
-      <button class="text-white/60 hover:text-white transition-colors">
-        <span class="text-xs">•••</span>
+      <button
+        class="dots-btn"
+        on:click|stopPropagation={() => (showUserMenu = !showUserMenu)}
+        title="ตัวเลือก"
+      >
+        <span class="dots-icon">•••</span>
       </button>
     </div>
   </div>
@@ -182,5 +258,119 @@
 
   :global(.chevron-icon) {
     transition: transform 0.3s ease;
+  }
+
+  /* ── Dots button ── */
+  .dots-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0.25rem 0.375rem;
+    border-radius: 0.375rem;
+    transition: background 0.15s;
+    flex-shrink: 0;
+    line-height: 1;
+  }
+
+  .dots-btn:hover {
+    background: rgba(255,255,255,0.15);
+  }
+
+  .dots-icon {
+    font-size: 0.7rem;
+    color: rgba(255,255,255,0.7);
+    letter-spacing: 1px;
+  }
+
+  /* ── User Popup ── */
+  .user-popup {
+    position: absolute;
+    bottom: calc(100% + 0.5rem);
+    left: 0.75rem;
+    right: 0.75rem;
+    background: #fff;
+    border-radius: 0.875rem;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.18), 0 2px 8px rgba(0,0,0,0.1);
+    overflow: hidden;
+    z-index: 50;
+  }
+
+  .user-popup-profile {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 1rem 1rem 0.875rem;
+  }
+
+  .user-popup-avatar {
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: 50%;
+    border: 2px solid #f0f0f0;
+    flex-shrink: 0;
+    object-fit: cover;
+  }
+
+  .user-popup-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+    overflow: hidden;
+  }
+
+  .user-popup-name {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: #111827;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .user-popup-email {
+    font-size: 0.75rem;
+    color: #6b7280;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .user-popup-role {
+    font-size: 0.6875rem;
+    color: #f39c12;
+    font-weight: 500;
+    text-transform: capitalize;
+    margin-top: 0.1rem;
+  }
+
+  .user-popup-divider {
+    height: 1px;
+    background: #f3f4f6;
+    margin: 0;
+  }
+
+  .user-popup-logout {
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+    width: 100%;
+    padding: 0.75rem 1rem;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: #dc2626;
+    transition: background 0.15s;
+    text-align: left;
+  }
+
+  .user-popup-logout:hover:not(:disabled) {
+    background: #fff5f5;
+  }
+
+  .user-popup-logout:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
   }
 </style>

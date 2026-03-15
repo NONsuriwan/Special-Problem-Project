@@ -1,9 +1,12 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { goto } from '$app/navigation';
+  import Dropdown from '$lib/components/ui/Dropdown.svelte';
 
   // กำหนด Interface
   interface Project {
     id: number;
+    uuid: string;
     projectName: string;
     projectType: string | null;
     projectDate: string | null;
@@ -18,9 +21,15 @@
     name: string;
   }
 
-  interface ApiResponse {
+  interface PaginatedApiResponse {
     success: boolean;
     data: Project[];
+    pagination?: {
+      total: number;
+      page: number;
+      limit: number;
+      totalPages: number;
+    };
     message?: string;
   }
 
@@ -31,6 +40,47 @@
   let items: Project[] = [];
   let loading = true;
   let error = '';
+
+  // Filter popup state
+  let showFilter = false;
+  let draftStatus = '';
+  let activeStatus = '';
+
+  const statusOptions = [
+    { value: '', label: 'ทั้งหมด' },
+    { value: 'active', label: 'ดำเนินการอยู่' },
+    { value: 'completed', label: 'เสร็จสิ้น' },
+    { value: 'cancelled', label: 'ยกเลิก' },
+  ];
+
+  $: hasActiveFilter = !!(activeStatus);
+
+  function openFilter() {
+    draftStatus = activeStatus;
+    showFilter = true;
+  }
+
+  function applyFilter() {
+    activeStatus = draftStatus;
+    showFilter = false;
+    currentPage = 1;
+    fetchProjects();
+  }
+
+  function clearDraftFilter() {
+    draftStatus = '';
+  }
+
+  // Sort state
+  let sortBy = '';
+  let sortDir: 'asc' | 'desc' = 'asc';
+
+  // Pagination state
+  let currentPage = 1;
+  let limit = 10;
+  let totalItems = 0;
+  let totalPages = 1;
+  const limitOptions = [10, 25, 50, 100];
 
   // Master data
   let acquisitionSources: MasterData[] = [];
@@ -67,14 +117,22 @@
     try {
       const url = new URL(`${API_URL}/api/projects`);
       if (searchQuery) url.searchParams.append('search', searchQuery);
+      url.searchParams.append('page',  String(currentPage));
+      url.searchParams.append('limit', String(limit));
+      if (sortBy)  url.searchParams.append('sortBy',  sortBy);
+      if (sortDir) url.searchParams.append('sortDir', sortDir);
+      if (activeStatus) url.searchParams.append('status', activeStatus);
 
       const res = await fetch(url.toString(), { credentials: 'include' });
-      const result: ApiResponse = await res.json();
+      if (res.status === 401) { window.location.href = '/login'; return; }
+      const result: PaginatedApiResponse = await res.json();
 
       if (result.success) {
-        items = result.data;
+        items      = result.data;
+        totalItems = result.pagination?.total     ?? result.data.length;
+        totalPages = result.pagination?.totalPages ?? 1;
       } else {
-        error = result.message || 'เกิดข้อผิดพลาดในการโหลดข้อมูล';
+        error = 'เกิดข้อผิดพลาดในการโหลดข้อมูล';
       }
     } catch (e) {
       error = 'ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้';
@@ -84,19 +142,47 @@
     }
   }
 
+  function toggleSort(col: string) {
+    if (sortBy === col) {
+      sortDir = sortDir === 'asc' ? 'desc' : 'asc';
+    } else {
+      sortBy  = col;
+      sortDir = 'asc';
+    }
+    currentPage = 1;
+    fetchProjects();
+  }
+
   // ฟังก์ชันแปลง ID เป็นชื่อ
   function getAcquisitionSourceName(id: number | null): string {
     if (!id) return '-';
     return acquisitionSources.find(s => s.id === id)?.name || '-';
   }
 
-  // กรองข้อมูลตาม Tab
-  $: filtered = items.filter(r => {
-    const matchTab = activeTab === 'ทั้งหมด' || 
-      (r.projectType && r.projectType.includes(activeTab));
+  $: pageNumbers = (() => {
+    if (totalPages <= 7) return Array.from({ length: totalPages }, (_, i) => i + 1);
+    const pages: (number | '...')[] = [];
+    if (currentPage <= 4) {
+      pages.push(1, 2, 3, 4, 5, '...', totalPages);
+    } else if (currentPage >= totalPages - 3) {
+      pages.push(1, '...', totalPages - 4, totalPages - 3, totalPages - 2, totalPages - 1, totalPages);
+    } else {
+      pages.push(1, '...', currentPage - 1, currentPage, currentPage + 1, '...', totalPages);
+    }
+    return pages;
+  })();
 
-    return matchTab;
-  });
+  function goToPage(p: number) {
+    if (p < 1 || p > totalPages) return;
+    currentPage = p;
+    fetchProjects();
+  }
+
+  function onLimitChange(e: Event) {
+    limit = parseInt((e.target as HTMLSelectElement).value);
+    currentPage = 1;
+    fetchProjects();
+  }
 
   function formatCurrency(amount: string | number | null): string {
     if (!amount) return '0';
@@ -130,11 +216,12 @@
 
   function handleSearch() {
     searchQuery = q; // อัพเดทค่าค้นหาจริงเมื่อกดปุ่ม
+    currentPage = 1;
     fetchProjects();
   }
 
   function handleAddProject() {
-    window.location.href = '/projects/add';
+    goto('/projects/add-project');
   }
 
   // โหลดข้อมูลเมื่อ mount
@@ -150,39 +237,46 @@
     <div>
       <h1 class="title text-h3">สืบค้นโครงการ</h1>
     </div>
+    <div class="header-actions">
+      <button class="btn-primary" on:click={handleAddProject}>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="flex-shrink:0">
+          <path d="M12 5v14M5 12h14"/>
+        </svg>
+        เพิ่มโครงการ
+      </button>
+    </div>
   </div>
 
-  <!-- Search Bar and Actions -->
-  <div class="search-section">
-    <div class="search-wrapper">
-      <div class="search-input-group">
-        <svg class="search-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-        </svg>
-        <input 
-          bind:value={q} 
-          on:keydown={(e) => e.key === 'Enter' && handleSearch()}
-          placeholder="ค้นหา" 
-          class="search-input"
-        />
-        <button class="camera-btn">
-          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+  <!-- Search Bar -->
+  <div class="search-container">
+    <div class="search-input-wrapper">
+      <svg class="search-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+      </svg>
+      <input
+        bind:value={q}
+        on:keydown={(e) => e.key === 'Enter' && handleSearch()}
+        placeholder="ค้นหาชื่อโครงการ..."
+        class="search-input"
+      />
+      {#if q}
+        <button class="search-clear-btn" on:click={() => { q = ''; searchQuery = ''; fetchProjects(); }} aria-label="ล้างการค้นหา">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <path d="M18 6L6 18M6 6l12 12"/>
           </svg>
         </button>
-      </div>
-      <button class="btn-search" on:click={handleSearch}>ค้นหา</button>
-      <button class="btn-add" on:click={handleAddProject}>เพิ่มโครงการ</button>
+      {/if}
+      <button class="search-submit-btn" on:click={handleSearch}>ค้นหา</button>
     </div>
   </div>
 
   <!-- Tabs -->
   <div class="tabs-container">
-    <button class="filter-btn">
+    <button class="filter-btn {hasActiveFilter ? 'filter-btn-active' : ''}" on:click={openFilter}>
       <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
       </svg>
+      {#if hasActiveFilter}<span class="filter-dot"></span>{/if}
     </button>
     <div class="tabs">
       {#each tabs as tab}
@@ -207,41 +301,307 @@
       <p>⚠️ {error}</p>
       <button class="retry-btn" on:click={fetchProjects}>ลองอีกครั้ง</button>
     </div>
-  {:else if filtered.length === 0}
+  {:else if items.length === 0}
     <div class="empty-box">
       <p>ไม่พบข้อมูลโครงการ</p>
     </div>
   {:else}
-    <div class="table-container">
-      <table class="table">
-        <thead>
-          <tr>
-            <th>หมายเลขโครงการ</th>
-            <th>ชื่อโครงการ</th>
-            <th>ประเภท</th>
-            <th>วันที่</th>
-            <th class="text-right">งบประมาณ</th>
-          </tr>
-        </thead>
-        <tbody>
-          {#each filtered as r (r.id)}
+    <div class="card-wrapper">
+      <div class="table-container table-no-radius">
+        <table class="table">
+          <colgroup>
+            <col style="width: 20%" />
+            <col style="width: 30%" />
+            <col style="width: 15%" />
+            <col style="width: 15%" />
+            <col style="width: 20%" />
+          </colgroup>
+          <thead>
             <tr>
-              <td class="project-id">{formatProjectId(r.id, r.projectDate)}</td>
-              <td>{r.projectName}</td>
-              <td>{r.projectType || '-'}</td>
-              <td>{formatDate(r.projectDate)}</td>
-              <td class="text-right amount">{formatCurrency(r.budget)}</td>
+              <th class="sortable" on:click={() => toggleSort('id')}>
+                <span class="th-inner">
+                  <span>หมายเลขโครงการ</span>
+                  <span class="sort-icon" class:sort-active={sortBy === 'id'}>{sortBy === 'id' ? (sortDir === 'asc' ? '▲' : '▼') : '⇅'}</span>
+                </span>
+              </th>
+              <th class="sortable" on:click={() => toggleSort('projectName')}>
+                <span class="th-inner">
+                  <span>ชื่อโครงการ</span>
+                  <span class="sort-icon" class:sort-active={sortBy === 'projectName'}>{sortBy === 'projectName' ? (sortDir === 'asc' ? '▲' : '▼') : '⇅'}</span>
+                </span>
+              </th>
+              <th class="sortable" on:click={() => toggleSort('projectType')}>
+                <span class="th-inner">
+                  <span>ประเภท</span>
+                  <span class="sort-icon" class:sort-active={sortBy === 'projectType'}>{sortBy === 'projectType' ? (sortDir === 'asc' ? '▲' : '▼') : '⇅'}</span>
+                </span>
+              </th>
+              <th class="sortable" on:click={() => toggleSort('projectDate')}>
+                <span class="th-inner">
+                  <span>วันที่</span>
+                  <span class="sort-icon" class:sort-active={sortBy === 'projectDate'}>{sortBy === 'projectDate' ? (sortDir === 'asc' ? '▲' : '▼') : '⇅'}</span>
+                </span>
+              </th>
+              <th class="sortable" on:click={() => toggleSort('budget')}>
+                <span class="th-inner">
+                  <span>งบประมาณ</span>
+                  <span class="sort-icon" class:sort-active={sortBy === 'budget'}>{sortBy === 'budget' ? (sortDir === 'asc' ? '▲' : '▼') : '⇅'}</span>
+                </span>
+              </th>
             </tr>
+          </thead>
+          <tbody>
+            {#each items as r (r.uuid)}
+              <tr class="clickable-row" on:click={() => goto(`/projects/detail/${r.uuid}`)}>
+                <td>{formatProjectId(r.id, r.projectDate)}</td>
+                <td>{r.projectName}</td>
+                <td>{r.projectType || '-'}</td>
+                <td>{formatDate(r.projectDate)}</td>
+                <td>{formatCurrency(r.budget)}</td>
+              </tr>
+            {/each}
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Pagination -->
+      <div class="pagination-bar">
+        <div class="pagination-info">
+          <span class="pagination-label">แสดง</span>
+          <select class="limit-select" value={limit} on:change={onLimitChange}>
+            {#each limitOptions as opt}
+              <option value={opt}>{opt}</option>
+            {/each}
+          </select>
+          <span class="pagination-label">รายการต่อหน้า</span>
+          <span class="pagination-count">({totalItems.toLocaleString('th-TH')} รายการทั้งหมด)</span>
+        </div>
+
+        <div class="pagination-nav">
+          <button
+            class="page-btn nav-btn"
+            disabled={currentPage === 1}
+            on:click={() => goToPage(currentPage - 1)}
+            aria-label="หน้าก่อนหน้า"
+          >
+            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+            </svg>
+          </button>
+
+          {#each pageNumbers as p}
+            {#if p === '...'}
+              <span class="page-ellipsis">…</span>
+            {:else}
+              <button
+                class="page-btn {currentPage === p ? 'active' : ''}"
+                disabled={currentPage === p}
+                on:click={() => goToPage(p)}
+              >{p}</button>
+            {/if}
           {/each}
-        </tbody>
-      </table>
+
+          <button
+            class="page-btn nav-btn"
+            disabled={currentPage === totalPages}
+            on:click={() => goToPage(currentPage + 1)}
+            aria-label="หน้าถัดไป"
+          >
+            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+            </svg>
+          </button>
+        </div>
+      </div>
     </div>
   {/if}
 </div>
 
+<!-- Filter Popup -->
+{#if showFilter}
+  <div class="filter-backdrop" on:click={() => showFilter = false} role="presentation"></div>
+  <div class="filter-popup">
+    <h2 class="filter-title">ตัวกรองขั้นสูง</h2>
+    <div class="filter-grid">
+      <!-- สถานะ -->
+      <div class="filter-field">
+        <label class="filter-label">สถานะ</label>
+        <Dropdown
+          options={statusOptions}
+          bind:value={draftStatus}
+          placeholder="ทั้งหมด"
+        />
+      </div>
+    </div>
+    <div class="filter-footer">
+      <button class="filter-clear-btn" on:click={clearDraftFilter}>ล้างทั้งหมด</button>
+      <button class="filter-apply-btn" on:click={applyFilter}>ใช้งานตัวกรอง</button>
+    </div>
+  </div>
+{/if}
+
 <style>
+  /* Match equipment page table style */
+  .table {
+    table-layout: fixed;
+    width: 100%;
+  }
+
+  .table th {
+    padding: 0.875rem 1rem;
+    text-transform: none;
+    font-size: 0.875rem;
+    letter-spacing: normal;
+    font-weight: 600;
+    color: #374151;
+  }
+
+  .table th.sortable {
+    cursor: pointer;
+    user-select: none;
+  }
+
+  .table th.sortable:hover {
+    background: #f3f4f6;
+  }
+
+  .th-inner {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    white-space: nowrap;
+  }
+
+  .sort-icon {
+    font-size: 0.65rem;
+    color: #d1d5db;
+  }
+
+  .sort-icon.sort-active {
+    color: #ffa200;
+  }
+
+  .table td {
+    padding: 0.875rem 1rem;
+    font-size: 0.875rem;
+    color: #1f2937;
+  }
+
+  .table tbody tr {
+    transition: all 0.2s ease;
+  }
+
+  .table tbody tr.clickable-row {
+    cursor: pointer;
+  }
+
+  .table tbody tr:hover {
+    background: #fffbf5;
+    transform: translateX(4px);
+  }
+
+  /* Filter */
+  .filter-btn-active {
+    background: #fff4e6;
+    border-color: #ffa200;
+    color: #ffa200;
+  }
+
+  .filter-dot {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #ffa200;
+    border: 1.5px solid white;
+  }
+
+  .filter-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.3);
+    z-index: 400;
+  }
+
+  .filter-popup {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: white;
+    border-radius: 1rem;
+    padding: 1.5rem;
+    z-index: 401;
+    width: min(480px, 90vw);
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+  }
+
+  .filter-title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: #111827;
+    margin: 0 0 1.25rem;
+  }
+
+  .filter-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+  }
+
+  .filter-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.375rem;
+  }
+
+  .filter-label {
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: #374151;
+  }
+
+  .filter-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.75rem;
+    margin-top: 1.5rem;
+    padding-top: 1rem;
+    border-top: 1px solid #f3f4f6;
+  }
+
+  .filter-clear-btn {
+    padding: 0.5rem 1rem;
+    border: 1px solid #d1d5db;
+    border-radius: 0.5rem;
+    background: white;
+    color: #374151;
+    font-size: 0.875rem;
+    cursor: pointer;
+  }
+
+  .filter-clear-btn:hover {
+    background: #f9fafb;
+  }
+
+  .filter-apply-btn {
+    padding: 0.5rem 1.25rem;
+    border: none;
+    border-radius: 0.5rem;
+    background: #ffa200;
+    color: white;
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+  }
+
+  .filter-apply-btn:hover {
+    background: #e69100;
+  }
+
   .project-id {
-    font-family: 'Courier New', monospace;
     font-weight: 600;
     color: #1f2937;
   }
@@ -249,5 +609,123 @@
   .amount {
     font-weight: 700;
     color: #1f2937;
+  }
+
+  .card-wrapper {
+    background: white;
+    border-radius: 0.75rem;
+    overflow: hidden;
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+  }
+
+  .table-no-radius {
+    border-radius: 0 !important;
+    box-shadow: none !important;
+  }
+
+  .pagination-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.875rem 1.25rem;
+    background: white;
+    border-top: 1px solid #f3f4f6;
+  }
+
+  .pagination-info {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: #6b7280;
+    font-size: 0.875rem;
+  }
+
+  .pagination-label {
+    color: #6b7280;
+  }
+
+  .pagination-count {
+    color: #9ca3af;
+    font-size: 0.8125rem;
+    margin-left: 0.25rem;
+  }
+
+  .limit-select {
+    appearance: none;
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 0.375rem;
+    padding: 0.25rem 1.75rem 0.25rem 0.625rem;
+    font-size: 0.875rem;
+    color: #374151;
+    cursor: pointer;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.5rem center;
+  }
+
+  .limit-select:focus {
+    outline: none;
+    border-color: #ffa200;
+    box-shadow: 0 0 0 2px rgba(255, 162, 0, 0.15);
+  }
+
+  .pagination-nav {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+  }
+
+  .page-btn {
+    min-width: 2rem;
+    height: 2rem;
+    padding: 0 0.5rem;
+    border: 1px solid #e5e7eb;
+    border-radius: 0.375rem;
+    background: white;
+    color: #374151;
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s;
+  }
+
+  .page-btn:hover:not(:disabled):not(.active) {
+    border-color: #ffa200;
+    color: #ffa200;
+    background: #fffbf5;
+  }
+
+  .page-btn.active {
+    background: #ffa200;
+    border-color: #ffa200;
+    color: white;
+    font-weight: 600;
+    box-shadow: 0 1px 4px rgba(255, 162, 0, 0.35);
+  }
+
+  .page-btn:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+  }
+
+  .page-btn.active:disabled {
+    opacity: 1;
+    cursor: default;
+  }
+
+  .nav-btn {
+    color: #6b7280;
+  }
+
+  .page-ellipsis {
+    min-width: 2rem;
+    text-align: center;
+    color: #9ca3af;
+    font-size: 0.875rem;
+    user-select: none;
   }
 </style>

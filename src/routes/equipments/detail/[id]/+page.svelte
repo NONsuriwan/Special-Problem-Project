@@ -2,6 +2,9 @@
   import { onMount } from 'svelte';
   import { page } from '$app/stores';
   import { goto } from '$app/navigation';
+  import ThaiDatePicker from '$lib/components/ui/ThaiDatePicker.svelte';
+  import SearchableDropdown from '$lib/components/ui/SearchableDropdown.svelte';
+  import Dropdown from '$lib/components/ui/Dropdown.svelte';
 
   type Asset = {
     id: number;
@@ -44,17 +47,17 @@
     uploadedAt: string;
   };
 
-  type UsageHistory = {
-    date: string;
-    time: string;
+  type HistoryEntry = {
+    id: number;
     status: string;
-    actor: string;
-    note: string;
+    remark: string | null;
+    createdAt: string;
+    createdBy: string;
   };
 
   let asset: Asset | null = null;
   let attachments: Attachment[] = [];
-  let usageHistory: UsageHistory[] = [];
+  let history: HistoryEntry[] = [];
   let loading = true;
   let error = '';
 
@@ -118,6 +121,7 @@
       error = '';
 
       const response = await fetch(`http://localhost:3000/api/equipment/${assetId}`, { credentials: 'include' });
+      if (response.status === 401) { window.location.href = '/login'; return; }
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
@@ -151,6 +155,17 @@
     }
   }
 
+  // Fetch history
+  async function fetchHistory() {
+    try {
+      const res = await fetch(`http://localhost:3000/api/equipment/${assetId}/history`, { credentials: 'include' });
+      if (res.ok) {
+        const result = await res.json();
+        history = result.data || [];
+      }
+    } catch (_) {}
+  }
+
   // Get name from ID helpers
   function getMasterName(list: MasterData[], id: number | null): string {
     if (!id) return '-';
@@ -169,6 +184,27 @@
       minimumFractionDigits: 2,
       maximumFractionDigits: 2
     });
+  }
+
+  function formatDateOnly(dt: string): string {
+    const d = new Date(dt);
+    return d.toLocaleDateString('th-TH', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  }
+
+  function formatTimeOnly(dt: string): string {
+    const d = new Date(dt);
+    return d.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', hour12: false });
+  }
+
+  function getStatusDotColor(status: string): string {
+    const colors: Record<string, string> = {
+      normal: '#22c55e', available: '#22c55e',
+      borrowed: '#3b82f6',
+      repair: '#f59e0b', repairing: '#f59e0b',
+      unavailable: '#ef4444',
+      disposed: '#9ca3af',
+    };
+    return colors[status] || '#9ca3af';
   }
 
   function formatDate(date: string | null): string {
@@ -213,19 +249,275 @@
     return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
   }
 
+  function isoToBeDisplay(iso: string): string {
+    if (!iso) return '';
+    const [year, month, day] = iso.split('-');
+    if (!year || !month || !day) return '';
+    return `${day}/${month}/${parseInt(year) + 543}`;
+  }
+
+  function beDisplayToIso(be: string): string {
+    const parts = be.trim().split('/');
+    if (parts.length !== 3) return '';
+    const [day, month, beYear] = parts;
+    const ceYear = parseInt(beYear) - 543;
+    if (isNaN(ceYear) || ceYear < 1900 || ceYear > 2100) return '';
+    return `${ceYear}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+  }
+
   function handleBack() {
     goto('/equipments');
   }
 
-  function handleEdit() {
-    goto(`/equipments/edit/${assetId}`);
+  // --- Status Modal ---
+  let showStatusModal = false;
+  let selectedStatus = '';
+  let statusSaving = false;
+  let statusError = '';
+
+  // Extra equipment for batch status change
+  let allEquipment: { uuid: string; equipmentCode: string; equipmentNumber: string | null; equipmentName: string; status: string }[] = [];
+  let extraEquipment: typeof allEquipment = [];
+  let statusPickerValue: string | null = null;
+
+  // Status-specific form fields
+  let borrowerName = '';
+  let borrowUnitId = 0;
+  let borrowDate = '';
+  let returnDate = '';
+  let repairDate = '';
+  let repairBy = '';
+  let unavailableReason = '';
+  let disposeDate = '';
+  let disposePrice = '';
+  let statusRemark = '';
+  let statusFieldErrors: Record<string, boolean> = {};
+
+  const statusTabs = [
+    { value: 'normal',      label: 'ปกติ',             color: '#22c55e' },
+    { value: 'borrowed',    label: 'ยืม',               color: '#3b82f6' },
+    { value: 'repair',      label: 'แจ้งซ่อม',          color: '#f59e0b' },
+    { value: 'unavailable', label: 'ไม่พร้อมใช้งาน',    color: '#ef4444' },
+    { value: 'disposed',    label: 'จำหน่ายทิ้ง',       color: '#6b7280' },
+  ];
+
+  const formTitles: Record<string, string> = {
+    borrowed:    'ข้อมูลการยืม',
+    repair:      'ข้อมูลการแจ้งซ่อม',
+    unavailable: 'ข้อมูลการแจ้งไม่พร้อมใช้งาน',
+    disposed:    'ข้อมูลการจำหน่ายทิ้ง',
+  };
+
+  $: equipmentPickerOptions = allEquipment
+    .map((e, i) => ({ ...e, _i: i }))
+    .filter(e =>
+      !extraEquipment.find(x => x.uuid === e.uuid) &&
+      e.uuid !== assetId &&
+      e.status !== selectedStatus
+    )
+    .sort((a, b) => a._i - b._i || (a.equipmentNumber ?? a.equipmentCode).localeCompare(b.equipmentNumber ?? b.equipmentCode, 'th', { numeric: true }))
+    .map(e => ({ value: e.uuid, label: e.equipmentName, sublabel: e.equipmentNumber ?? '' }));
+
+  $: mainEquipAlreadyInStatus = asset?.status === selectedStatus;
+
+  async function openStatusModal() {
+    const currentStatus = asset?.status || 'normal';
+    selectedStatus = statusTabs.find(t => t.value !== currentStatus)?.value ?? 'normal';
+    statusError = '';
+    extraEquipment = [];
+    statusPickerValue = null;
+    borrowerName = ''; borrowUnitId = 0; borrowDate = ''; returnDate = '';
+    repairDate = ''; repairBy = ''; unavailableReason = '';
+    disposeDate = ''; disposePrice = ''; statusRemark = '';
+    statusFieldErrors = {};
+    showStatusModal = true;
+
+    // Load all equipment for dropdown (lazy)
+    if (allEquipment.length === 0) {
+      try {
+        const res = await fetch(`http://localhost:3000/api/equipment?limit=1000`, { credentials: 'include' });
+        if (res.ok) {
+          const r = await res.json();
+          allEquipment = (r.data || []).filter((a: typeof allEquipment[0]) => a.uuid !== assetId);
+        }
+      } catch (_) {}
+    }
+  }
+
+  function validateStatusFields(): boolean {
+    statusFieldErrors = {};
+    if (selectedStatus === 'borrowed') {
+      if (!borrowerName.trim()) statusFieldErrors.borrowerName = true;
+      if (!borrowUnitId) statusFieldErrors.borrowUnitId = true;
+      if (!borrowDate) statusFieldErrors.borrowDate = true;
+      if (!returnDate) statusFieldErrors.returnDate = true;
+    } else if (selectedStatus === 'repair') {
+      if (!repairDate) statusFieldErrors.repairDate = true;
+      if (!repairBy.trim()) statusFieldErrors.repairBy = true;
+    } else if (selectedStatus === 'unavailable') {
+      if (!unavailableReason.trim()) statusFieldErrors.unavailableReason = true;
+    } else if (selectedStatus === 'disposed') {
+      if (!disposeDate) statusFieldErrors.disposeDate = true;
+    }
+    return Object.keys(statusFieldErrors).length === 0;
+  }
+
+  async function saveStatus() {
+    if (!asset) return;
+    if (!validateStatusFields()) return;
+    statusSaving = true;
+    statusError = '';
+    try {
+      let data: Record<string, any> = {};
+
+      if (selectedStatus === 'borrowed') {
+        data.borrowerName = borrowerName;
+        if (borrowUnitId) data.borrowerDepartmentId = borrowUnitId;
+        data.borrowDate = borrowDate;
+        if (returnDate) data.expectedReturnDate = returnDate;
+      } else if (selectedStatus === 'repair') {
+        data.repairReason = repairBy;
+        data.startDate = repairDate;
+      } else if (selectedStatus === 'unavailable') {
+        data.reason = unavailableReason;
+      } else if (selectedStatus === 'disposed') {
+        data.disposalDate = disposeDate;
+        if (disposePrice) data.cost = disposePrice;
+      }
+      if (statusRemark.trim()) data.remark = statusRemark.trim();
+
+      const targets = [assetId, ...extraEquipment.map(e => e.uuid)];
+      const res = await fetch('http://localhost:3000/api/equipment-status/change', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ equipmentUuids: targets, newStatus: selectedStatus, data }),
+      });
+
+      if (res.status === 401) {
+        window.location.href = '/login';
+        return;
+      }
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.message || 'บันทึกไม่สำเร็จ');
+      }
+
+      asset = { ...asset, status: selectedStatus };
+      await fetchHistory();
+      showStatusModal = false;
+    } catch (err: any) {
+      statusError = err.message || 'บันทึกไม่สำเร็จ กรุณาลองใหม่';
+    } finally {
+      statusSaving = false;
+    }
+  }
+
+  // --- Edit Modal ---
+  let showEditModal = false;
+  let editSaving = false;
+  let editError = '';
+  let editForm = {
+    departmentId: null as number | null,
+    activityName: '',
+    fundId: null as number | null,
+    fiscalYear: null as number | null,
+    equipmentCode: '',
+    equipmentName: '',
+    equipmentNumber: '',
+    price: '',
+    unit: '',
+    company: '',
+    equipmentTypeId: null as number | null,
+    acquisitionSourceId: null as number | null,
+    acquisitionDate: '',
+    acquisitionMethodId: null as number | null,
+    sizeDetail: '',
+    projectId: null as number | null,
+    buildingId: null as number | null,
+    roomId: null as number | null,
+    note: '',
+  };
+
+  function openEditModal() {
+    if (!asset) return;
+    editForm = {
+      departmentId: asset.departmentId,
+      activityName: activities.find(a => a.id === asset.activityId)?.name || '',
+      fundId: asset.fundId,
+      fiscalYear: asset.fiscalYear,
+      equipmentCode: asset.equipmentCode || '',
+      equipmentName: asset.equipmentName || '',
+      equipmentNumber: asset.equipmentNumber || '',
+      price: asset.price || '',
+      unit: asset.unit || '',
+      company: asset.company || '',
+      equipmentTypeId: asset.equipmentTypeId,
+      acquisitionSourceId: asset.acquisitionSourceId,
+      acquisitionDate: asset.acquisitionDate || '',
+      acquisitionMethodId: asset.acquisitionMethodId,
+      sizeDetail: asset.sizeDetail || '',
+      projectId: asset.projectId,
+      buildingId: asset.buildingId,
+      roomId: asset.roomId,
+      note: asset.note || '',
+    };
+    editError = '';
+    showEditModal = true;
+  }
+
+  async function saveEdit() {
+    if (!asset) return;
+    editSaving = true;
+    editError = '';
+    try {
+      const payload: Record<string, unknown> = {
+        equipmentCode: editForm.equipmentCode || null,
+        equipmentName: editForm.equipmentName,
+        equipmentNumber: editForm.equipmentNumber || null,
+        price: editForm.price || null,
+        unit: editForm.unit || null,
+        company: editForm.company || null,
+        sizeDetail: editForm.sizeDetail || null,
+        note: editForm.note || null,
+        acquisitionDate: editForm.acquisitionDate || null,
+        fiscalYear: editForm.fiscalYear || null,
+        departmentId: editForm.departmentId,
+        activityId: activities.find(a => a.name === editForm.activityName)?.id ?? null,
+        fundId: editForm.fundId,
+        equipmentTypeId: editForm.equipmentTypeId,
+        acquisitionSourceId: editForm.acquisitionSourceId,
+        acquisitionMethodId: editForm.acquisitionMethodId,
+        projectId: editForm.projectId,
+        buildingId: editForm.buildingId,
+        roomId: editForm.roomId,
+      };
+
+      const res = await fetch(`http://localhost:3000/api/equipment/${assetId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(payload),
+      });
+      if (res.status === 401) { window.location.href = '/login'; return; }
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const result = await res.json();
+      if (result.data) asset = result.data;
+      showEditModal = false;
+    } catch (err) {
+      editError = 'บันทึกไม่สำเร็จ กรุณาลองใหม่';
+    } finally {
+      editSaving = false;
+    }
   }
 
   onMount(async () => {
     await fetchMasterData();
     await fetchAssetDetail();
+    await fetchHistory();
   });
 </script>
+
 
 <div class="page-container">
   {#if loading}
@@ -243,15 +535,21 @@
     <div class="header">
       <div>
         <h1 class="title">รายละเอียดครุภัณฑ์</h1>
-        <p class="subtitle">{asset.equipmentName}</p>
-        <p class="code">{asset.equipmentCode}</p>
+        <p class="subtitle"><span class="meta-label">ชื่อสินทรัพย์:</span> {asset.equipmentName}</p>
+        <p class="code"><span class="meta-label">หมายเลขสินทรัพย์:</span> {asset.equipmentNumber ?? asset.equipmentCode}</p>
       </div>
       <div class="header-actions">
-        <button class="btn-secondary" on:click={handleBack}>
+        <button class="btn-secondary" on:click={openStatusModal}>
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="16" height="16" style="flex-shrink:0">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+          </svg>
           แก้ไขสถานะ
         </button>
-        <button class="btn-primary" on:click={handleEdit}>
-          ✏️ แก้ไขข้อมูล
+        <button class="btn-primary" on:click={openEditModal}>
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="16" height="16" style="flex-shrink:0">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+          </svg>
+          แก้ไขข้อมูล
         </button>
       </div>
     </div>
@@ -259,12 +557,14 @@
     <div class="content-grid">
       <!-- Left Column: Equipment Details -->
       <div class="detail-card">
-        <h2 class="card-title">ข้อมูลทั่วไป</h2>
-        <div class="status-badge-container">
-          <span class="detail-label">สถานะ:</span>
-          <span class="status-badge {getStatusColor(asset.status)}">
-            {getStatusText(asset.status)}
-          </span>
+        <div class="card-title-row">
+          <h2 class="card-title">ข้อมูลทั่วไป</h2>
+          <div class="status-badge-container">
+            <span class="detail-label">สถานะ :</span>
+            <span class="status-badge {getStatusColor(asset.status)}">
+              {getStatusText(asset.status)}
+            </span>
+          </div>
         </div>
 
         <div class="detail-grid">
@@ -275,7 +575,6 @@
               <div class="detail-value">{getMasterName(departments, asset.departmentId)}</div>
             </div>
           </div>
-
           <div class="detail-item">
             <div class="detail-icon">🏢</div>
             <div>
@@ -287,8 +586,15 @@
           <div class="detail-item">
             <div class="detail-icon">💰</div>
             <div>
-              <div class="detail-label">ทุน/กองทุน</div>
+              <div class="detail-label">กองทุน</div>
               <div class="detail-value">{getMasterName(funds, asset.fundId)}</div>
+            </div>
+          </div>
+          <div class="detail-item">
+            <div class="detail-icon">📅</div>
+            <div>
+              <div class="detail-label">ปีงบประมาณ</div>
+              <div class="detail-value">{asset.fiscalYear || '-'}</div>
             </div>
           </div>
 
@@ -299,12 +605,26 @@
               <div class="detail-value">{asset.equipmentCode || '-'}</div>
             </div>
           </div>
-
           <div class="detail-item">
             <div class="detail-icon">🏷️</div>
             <div>
+              <div class="detail-label">ชื่อสินทรัพย์</div>
+              <div class="detail-value">{asset.equipmentName || '-'}</div>
+            </div>
+          </div>
+
+          <div class="detail-item">
+            <div class="detail-icon">🔖</div>
+            <div>
               <div class="detail-label">หมายเลขสินทรัพย์</div>
               <div class="detail-value">{asset.equipmentNumber || '-'}</div>
+            </div>
+          </div>
+          <div class="detail-item">
+            <div class="detail-icon">💵</div>
+            <div>
+              <div class="detail-label">ราคา</div>
+              <div class="detail-value">{formatPrice(asset.price)} บาท</div>
             </div>
           </div>
 
@@ -315,6 +635,13 @@
               <div class="detail-value">{asset.unit || '-'}</div>
             </div>
           </div>
+          <div class="detail-item">
+            <div class="detail-icon">📍</div>
+            <div>
+              <div class="detail-label">บริษัท</div>
+              <div class="detail-value">{asset.company || '-'}</div>
+            </div>
+          </div>
 
           <div class="detail-item">
             <div class="detail-icon">📊</div>
@@ -323,12 +650,11 @@
               <div class="detail-value">{getMasterName(assetTypes, asset.equipmentTypeId)}</div>
             </div>
           </div>
-
           <div class="detail-item">
             <div class="detail-icon">👤</div>
             <div>
-              <div class="detail-label">ทรัพย์สินเดิมกไม่ใช่กไม่</div>
-              <div class="detail-value">ถ้ามีจิงถ้า</div>
+              <div class="detail-label">ทรัพย์สินได้มาโดย</div>
+              <div class="detail-value">{getMasterName(acquisitionSources, asset.acquisitionSourceId)}</div>
             </div>
           </div>
 
@@ -339,6 +665,13 @@
               <div class="detail-value">{formatDate(asset.acquisitionDate)}</div>
             </div>
           </div>
+          <div class="detail-item">
+            <div class="detail-icon">📏</div>
+            <div>
+              <div class="detail-label">ขนาดและลักษณะ</div>
+              <div class="detail-value">{asset.sizeDetail || '-'}</div>
+            </div>
+          </div>
 
           <div class="detail-item">
             <div class="detail-icon">📌</div>
@@ -347,31 +680,6 @@
               <div class="detail-value">{getMasterName(acquisitionMethods, asset.acquisitionMethodId)}</div>
             </div>
           </div>
-
-          <div class="detail-item">
-            <div class="detail-icon">🎯</div>
-            <div>
-              <div class="detail-label">สถานะที่ตั้ง</div>
-              <div class="detail-value">{asset.sizeDetail || 'Sc-02'}</div>
-            </div>
-          </div>
-
-          <div class="detail-item">
-            <div class="detail-icon">💵</div>
-            <div>
-              <div class="detail-label">ราคา</div>
-              <div class="detail-value">{formatPrice(asset.price)} บาท</div>
-            </div>
-          </div>
-
-          <div class="detail-item">
-            <div class="detail-icon">📍</div>
-            <div>
-              <div class="detail-label">บริษัท</div>
-              <div class="detail-value">{asset.company || 'Workspace'}</div>
-            </div>
-          </div>
-
           <div class="detail-item">
             <div class="detail-icon">🏗️</div>
             <div>
@@ -387,7 +695,6 @@
               <div class="detail-value">{getMasterName(buildings, asset.buildingId)}</div>
             </div>
           </div>
-
           <div class="detail-item">
             <div class="detail-icon">🚪</div>
             <div>
@@ -397,30 +704,12 @@
           </div>
 
           <div class="detail-item full-width">
-            <div class="detail-icon">📖</div>
+            <div class="detail-icon">📝</div>
             <div>
-              <div class="detail-label">โครงการ</div>
-              <div class="detail-value">{getMasterName(acquisitionSources, asset.acquisitionSourceId)}</div>
+              <div class="detail-label">หมายเหตุ</div>
+              <div class="detail-value">{asset.note || '-'}</div>
             </div>
           </div>
-
-          <div class="detail-item full-width">
-            <div class="detail-icon">📏</div>
-            <div>
-              <div class="detail-label">ขนาดและลักษณะ</div>
-              <div class="detail-value">{asset.sizeDetail || 'กว้าง 59 ลึก 58 สูง 89.5-99.5 ซม.'}</div>
-            </div>
-          </div>
-
-          {#if asset.note}
-            <div class="detail-item full-width">
-              <div class="detail-icon">📝</div>
-              <div>
-                <div class="detail-label">หมายเหตุ</div>
-                <div class="detail-value">{asset.note}</div>
-              </div>
-            </div>
-          {/if}
         </div>
       </div>
 
@@ -457,37 +746,367 @@
           {/if}
         </div>
 
-        <!-- Usage History -->
-        <div class="history-card">
-          <h2 class="card-title">ประวัติการใช้งาน</h2>
-          
-          {#if usageHistory.length === 0}
-            <div class="empty-history">
-              <p>ยังไม่มีประวัติการใช้งาน</p>
-            </div>
-          {:else}
-            <div class="timeline">
-              {#each usageHistory as history}
-                <div class="timeline-item">
-                  <div class="timeline-dot {history.status}"></div>
-                  <div class="timeline-content">
-                    <div class="timeline-date">{history.date}</div>
-                    <div class="timeline-time">{history.time}</div>
-                    <div class="timeline-status">{history.status}</div>
-                    <div class="timeline-actor">{history.actor}</div>
-                    <div class="timeline-note">{history.note}</div>
-                  </div>
-                </div>
-              {/each}
-            </div>
-          {/if}
-        </div>
       </div>
+    </div>
+
+    <!-- History — full width -->
+    <div class="history-card">
+      <h2 class="card-title">ประวัติการใช้งาน</h2>
+      {#if history.length === 0}
+        <div class="empty-history"><p>ยังไม่มีประวัติการใช้งาน</p></div>
+      {:else}
+        <table class="history-table">
+          <thead>
+            <tr>
+              <th>วันที่</th>
+              <th>เวลา</th>
+              <th>สถานะ</th>
+              <th>ผู้ดำเนินการ</th>
+              <th>หมายเหตุ</th>
+            </tr>
+          </thead>
+          <tbody>
+            {#each history as h, i (h.id ?? i)}
+              <tr>
+                <td>{formatDateOnly(h.createdAt)}</td>
+                <td>{formatTimeOnly(h.createdAt)}</td>
+                <td>
+                  <span class="h-status">
+                    <span class="h-dot" style="background:{getStatusDotColor(h.status)}"></span>
+                    <span class="h-status-text" style="color:{getStatusDotColor(h.status)}">{getStatusText(h.status)}</span>
+                  </span>
+                </td>
+                <td>{h.createdBy}</td>
+                <td class="remark-cell">{h.remark || '-'}</td>
+              </tr>
+            {/each}
+          </tbody>
+        </table>
+      {/if}
     </div>
   {/if}
 </div>
 
+<!-- Status Modal -->
+{#if showStatusModal}
+  <div class="modal-backdrop" on:click={() => (showStatusModal = false)} role="presentation">
+    <div class="modal-box modal-status" on:click|stopPropagation role="dialog" aria-modal="true">
+      <!-- Header -->
+      <div class="modal-header">
+        <span class="modal-title">แก้ไขสถานะครุภัณฑ์</span>
+        <button class="modal-close" on:click={() => (showStatusModal = false)}>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M18 6L6 18M6 6l12 12"/>
+          </svg>
+        </button>
+      </div>
+
+      <div class="sm-body">
+        <!-- Status Tabs -->
+        <div class="sm-tabs">
+          {#each statusTabs as tab}
+            <button
+              class="sm-tab"
+              class:sm-tab-active={selectedStatus === tab.value}
+              style="--tc:{tab.color}"
+              disabled={tab.value === asset?.status}
+              on:click={() => { selectedStatus = tab.value; statusFieldErrors = {}; }}
+            >{tab.label}</button>
+          {/each}
+        </div>
+
+        <!-- Main Equipment -->
+        <div class="sm-card">
+          <div class="sm-card-meta">ครุภัณฑ์หลัก</div>
+          <div class="sm-equip-title">{asset?.equipmentName} • {asset?.equipmentNumber ?? asset?.equipmentCode}</div>
+
+          <div class="sm-extra-label">เพิ่มครุภัณฑ์อื่น ๆ</div>
+          <SearchableDropdown
+            options={equipmentPickerOptions}
+            bind:value={statusPickerValue}
+            placeholder="ครุภัณฑ์ที่ต้องการแก้ไขสถานะ"
+            fullWidth={true}
+            keepOpen={true}
+            on:change={(e) => {
+              const eq = allEquipment.find(a => a.uuid === e.detail);
+              if (eq) extraEquipment = [...extraEquipment, eq];
+              statusPickerValue = null;
+            }}
+          />
+
+          {#if extraEquipment.length > 0}
+            <div class="sm-chips">
+              {#each extraEquipment as eq (eq.uuid)}
+                <div class="sm-chip">
+                  <span>{eq.equipmentName} • {eq.equipmentNumber ?? eq.equipmentCode}</span>
+                  <button class="sm-chip-remove" type="button" on:click={() => {
+                    extraEquipment = extraEquipment.filter(e => e.uuid !== eq.uuid);
+                  }}>
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="13" height="13">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+              {/each}
+              <button class="sm-chips-clear" type="button" on:click={() => extraEquipment = []}>
+                ล้างทั้งหมด
+              </button>
+            </div>
+          {/if}
+        </div>
+
+        <!-- Status-specific form -->
+        {#if selectedStatus !== 'normal'}
+          <div class="sm-card">
+            <div class="sm-form-title">{formTitles[selectedStatus]}</div>
+
+            {#if selectedStatus === 'borrowed'}
+              <div class="sm-form-grid">
+                <div class="sm-fg" class:sm-fg-err={statusFieldErrors.borrowerName}>
+                  <label class="sm-label">ผู้ยืม <span class="sm-req">*</span></label>
+                  <input class="sm-input" bind:value={borrowerName} placeholder="ชื่อผู้ยืม" />
+                </div>
+                <div class="sm-fg" class:sm-fg-err={statusFieldErrors.borrowUnitId}>
+                  <label class="sm-label">หน่วยงานที่ยืม <span class="sm-req">*</span></label>
+                  <Dropdown
+                    options={departments.map(d => ({ value: d.id, label: d.name }))}
+                    bind:value={borrowUnitId}
+                    fullWidth={true}
+                  />
+                </div>
+                <div class="sm-fg" class:sm-fg-err={statusFieldErrors.borrowDate}>
+                  <label class="sm-label">วันที่ยืม <span class="sm-req">*</span></label>
+                  <ThaiDatePicker bind:value={borrowDate} error={statusFieldErrors.borrowDate} inputClass="form-input" />
+                </div>
+                <div class="sm-fg" class:sm-fg-err={statusFieldErrors.returnDate}>
+                  <label class="sm-label">วันที่คืน <span class="sm-req">*</span></label>
+                  <ThaiDatePicker bind:value={returnDate} error={statusFieldErrors.returnDate} inputClass="form-input" />
+                </div>
+              </div>
+
+            {:else if selectedStatus === 'repair'}
+              <div class="sm-form-grid">
+                <div class="sm-fg" class:sm-fg-err={statusFieldErrors.repairDate}>
+                  <label class="sm-label">วันที่แจ้งซ่อม <span class="sm-req">*</span></label>
+                  <ThaiDatePicker bind:value={repairDate} error={statusFieldErrors.repairDate} inputClass="form-input" />
+                </div>
+                <div class="sm-fg" class:sm-fg-err={statusFieldErrors.repairBy}>
+                  <label class="sm-label">ผู้แจ้งซ่อม <span class="sm-req">*</span></label>
+                  <input class="sm-input" bind:value={repairBy} placeholder="ชื่อผู้แจ้งซ่อม" />
+                </div>
+              </div>
+
+            {:else if selectedStatus === 'unavailable'}
+              <div class="sm-fg" class:sm-fg-err={statusFieldErrors.unavailableReason}>
+                <label class="sm-label">เหตุผลที่ไม่พร้อมใช้งาน <span class="sm-req">*</span></label>
+                <textarea class="sm-textarea" bind:value={unavailableReason} rows="3" placeholder="ระบุเหตุผล..."></textarea>
+              </div>
+
+            {:else if selectedStatus === 'disposed'}
+              <div class="sm-form-grid">
+                <div class="sm-fg" class:sm-fg-err={statusFieldErrors.disposeDate}>
+                  <label class="sm-label">วันที่จำหน่าย <span class="sm-req">*</span></label>
+                  <ThaiDatePicker bind:value={disposeDate} error={statusFieldErrors.disposeDate} inputClass="form-input" />
+                </div>
+                <div class="sm-fg">
+                  <label class="sm-label">ราคาจำหน่าย</label>
+                  <input class="sm-input" type="number" bind:value={disposePrice} placeholder="0.00" />
+                </div>
+              </div>
+            {/if}
+          </div>
+        {/if}
+
+        <!-- Remark -->
+        <div class="sm-card">
+          <label class="sm-label">หมายเหตุ</label>
+          <textarea class="sm-textarea" bind:value={statusRemark} rows="2" placeholder="หมายเหตุเพิ่มเติม (ถ้ามี)"></textarea>
+        </div>
+      </div>
+
+      {#if Object.keys(statusFieldErrors).length > 0}
+        <p class="modal-error" style="margin: 0 1.5rem 0.5rem">กรุณากรอกข้อมูลที่จำเป็นให้ครบ</p>
+      {:else if statusError}
+        <p class="modal-error" style="margin: 0 1.5rem 0.5rem">{statusError}</p>
+      {/if}
+
+      <div class="modal-footer">
+        <button class="modal-btn-cancel" on:click={() => (showStatusModal = false)}>ยกเลิก</button>
+        <button class="modal-btn-confirm" on:click={saveStatus} disabled={statusSaving || (mainEquipAlreadyInStatus && extraEquipment.length === 0)}>
+          {statusSaving ? 'กำลังบันทึก...' : 'ยืนยัน'}
+        </button>
+      </div>
+    </div>
+  </div>
+{/if}
+
+<!-- Edit Modal -->
+{#if showEditModal}
+  <div class="modal-backdrop" on:click={() => (showEditModal = false)} role="presentation">
+    <div class="modal-box modal-box-lg" on:click|stopPropagation role="dialog" aria-modal="true">
+      <div class="modal-header">
+        <span class="modal-title">แก้ไขข้อมูลครุภัณฑ์</span>
+        <button class="modal-close" on:click={() => (showEditModal = false)}>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M18 6L6 18M6 6l12 12"/>
+          </svg>
+        </button>
+      </div>
+      <div class="edit-form">
+        <div class="form-group">
+          <label class="form-label">หน่วยงาน</label>
+          <Dropdown
+            options={departments.map(d => ({ value: d.id, label: d.name }))}
+            bind:value={editForm.departmentId}
+            fullWidth={true}
+          />
+        </div>
+        <div class="form-group">
+          <label class="form-label">กิจกรรม</label>
+          <input class="form-input" type="text" bind:value={editForm.activityName} placeholder="กิจกรรม"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">กองทุน</label>
+          <Dropdown
+            options={funds.map(f => ({ value: f.id, label: f.name }))}
+            bind:value={editForm.fundId}
+            fullWidth={true}
+          />
+        </div>
+        <div class="form-group">
+          <label class="form-label">ปีงบประมาณ</label>
+          <Dropdown
+            options={Array.from({ length: 16 }, (_, i) => ({ value: 2560 + i, label: String(2560 + i) }))}
+            bind:value={editForm.fiscalYear}
+            fullWidth={true}
+          />
+        </div>
+        <div class="form-group">
+          <label class="form-label">รหัสสินทรัพย์</label>
+          <input class="form-input" type="text" bind:value={editForm.equipmentCode} placeholder="รหัสสินทรัพย์"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">ชื่อสินทรัพย์</label>
+          <input class="form-input" type="text" bind:value={editForm.equipmentName} placeholder="ชื่อสินทรัพย์"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">หมายเลขสินทรัพย์</label>
+          <input class="form-input" type="text" bind:value={editForm.equipmentNumber} placeholder="หมายเลขสินทรัพย์"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">ราคา (บาท)</label>
+          <input class="form-input" type="number" bind:value={editForm.price} placeholder="0" min="0" step="any"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">หน่วยนับ</label>
+          <input class="form-input" type="text" bind:value={editForm.unit} placeholder="เช่น เครื่อง, ชุด"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">บริษัท</label>
+          <input class="form-input" type="text" bind:value={editForm.company} placeholder="ชื่อบริษัท"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">ประเภท</label>
+          <Dropdown
+            options={assetTypes.map(t => ({ value: t.id, label: t.name }))}
+            bind:value={editForm.equipmentTypeId}
+            fullWidth={true}
+          />
+        </div>
+        <div class="form-group">
+          <label class="form-label">ทรัพย์สินได้มาโดย</label>
+          <Dropdown
+            options={acquisitionSources.map(s => ({ value: s.id, label: s.name }))}
+            bind:value={editForm.acquisitionSourceId}
+            fullWidth={true}
+          />
+        </div>
+        <div class="form-group">
+          <label class="form-label">วันที่ได้มา</label>
+          <ThaiDatePicker bind:value={editForm.acquisitionDate} inputClass="form-input" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">วิธีการได้มา</label>
+          <Dropdown
+            options={acquisitionMethods.map(m => ({ value: m.id, label: m.name }))}
+            bind:value={editForm.acquisitionMethodId}
+            fullWidth={true}
+          />
+        </div>
+        <div class="form-group">
+          <label class="form-label">ขนาดและลักษณะ</label>
+          <input class="form-input" type="text" bind:value={editForm.sizeDetail} placeholder="ขนาด/ลักษณะ"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">โครงการ</label>
+          <SearchableDropdown
+            fullWidth
+            options={projects.map(p => ({ value: p.id, label: p.projectName }))}
+            bind:value={editForm.projectId}
+            placeholder="เลือกโครงการ"
+          />
+        </div>
+        <div class="form-group">
+          <label class="form-label">สถานที่ตั้ง</label>
+          <Dropdown
+            options={buildings.map(b => ({ value: b.id, label: b.name }))}
+            bind:value={editForm.buildingId}
+            fullWidth={true}
+          />
+        </div>
+        <div class="form-group">
+          <label class="form-label">ห้อง</label>
+          <Dropdown
+            options={rooms.map(r => ({ value: r.id, label: r.name }))}
+            bind:value={editForm.roomId}
+            fullWidth={true}
+          />
+        </div>
+        <div class="form-group full-col">
+          <label class="form-label">หมายเหตุ</label>
+          <textarea class="form-input form-textarea" bind:value={editForm.note} placeholder="หมายเหตุ (ถ้ามี)"></textarea>
+        </div>
+      </div>
+      {#if editError}
+        <p class="modal-error">{editError}</p>
+      {/if}
+      <div class="modal-footer">
+        <button class="modal-btn-cancel" on:click={() => (showEditModal = false)}>ยกเลิก</button>
+        <button class="modal-btn-confirm" on:click={saveEdit} disabled={editSaving}>
+          {editSaving ? 'กำลังบันทึก...' : 'บันทึก'}
+        </button>
+      </div>
+    </div>
+  </div>
+{/if}
+
 <style>
+  .date-wrapper {
+    position: relative;
+  }
+
+  .date-picker-hidden {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    width: 100%;
+    cursor: pointer;
+  }
+
+  .date-display {
+    cursor: pointer;
+    padding-right: 2.5rem;
+  }
+
+  .cal-icon {
+    position: absolute;
+    right: 0.75rem;
+    top: 50%;
+    transform: translateY(-50%);
+    pointer-events: none;
+    color: #9ca3af;
+  }
+
   .page-container {
     background: #e5e5e5;
     min-height: 100vh;
@@ -510,16 +1129,16 @@
   }
 
   .subtitle {
-    font-size: 0.875rem;
+    font-size: 1rem;
     color: #6b7280;
     margin: 0.25rem 0;
   }
 
   .code {
-    font-size: 0.875rem;
+    font-size: 1rem;
     color: #6b7280;
     margin: 0;
-    font-family: monospace;
+    font-family: var(--font-thai);
   }
 
   .header-actions {
@@ -528,6 +1147,9 @@
   }
 
   .btn-primary {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
     background: #ffa200;
     color: white;
     border: none;
@@ -544,6 +1166,9 @@
   }
 
   .btn-secondary {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
     background: white;
     color: #374151;
     border: 1px solid #d1d5db;
@@ -590,21 +1215,45 @@
   }
 
   /* Status Badge in Card */
-  .status-badge-container {
+  .card-title-row {
     display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    margin-bottom: 1.5rem;
+    align-items: baseline;
+    gap: 6rem;
+    margin-bottom: 1.25rem;
     padding-bottom: 1rem;
     border-bottom: 1px solid #e5e7eb;
   }
 
-  .status-badge {
-    display: inline-block;
-    padding: 0.375rem 1rem;
-    border-radius: 9999px;
-    font-size: 0.875rem;
+  .card-title-row .card-title {
+    margin: 0 !important;
+    line-height: 1 !important;
+  }
+
+  .status-badge-container {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .status-badge-container .detail-label {
+    font-size: 0.9375rem;
     font-weight: 500;
+    color: #374151;
+  }
+
+  .status-badge-container .detail-label::after {
+    content: '';
+  }
+
+  .status-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.375rem 1.25rem;
+    border-radius: 9999px;
+    font-size: 0.9375rem;
+    font-weight: 600;
+    font-family: var(--font-thai, 'Noto Serif Thai', serif);
+    letter-spacing: 0.01em;
   }
 
   .status-available {
@@ -654,15 +1303,21 @@
   }
 
   .detail-label {
-    font-size: 0.75rem;
+    font-size: 0.8125rem;
     color: #6b7280;
-    margin-bottom: 0.25rem;
+    margin-bottom: 0.2rem;
+    font-family: var(--font-thai, 'Noto Serif Thai', serif);
+  }
+
+  .detail-item .detail-label::after {
+    content: ':';
   }
 
   .detail-value {
-    font-size: 0.875rem;
+    font-size: 1rem;
     color: #1f2937;
     font-weight: 500;
+    font-family: var(--font-thai, 'Noto Serif Thai', serif);
   }
 
   /* Attachments */
@@ -754,7 +1409,15 @@
     gap: 1.5rem;
   }
 
-  /* History */
+  /* History — full width table */
+  .history-card {
+    background: white;
+    border-radius: 0.75rem;
+    padding: 1.5rem;
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+    margin-top: 1.5rem;
+  }
+
   .empty-history {
     padding: 2rem;
     text-align: center;
@@ -762,88 +1425,53 @@
     font-size: 0.875rem;
   }
 
-  .timeline {
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
-  }
-
-  .timeline-item {
-    display: flex;
-    gap: 1rem;
-    position: relative;
-  }
-
-  .timeline-item:not(:last-child)::before {
-    content: '';
-    position: absolute;
-    left: 0.5rem;
-    top: 1.5rem;
-    width: 2px;
-    height: calc(100% + 1rem);
-    background: #e5e7eb;
-  }
-
-  .timeline-dot {
-    width: 1rem;
-    height: 1rem;
-    border-radius: 50%;
-    flex-shrink: 0;
-    margin-top: 0.25rem;
-    position: relative;
-    z-index: 1;
-  }
-
-  .timeline-dot.ปกติ {
-    background: #22c55e;
-  }
-
-  .timeline-dot.ถูกยืม {
-    background: #3b82f6;
-  }
-
-  .timeline-dot.ลงทะเบียน {
-    background: #ffa200;
-  }
-
-  .timeline-content {
-    flex: 1;
-    padding-bottom: 0.5rem;
-  }
-
-  .timeline-date {
+  .history-table {
+    width: 100%;
+    border-collapse: collapse;
     font-size: 0.875rem;
-    font-weight: 600;
-    color: #1f2937;
   }
 
-  .timeline-time {
-    font-size: 0.75rem;
-    color: #6b7280;
-    margin-top: 0.125rem;
-  }
-
-  .timeline-status {
-    display: inline-block;
-    padding: 0.25rem 0.75rem;
-    border-radius: 9999px;
+  .history-table th {
+    text-align: left;
     font-size: 0.75rem;
     font-weight: 500;
-    margin-top: 0.5rem;
-    background: #dcfce7;
-    color: #166534;
-  }
-
-  .timeline-actor {
-    font-size: 0.875rem;
-    color: #1f2937;
-    margin-top: 0.5rem;
-  }
-
-  .timeline-note {
-    font-size: 0.75rem;
     color: #6b7280;
-    margin-top: 0.25rem;
+    padding: 0 1rem 0.75rem;
+    white-space: nowrap;
+  }
+
+  .history-table td {
+    padding: 0.75rem 1rem;
+    border-top: 1px solid #f3f4f6;
+    color: #1f2937;
+    vertical-align: middle;
+  }
+
+  .history-table tr:hover td {
+    background: #fafafa;
+  }
+
+  .h-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .h-dot {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .h-status-text {
+    font-weight: 500;
+    font-size: 0.875rem;
+  }
+
+  .remark-cell {
+    color: #6b7280;
   }
 
   /* Loading & Error */
@@ -885,5 +1513,358 @@
   .error-box p {
     color: #dc2626;
     margin-bottom: 1rem;
+  }
+
+  /* ── Modals ─────────────────────────────────── */
+  .modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.35);
+    backdrop-filter: blur(2px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    padding: 1rem;
+  }
+
+  .modal-box {
+    background: #fff;
+    border-radius: 1rem;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.18);
+    width: 100%;
+    max-width: 420px;
+    animation: modal-in 0.2s ease;
+  }
+
+  .modal-box-lg {
+    max-width: 860px;
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  @keyframes modal-in {
+    from { opacity: 0; transform: translateY(12px) scale(0.97); }
+    to   { opacity: 1; transform: translateY(0)   scale(1); }
+  }
+
+  .modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1.25rem 1.5rem;
+    border-bottom: 1px solid #f0f0f0;
+  }
+
+  .modal-title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: #111827;
+  }
+
+  .modal-close {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #9ca3af;
+    display: flex;
+    align-items: center;
+    padding: 0.25rem;
+    border-radius: 0.375rem;
+    transition: color 0.15s;
+  }
+
+  .modal-close:hover { color: #374151; }
+
+  .modal-footer {
+    display: flex;
+    gap: 0.75rem;
+    justify-content: flex-end;
+    padding: 1.25rem 1.5rem;
+    border-top: 1px solid #f0f0f0;
+  }
+
+  .modal-btn-cancel {
+    background: #fff;
+    color: #374151;
+    border: 1px solid #d1d5db;
+    padding: 0.5rem 1.25rem;
+    border-radius: 0.5rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+
+  .modal-btn-cancel:hover { background: #f9fafb; }
+
+  .modal-btn-confirm {
+    background: #ffa200;
+    color: #fff;
+    border: none;
+    padding: 0.5rem 1.25rem;
+    border-radius: 0.5rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+
+  .modal-btn-confirm:hover:not(:disabled) { background: #e69200; }
+  .modal-btn-confirm:disabled { opacity: 0.6; cursor: not-allowed; }
+
+  .modal-error {
+    color: #dc2626;
+    font-size: 0.8125rem;
+    padding: 0 1.5rem 0.75rem;
+    margin: 0;
+  }
+
+  /* Status modal (new rich version) */
+  .modal-status {
+    width: min(1020px, 96vw);
+    max-width: unset;
+    height: min(820px, 92vh);
+    display: flex;
+    flex-direction: column;
+    font-family: var(--font-thai, 'Noto Serif Thai', serif);
+  }
+
+  .sm-body {
+    overflow-y: auto;
+    padding: 1.75rem 2.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+    flex: 1;
+  }
+
+  .sm-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .sm-tab {
+    padding: 0.5rem 1.125rem;
+    border-radius: 0.5rem;
+    border: 1.5px solid color-mix(in srgb, var(--tc, #ffa200) 35%, #e5e7eb);
+    background: color-mix(in srgb, var(--tc, #ffa200) 8%, white);
+    color: color-mix(in srgb, var(--tc, #ffa200) 70%, #6b7280);
+    font-size: 0.9375rem;
+    font-weight: 500;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .sm-tab:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    pointer-events: none;
+  }
+
+  .sm-tab:hover:not(.sm-tab-active) {
+    background: color-mix(in srgb, var(--tc, #ffa200) 16%, white);
+    border-color: var(--tc, #ffa200);
+    color: var(--tc, #ffa200);
+  }
+
+  .sm-tab-active {
+    border-color: var(--tc, #ffa200);
+    background: color-mix(in srgb, var(--tc, #ffa200) 12%, white);
+    color: var(--tc, #ffa200);
+    font-weight: 600;
+  }
+
+  .sm-card {
+    background: #f9fafb;
+    border-radius: 0.625rem;
+    padding: 0.875rem 1rem;
+  }
+
+  .sm-card-meta {
+    font-size: 0.75rem;
+    color: #9ca3af;
+    margin-bottom: 0.25rem;
+  }
+
+  .sm-equip-title {
+    font-size: 1.0625rem;
+    font-weight: 700;
+    color: #111827;
+    margin-bottom: 0.875rem;
+  }
+
+  .sm-extra-label {
+    font-size: 0.8125rem;
+    color: #6b7280;
+    margin-bottom: 0.375rem;
+  }
+
+
+  .sm-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+  }
+
+  .sm-chip {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 0.375rem;
+    padding: 0.25rem 0.5rem;
+    font-size: 0.75rem;
+    color: #374151;
+  }
+
+  .sm-chip-remove {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    display: flex;
+    color: #9ca3af;
+  }
+  .sm-chip-remove:hover { color: #ef4444; }
+
+  .sm-chips-clear {
+    background: none;
+    border: 1px solid #fca5a5;
+    color: #ef4444;
+    border-radius: 0.375rem;
+    padding: 0.2rem 0.625rem;
+    font-size: 0.75rem;
+    cursor: pointer;
+    transition: all 0.15s;
+    align-self: center;
+    white-space: nowrap;
+  }
+  .sm-chips-clear:hover { background: #fee2e2; }
+
+  .sm-form-title {
+    font-size: 1rem;
+    font-weight: 700;
+    color: #111827;
+    margin-bottom: 0.75rem;
+  }
+
+  .sm-form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+  }
+
+  .sm-fg {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+  }
+
+  .sm-label {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: #374151;
+  }
+
+  .sm-req { color: #ef4444; }
+
+  .sm-input {
+    border: 1px solid #e5e7eb;
+    border-radius: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.9375rem;
+    color: #374151;
+    background: white;
+    width: 100%;
+    box-sizing: border-box;
+    appearance: none;
+    font-family: inherit;
+  }
+  .sm-input:focus {
+    outline: none;
+    border-color: #ffa200;
+    box-shadow: 0 0 0 2px rgba(255,162,0,0.15);
+  }
+
+  .sm-fg-err .sm-input,
+  .sm-fg-err :global(.picker-btn),
+  .sm-fg-err :global(.dropdown-button) {
+    border-color: #ef4444 !important;
+  }
+
+  .sm-textarea {
+    border: 1px solid #e5e7eb;
+    border-radius: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.9375rem;
+    color: #374151;
+    background: white;
+    width: 100%;
+    box-sizing: border-box;
+    resize: vertical;
+    font-family: inherit;
+  }
+  .sm-textarea:focus {
+    outline: none;
+    border-color: #ffa200;
+    box-shadow: 0 0 0 2px rgba(255,162,0,0.15);
+  }
+
+  .sm-fg-err .sm-textarea { border-color: #ef4444; }
+
+  /* Edit form */
+  .edit-form {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    padding: 1.25rem 1.5rem;
+    overflow-y: auto;
+    flex: 1;
+  }
+
+  .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.375rem;
+  }
+
+  .form-group.full-col {
+    grid-column: 1 / -1;
+  }
+
+  .form-label {
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: #6b7280;
+  }
+
+  .form-input {
+    border: 1px solid #e5e7eb;
+    border-radius: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.875rem;
+    color: #111827;
+    background: #fff;
+    transition: border-color 0.15s;
+    outline: none;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .form-input:focus {
+    border-color: #ffa200;
+    box-shadow: 0 0 0 3px rgba(255, 162, 0, 0.12);
+  }
+
+  .form-textarea {
+    resize: vertical;
+    min-height: 5rem;
+    font-family: inherit;
   }
 </style>
