@@ -8,6 +8,7 @@
     uuid: string;
     equipmentCode: string;
     equipmentName: string;
+    equipmentNumber: string | null;
     equipmentTypeId: number | null;
     status: string;
     acquisitionDate: string | null;
@@ -537,11 +538,13 @@
     <div class="pagination-bar">
       <div class="pagination-info">
         <span class="pagination-label">แสดง</span>
-        <select class="limit-select" value={limit} on:change={onLimitChange}>
-          {#each limitOptions as opt}
-            <option value={opt}>{opt}</option>
-          {/each}
-        </select>
+        <Dropdown
+          compact
+          dropUp
+          options={limitOptions.map(o => ({ value: o, label: String(o) }))}
+          bind:value={limit}
+          on:change={() => { currentPage = 1; fetchAssets(); }}
+        />
         <span class="pagination-label">รายการต่อหน้า</span>
         <span class="pagination-count">
           ({totalItems.toLocaleString('th-TH')} รายการทั้งหมด)
@@ -590,8 +593,8 @@
 
 <!-- Filter Popup -->
 {#if showFilter}
-  <div class="filter-backdrop" on:click={() => showFilter = false} role="presentation"></div>
-  <div class="filter-popup">
+  <div class="filter-backdrop" on:click={() => showFilter = false} role="presentation">
+  <div class="filter-popup" on:click|stopPropagation>
     <h2 class="filter-title">ตัวกรองขั้นสูง</h2>
 
     <div class="filter-grid">
@@ -689,6 +692,7 @@
       <button class="filter-clear-btn" on:click={clearDraftFilter}>ล้างทั้งหมด</button>
       <button class="filter-apply-btn" on:click={applyFilter}>ใช้งานตัวกรอง</button>
     </div>
+  </div>
   </div>
 {/if}
 
@@ -962,18 +966,16 @@
     inset: 0;
     background: rgba(0, 0, 0, 0.3);
     z-index: 200;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
 
   .filter-popup {
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
     background: white;
     border-radius: 1rem;
     padding: 1.75rem;
     width: min(600px, 90vw);
-    z-index: 201;
     box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
   }
 

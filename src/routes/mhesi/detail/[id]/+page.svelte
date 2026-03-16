@@ -3,7 +3,7 @@
   import { page } from '$app/stores';
   import { goto } from '$app/navigation';
   import ThaiDatePicker from '$lib/components/ui/ThaiDatePicker.svelte';
-  import SearchableDropdown from '$lib/components/ui/SearchableDropdown.svelte';
+  import Dropdown from '$lib/components/ui/Dropdown.svelte';
 
   type MhesiRecord = {
     uuid: string;
@@ -33,6 +33,59 @@
   let supportUnits: MasterData[] = [];
   let plans: MasterData[] = [];
   let projects: Project[] = [];
+
+  // History
+  type HistoryEntry = {
+    action: string;
+    before: Record<string, any> | null;
+    after: Record<string, any> | null;
+    createdAt: string;
+    changedBy: string;
+  };
+  let history: HistoryEntry[] = [];
+  let historyLoading = false;
+
+  const FIELD_LABELS: Record<string, string> = {
+    mhesiNumber:  'เลข อว.',
+    activityName: 'กิจกรรม',
+    projectId:    'โครงการ',
+    supportUnitId:'ส่วนสนับสนุน',
+    planId:       'แผนงาน',
+    date:         'วันที่',
+    amount:       'จำนวนเงิน',
+    note:         'หมายเหตุ',
+  };
+
+  function resolveValue(field: string, val: any): string {
+    if (val === null || val === undefined || val === '') return '-';
+    if (field === 'projectId')    return projects.find(p => p.id === val)?.projectName ?? String(val);
+    if (field === 'supportUnitId')return supportUnits.find(s => s.id === val)?.name ?? String(val);
+    if (field === 'planId')       return plans.find(p => p.id === val)?.name ?? String(val);
+    if (field === 'date')         return formatDate(val);
+    if (field === 'amount')       return formatCurrency(val);
+    return String(val);
+  }
+
+  function getDiffRows(before: Record<string, any> | null, after: Record<string, any> | null) {
+    if (!before || !after) return [];
+    return Object.keys(FIELD_LABELS).filter(f => {
+      const b = before[f] ?? null;
+      const a = after[f] ?? null;
+      return String(b) !== String(a);
+    });
+  }
+
+  async function fetchHistory() {
+    historyLoading = true;
+    try {
+      const res = await fetch(`${API_URL}/api/mhesi/${uuid}/history`, { credentials: 'include' });
+      if (res.ok) {
+        const data = await res.json();
+        history = data.data ?? data ?? [];
+      }
+    } catch (_) {}
+    historyLoading = false;
+  }
 
   // Edit modal
   let showEditModal = false;
@@ -80,6 +133,7 @@
     } finally {
       loading = false;
     }
+    await fetchHistory();
   }
 
   function getDepartmentName(id: number | null) {
@@ -169,6 +223,7 @@
       if (res.status === 401) { window.location.href = '/login'; return; }
       if (!res.ok) throw new Error('เกิดข้อผิดพลาดในการบันทึกข้อมูล');
       await fetchAll();
+      await fetchHistory();
       showEditModal = false;
     } catch (e) {
       editError = e instanceof Error ? e.message : 'บันทึกไม่สำเร็จ กรุณาลองใหม่';
@@ -314,7 +369,48 @@
     <!-- History — full width -->
     <div class="history-card">
       <h2 class="card-title">ประวัติการแก้ไข</h2>
-      <div class="empty-history"><p>ยังไม่มีประวัติการแก้ไข</p></div>
+      {#if historyLoading}
+        <div class="empty-history"><p>กำลังโหลด...</p></div>
+      {:else if history.length === 0}
+        <div class="empty-history"><p>ยังไม่มีประวัติการแก้ไข</p></div>
+      {:else}
+        <div class="timeline">
+          {#each history as h, idx}
+            {@const diffFields = getDiffRows(h.before, h.after)}
+            <div class="tl-item">
+              <div class="tl-line-wrap">
+                <div class="tl-dot"></div>
+                {#if idx < history.length - 1}<div class="tl-line"></div>{/if}
+              </div>
+              <div class="tl-body">
+                <div class="tl-header">
+                  <div class="tl-header-left">
+                    <span class="tl-badge">แก้ไขข้อมูล</span>
+                    <span class="tl-user">{h.changedBy || 'ไม่ระบุ'}</span>
+                  </div>
+                  <span class="tl-time">{new Date(h.createdAt).toLocaleString('th-TH', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' })}</span>
+                </div>
+                {#if diffFields.length > 0}
+                  <div class="tl-changes">
+                    {#each diffFields as field}
+                      <div class="tl-change-row">
+                        <span class="tl-field">{FIELD_LABELS[field]}</span>
+                        <div class="tl-diff">
+                          <span class="tl-old">{resolveValue(field, h.before?.[field])}</span>
+                          <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" class="tl-arrow"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                          <span class="tl-new">{resolveValue(field, h.after?.[field])}</span>
+                        </div>
+                      </div>
+                    {/each}
+                  </div>
+                {:else}
+                  <p class="tl-nochange">ไม่มีการเปลี่ยนแปลง</p>
+                {/if}
+              </div>
+            </div>
+          {/each}
+        </div>
+      {/if}
     </div>
   {/if}
 </div>
@@ -342,7 +438,7 @@
         </div>
         <div class="form-group">
           <label class="form-label">โครงการ</label>
-          <SearchableDropdown
+          <Dropdown
             fullWidth
             options={projects.map(p => ({ value: p.id, label: p.projectName }))}
             bind:value={editForm.projectId}
@@ -351,7 +447,7 @@
         </div>
         <div class="form-group">
           <label class="form-label">ส่วนสนับสนุน</label>
-          <SearchableDropdown
+          <Dropdown
             fullWidth
             options={supportUnits.map(s => ({ value: s.id, label: s.name }))}
             bind:value={editForm.supportUnitId}
@@ -360,7 +456,7 @@
         </div>
         <div class="form-group">
           <label class="form-label">แผนงาน</label>
-          <SearchableDropdown
+          <Dropdown
             fullWidth
             options={plans.map(p => ({ value: p.id, label: p.name }))}
             bind:value={editForm.planId}
@@ -611,30 +707,139 @@
     font-size: 0.875rem;
   }
 
-  .history-table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 0.875rem;
+  /* ── Timeline ── */
+  .timeline {
+    padding: 0.25rem 0;
   }
 
-  .history-table th {
-    text-align: left;
-    font-size: 0.75rem;
+  .tl-item {
+    display: flex;
+    gap: 1rem;
+  }
+
+  .tl-line-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    flex-shrink: 0;
+    width: 20px;
+    padding-top: 0.3rem;
+  }
+
+  .tl-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #3b82f6;
+    border: 2px solid #eff6ff;
+    box-shadow: 0 0 0 2px #3b82f6;
+    flex-shrink: 0;
+  }
+
+  .tl-line {
+    flex: 1;
+    width: 2px;
+    background: #f3f4f6;
+    margin: 4px 0;
+    min-height: 24px;
+  }
+
+  .tl-body {
+    flex: 1;
+    padding-bottom: 1.5rem;
+  }
+
+  .tl-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.625rem;
+  }
+
+  .tl-header-left {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .tl-badge {
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    color: #1d4ed8;
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+    border-radius: 99px;
+    padding: 0.15rem 0.6rem;
+  }
+
+  .tl-user {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #111827;
+  }
+
+  .tl-time {
+    font-size: 0.78rem;
+    color: #9ca3af;
+  }
+
+  .tl-changes {
+    background: #fafafa;
+    border: 1px solid #f0f0f0;
+    border-radius: 0.5rem;
+    overflow: hidden;
+  }
+
+  .tl-change-row {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.55rem 0.875rem;
+    border-bottom: 1px solid #f3f4f6;
+  }
+
+  .tl-change-row:last-child { border-bottom: none; }
+
+  .tl-field {
+    min-width: 90px;
+    font-size: 0.78rem;
     font-weight: 500;
     color: #6b7280;
-    padding: 0 1rem 0.75rem;
-    white-space: nowrap;
+    flex-shrink: 0;
   }
 
-  .history-table td {
-    padding: 0.75rem 1rem;
-    border-top: 1px solid #f3f4f6;
-    color: #1f2937;
-    vertical-align: middle;
+  .tl-diff {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
   }
 
-  .history-table tr:hover td {
-    background: #fafafa;
+  .tl-old {
+    font-size: 0.8125rem;
+    color: #b91c1c;
+    background: #fef2f2;
+    border-radius: 0.25rem;
+    padding: 0.1rem 0.45rem;
+    text-decoration: line-through;
+  }
+
+  .tl-arrow { color: #9ca3af; flex-shrink: 0; }
+
+  .tl-new {
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: #15803d;
+    background: #f0fdf4;
+    border-radius: 0.25rem;
+    padding: 0.1rem 0.45rem;
+  }
+
+  .tl-nochange {
+    font-size: 0.8rem;
+    color: #9ca3af;
+    font-style: italic;
   }
 
   /* Loading & Error */
@@ -700,9 +905,6 @@
 
   .modal-box-lg {
     max-width: 860px;
-    max-height: 90vh;
-    display: flex;
-    flex-direction: column;
   }
 
   @keyframes modal-in {
@@ -788,8 +990,6 @@
     grid-template-columns: 1fr 1fr;
     gap: 1rem;
     padding: 1.25rem 1.5rem;
-    overflow-y: auto;
-    flex: 1;
   }
 
   .form-group {
@@ -826,7 +1026,7 @@
     box-shadow: 0 0 0 3px rgba(255, 162, 0, 0.12);
   }
 
-  .form-textarea {
+.form-textarea {
     min-height: 80px;
     resize: vertical;
   }

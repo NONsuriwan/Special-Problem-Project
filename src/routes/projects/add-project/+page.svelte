@@ -6,13 +6,8 @@
 
   type MasterData = { id: number; name: string };
 
-  const projectTypeOptions = [
-    { value: 'โครงการวิจัย', label: 'โครงการวิจัย' },
-    { value: 'โครงการบริการวิชาการ', label: 'โครงการบริการวิชาการ' },
-    { value: 'โครงการพัฒนานักศึกษา', label: 'โครงการพัฒนานักศึกษา' },
-    { value: 'โครงการทำนุบำรุงศิลปวัฒนธรรม', label: 'โครงการทำนุบำรุงศิลปวัฒนธรรม' },
-    { value: 'อื่นๆ', label: 'อื่นๆ' },
-  ];
+  let projectTypes: MasterData[] = [];
+  $: projectTypeOptions = projectTypes.map(t => ({ value: t.id, label: t.name }));
 
   const statusOptions = [
     { value: 'active', label: 'ดำเนินการ' },
@@ -25,7 +20,7 @@
 
   let formData = {
     projectName: '',
-    projectType: null as string | null,
+    projectTypeId: null as number | null,
     projectDate: '',
     budget: '',
     status: null as string | null,
@@ -40,11 +35,12 @@
 
   async function fetchMasterData() {
     try {
-      const res = await fetch('http://localhost:3000/api/masters/acquisition-sources', { credentials: 'include' });
-      if (res.ok) {
-        const data = await res.json();
-        acquisitionSources = data.data || [];
-      }
+      const [typesRes, sourcesRes] = await Promise.all([
+        fetch('http://localhost:3000/api/masters/project-types', { credentials: 'include' }),
+        fetch('http://localhost:3000/api/masters/acquisition-sources', { credentials: 'include' }),
+      ]);
+      if (typesRes.ok)   projectTypes = (await typesRes.json()).data || [];
+      if (sourcesRes.ok) acquisitionSources = (await sourcesRes.json()).data || [];
     } catch (err) {
       console.error('Error fetching master data:', err);
     }
@@ -55,7 +51,7 @@
     errors = {};
 
     if (!formData.projectName.trim()) errors.projectName = true;
-    if (!formData.projectType) errors.projectType = true;
+    if (!formData.projectTypeId) errors.projectTypeId = true;
     if (!formData.projectDate) errors.projectDate = true;
     if (!formData.budget.trim()) errors.budget = true;
     if (!formData.status) errors.status = true;
@@ -70,7 +66,7 @@
     try {
       const submitData = {
         projectName: formData.projectName,
-        projectType: formData.projectType,
+        projectTypeId: formData.projectTypeId,
         projectDate: formData.projectDate || null,
         budget: formData.budget ? parseFloat(formData.budget) : null,
         status: formData.status,
@@ -149,12 +145,12 @@
           </div>
 
           <!-- ประเภท -->
-          <div class="form-group" class:error-wrapper={errors.projectType}>
+          <div class="form-group" class:error-wrapper={errors.projectTypeId}>
             <label class="label">ประเภท <span class="required">*</span></label>
             <Dropdown
               fullWidth
               options={projectTypeOptions}
-              bind:value={formData.projectType}
+              bind:value={formData.projectTypeId}
               placeholder="กรุณาเลือก"
             />
           </div>

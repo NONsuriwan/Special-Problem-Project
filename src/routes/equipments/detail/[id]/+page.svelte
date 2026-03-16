@@ -48,12 +48,70 @@
   };
 
   type HistoryEntry = {
-    id: number;
-    status: string;
-    remark: string | null;
+    type: 'status_change' | 'edit';
+    status?: string;
+    remark?: string;
+    detail?: {
+      borrowerName?: string;
+      borrowDate?: string;
+      expectedReturnDate?: string;
+      reason?: string;
+      repairReason?: string;
+      startDate?: string;
+      repairCompany?: string;
+      cost?: string | number;
+      endDate?: string;
+      disposalDate?: string;
+      disposalMethod?: string;
+      approvedBy?: string;
+      disposalCost?: string | number;
+    };
+    before?: Record<string, any>;
+    after?: Record<string, any>;
     createdAt: string;
     createdBy: string;
   };
+
+  const FIELD_LABELS: Record<string, string> = {
+    equipmentName:       'ชื่อครุภัณฑ์',
+    equipmentNumber:     'หมายเลขสินทรัพย์',
+    equipmentTypeId:     'ประเภท',
+    departmentId:        'หน่วยงาน',
+    activityId:          'กิจกรรม',
+    fundId:              'แหล่งเงินทุน',
+    buildingId:          'อาคาร',
+    roomId:              'ห้อง',
+    acquisitionSourceId: 'ที่มา',
+    acquisitionMethodId: 'วิธีจัดหา',
+    projectId:           'โครงการ',
+    acquisitionDate:     'วันที่จัดซื้อ',
+    price:               'ราคา',
+    company:             'บริษัท/ผู้ขาย',
+    sizeDetail:          'รายละเอียดขนาด',
+    unit:                'หน่วย',
+    note:                'หมายเหตุ',
+  };
+
+  function resolveFieldValue(field: string, val: any): string {
+    if (val === null || val === undefined || val === '') return '-';
+    if (field === 'equipmentTypeId')      return getMasterName(assetTypes, val);
+    if (field === 'departmentId')         return getMasterName(departments, val);
+    if (field === 'activityId')           return getMasterName(activities, val);
+    if (field === 'fundId')               return getMasterName(funds, val);
+    if (field === 'buildingId')           return getMasterName(buildings, val);
+    if (field === 'roomId')               return getMasterName(rooms, val);
+    if (field === 'acquisitionSourceId')  return getMasterName(acquisitionSources, val);
+    if (field === 'acquisitionMethodId')  return getMasterName(acquisitionMethods, val);
+    if (field === 'projectId')            return projects.find((p: any) => p.id === val)?.projectName ?? String(val);
+    if (field === 'acquisitionDate')      return formatDate(val);
+    if (field === 'price')                return Number(val).toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    return String(val);
+  }
+
+  function getDiffFields(before: Record<string, any> | null | undefined, after: Record<string, any> | null | undefined): string[] {
+    if (!before || !after) return [];
+    return Object.keys(FIELD_LABELS).filter(f => String(before[f] ?? '') !== String(after[f] ?? ''));
+  }
 
   let asset: Asset | null = null;
   let attachments: Attachment[] = [];
@@ -287,9 +345,19 @@
   let returnDate = '';
   let repairDate = '';
   let repairBy = '';
+  let repairCompany = '';
+  let repairCost = '';
+  let repairEndDate = '';
+  let repairFiles: File[] = [];
+  let repairFileUploading = false;
   let unavailableReason = '';
   let disposeDate = '';
   let disposePrice = '';
+  let disposeMethod = '';
+  let disposeApprovedBy = '';
+  let disposeReason = '';
+  let disposeFiles: File[] = [];
+  let disposeFileUploading = false;
   let statusRemark = '';
   let statusFieldErrors: Record<string, boolean> = {};
 
@@ -327,8 +395,8 @@
     extraEquipment = [];
     statusPickerValue = null;
     borrowerName = ''; borrowUnitId = 0; borrowDate = ''; returnDate = '';
-    repairDate = ''; repairBy = ''; unavailableReason = '';
-    disposeDate = ''; disposePrice = ''; statusRemark = '';
+    repairDate = ''; repairBy = ''; repairCompany = ''; repairCost = ''; repairEndDate = ''; repairFiles = []; unavailableReason = '';
+    disposeDate = ''; disposePrice = ''; disposeMethod = ''; disposeApprovedBy = ''; disposeReason = ''; disposeFiles = []; statusRemark = '';
     statusFieldErrors = {};
     showStatusModal = true;
 
@@ -353,12 +421,20 @@
       if (!returnDate) statusFieldErrors.returnDate = true;
     } else if (selectedStatus === 'repair') {
       if (!repairDate) statusFieldErrors.repairDate = true;
+      if (!repairEndDate || repairEndDate < repairDate) statusFieldErrors.repairEndDate = true;
       if (!repairBy.trim()) statusFieldErrors.repairBy = true;
+      if (!repairCompany.trim()) statusFieldErrors.repairCompany = true;
+      if (!repairCost || isNaN(parseFloat(repairCost)) || parseFloat(repairCost) < 0) statusFieldErrors.repairCost = true;
     } else if (selectedStatus === 'unavailable') {
       if (!unavailableReason.trim()) statusFieldErrors.unavailableReason = true;
     } else if (selectedStatus === 'disposed') {
       if (!disposeDate) statusFieldErrors.disposeDate = true;
+      if (!disposeMethod.trim()) statusFieldErrors.disposeMethod = true;
+      if (!disposeApprovedBy.trim()) statusFieldErrors.disposeApprovedBy = true;
+      if (!disposeReason.trim()) statusFieldErrors.disposeReason = true;
+      if (!disposePrice || isNaN(parseFloat(disposePrice)) || parseFloat(disposePrice) < 0) statusFieldErrors.disposePrice = true;
     }
+    statusFieldErrors = statusFieldErrors;
     return Object.keys(statusFieldErrors).length === 0;
   }
 
@@ -375,18 +451,51 @@
         if (borrowUnitId) data.borrowerDepartmentId = borrowUnitId;
         data.borrowDate = borrowDate;
         if (returnDate) data.expectedReturnDate = returnDate;
+        if (statusRemark.trim()) data.reason = statusRemark.trim();
       } else if (selectedStatus === 'repair') {
         data.repairReason = repairBy;
         data.startDate = repairDate;
+        if (repairCompany.trim()) data.repairCompany = repairCompany.trim();
+        if (repairCost) data.cost = parseFloat(repairCost);
+        if (repairEndDate) data.endDate = repairEndDate;
+        if (repairFiles.length > 0) {
+          repairFileUploading = true;
+          const uploaded = await Promise.all(repairFiles.map(async (f) => {
+            const fd = new FormData();
+            fd.append('file', f);
+            fd.append('folder', 'repairs');
+            const res = await fetch('http://localhost:3000/api/attachments/upload', { method: 'POST', credentials: 'include', body: fd });
+            if (!res.ok) throw new Error(`อัปโหลด ${f.name} ไม่สำเร็จ`);
+            return (await res.json()).data;
+          }));
+          repairFileUploading = false;
+          data.attachmentId = uploaded[0]?.id;
+        }
       } else if (selectedStatus === 'unavailable') {
         data.reason = unavailableReason;
       } else if (selectedStatus === 'disposed') {
         data.disposalDate = disposeDate;
-        if (disposePrice) data.cost = disposePrice;
+        data.disposalMethod = disposeMethod;
+        data.approvedBy = disposeApprovedBy;
+        data.reason = disposeReason;
+        if (disposePrice) data.cost = parseFloat(disposePrice);
+        if (disposeFiles.length > 0) {
+          disposeFileUploading = true;
+          const uploaded = await Promise.all(disposeFiles.map(async (f) => {
+            const fd = new FormData();
+            fd.append('file', f);
+            fd.append('folder', 'disposals');
+            const res = await fetch('http://localhost:3000/api/attachments/upload', { method: 'POST', credentials: 'include', body: fd });
+            if (!res.ok) throw new Error(`อัปโหลด ${f.name} ไม่สำเร็จ`);
+            return (await res.json()).data;
+          }));
+          disposeFileUploading = false;
+          data.attachmentId = uploaded[0]?.id;
+        }
       }
       if (statusRemark.trim()) data.remark = statusRemark.trim();
 
-      const targets = [assetId, ...extraEquipment.map(e => e.uuid)];
+      const targets = [assetId, ...extraEquipment.filter(e => e.status !== 'disposed').map(e => e.uuid)];
       const res = await fetch('http://localhost:3000/api/equipment-status/change', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -440,27 +549,28 @@
   };
 
   function openEditModal() {
-    if (!asset) return;
+    const a = asset;
+    if (!a) return;
     editForm = {
-      departmentId: asset.departmentId,
-      activityName: activities.find(a => a.id === asset.activityId)?.name || '',
-      fundId: asset.fundId,
-      fiscalYear: asset.fiscalYear,
-      equipmentCode: asset.equipmentCode || '',
-      equipmentName: asset.equipmentName || '',
-      equipmentNumber: asset.equipmentNumber || '',
-      price: asset.price || '',
-      unit: asset.unit || '',
-      company: asset.company || '',
-      equipmentTypeId: asset.equipmentTypeId,
-      acquisitionSourceId: asset.acquisitionSourceId,
-      acquisitionDate: asset.acquisitionDate || '',
-      acquisitionMethodId: asset.acquisitionMethodId,
-      sizeDetail: asset.sizeDetail || '',
-      projectId: asset.projectId,
-      buildingId: asset.buildingId,
-      roomId: asset.roomId,
-      note: asset.note || '',
+      departmentId: a.departmentId,
+      activityName: activities.find(x => x.id === a.activityId)?.name || '',
+      fundId: a.fundId,
+      fiscalYear: a.fiscalYear,
+      equipmentCode: a.equipmentCode || '',
+      equipmentName: a.equipmentName || '',
+      equipmentNumber: a.equipmentNumber || '',
+      price: a.price || '',
+      unit: a.unit || '',
+      company: a.company || '',
+      equipmentTypeId: a.equipmentTypeId,
+      acquisitionSourceId: a.acquisitionSourceId,
+      acquisitionDate: a.acquisitionDate || '',
+      acquisitionMethodId: a.acquisitionMethodId,
+      sizeDetail: a.sizeDetail || '',
+      projectId: a.projectId,
+      buildingId: a.buildingId,
+      roomId: a.roomId,
+      note: a.note || '',
     };
     editError = '';
     showEditModal = true;
@@ -539,12 +649,14 @@
         <p class="code"><span class="meta-label">หมายเลขสินทรัพย์:</span> {asset.equipmentNumber ?? asset.equipmentCode}</p>
       </div>
       <div class="header-actions">
+        {#if asset.status !== 'disposed'}
         <button class="btn-secondary" on:click={openStatusModal}>
           <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="16" height="16" style="flex-shrink:0">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
           </svg>
           แก้ไขสถานะ
         </button>
+        {/if}
         <button class="btn-primary" on:click={openEditModal}>
           <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="16" height="16" style="flex-shrink:0">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
@@ -755,33 +867,95 @@
       {#if history.length === 0}
         <div class="empty-history"><p>ยังไม่มีประวัติการใช้งาน</p></div>
       {:else}
-        <table class="history-table">
-          <thead>
-            <tr>
-              <th>วันที่</th>
-              <th>เวลา</th>
-              <th>สถานะ</th>
-              <th>ผู้ดำเนินการ</th>
-              <th>หมายเหตุ</th>
-            </tr>
-          </thead>
-          <tbody>
-            {#each history as h, i (h.id ?? i)}
-              <tr>
-                <td>{formatDateOnly(h.createdAt)}</td>
-                <td>{formatTimeOnly(h.createdAt)}</td>
-                <td>
-                  <span class="h-status">
-                    <span class="h-dot" style="background:{getStatusDotColor(h.status)}"></span>
-                    <span class="h-status-text" style="color:{getStatusDotColor(h.status)}">{getStatusText(h.status)}</span>
-                  </span>
-                </td>
-                <td>{h.createdBy}</td>
-                <td class="remark-cell">{h.remark || '-'}</td>
-              </tr>
-            {/each}
-          </tbody>
-        </table>
+        <div class="timeline">
+          {#each history as h, idx}
+            {@const diffFields = h.type === 'edit' ? getDiffFields(h.before, h.after) : []}
+            <div class="tl-item">
+              <div class="tl-line-wrap">
+                <div class="tl-dot" class:tl-dot-edit={h.type === 'edit'}></div>
+                {#if idx < history.length - 1}<div class="tl-line"></div>{/if}
+              </div>
+              <div class="tl-body">
+                <div class="tl-header">
+                  <div class="tl-header-left">
+                    {#if h.type === 'status_change'}
+                      <span class="tl-badge tl-badge-status" style="color:{getStatusDotColor(h.status ?? '')}; background:{getStatusDotColor(h.status ?? '')}18; border-color:{getStatusDotColor(h.status ?? '')}40">
+                        เปลี่ยนสถานะ → {getStatusText(h.status ?? '')}
+                      </span>
+                    {:else}
+                      <span class="tl-badge tl-badge-edit">แก้ไขข้อมูล</span>
+                    {/if}
+                    <span class="tl-user">{h.createdBy || 'ไม่ระบุ'}</span>
+                  </div>
+                  <span class="tl-time">{formatDateOnly(h.createdAt)} {formatTimeOnly(h.createdAt)}</span>
+                </div>
+
+                {#if h.type === 'status_change' && h.detail}
+                  <div class="tl-detail-grid">
+                    {#if h.detail.borrowerName}
+                      <span class="tl-detail-label">ผู้ยืม:</span><span class="tl-detail-val">{h.detail.borrowerName}</span>
+                    {/if}
+                    {#if h.detail.borrowDate}
+                      <span class="tl-detail-label">วันที่ยืม:</span><span class="tl-detail-val">{formatDate(h.detail.borrowDate)}</span>
+                    {/if}
+                    {#if h.detail.expectedReturnDate}
+                      <span class="tl-detail-label">กำหนดคืน:</span><span class="tl-detail-val">{formatDate(h.detail.expectedReturnDate)}</span>
+                    {/if}
+                    {#if h.detail.repairReason}
+                      <span class="tl-detail-label">สาเหตุ:</span><span class="tl-detail-val">{h.detail.repairReason}</span>
+                    {/if}
+                    {#if h.detail.startDate}
+                      <span class="tl-detail-label">วันที่แจ้งซ่อม:</span><span class="tl-detail-val">{formatDate(h.detail.startDate)}</span>
+                    {/if}
+                    {#if h.detail.endDate}
+                      <span class="tl-detail-label">วันที่คาดเสร็จ:</span><span class="tl-detail-val">{formatDate(h.detail.endDate)}</span>
+                    {/if}
+                    {#if h.detail.repairCompany}
+                      <span class="tl-detail-label">บริษัทซ่อม:</span><span class="tl-detail-val">{h.detail.repairCompany}</span>
+                    {/if}
+                    {#if h.detail.cost}
+                      <span class="tl-detail-label">ค่าซ่อม:</span><span class="tl-detail-val">{Number(h.detail.cost).toLocaleString('th-TH', {minimumFractionDigits:2})} บาท</span>
+                    {/if}
+                    {#if h.detail.disposalDate}
+                      <span class="tl-detail-label">วันที่จำหน่าย:</span><span class="tl-detail-val">{formatDate(h.detail.disposalDate)}</span>
+                    {/if}
+                    {#if h.detail.disposalMethod}
+                      <span class="tl-detail-label">วิธีการจำหน่าย:</span><span class="tl-detail-val">{h.detail.disposalMethod}</span>
+                    {/if}
+                    {#if h.detail.approvedBy}
+                      <span class="tl-detail-label">ผู้อนุมัติ:</span><span class="tl-detail-val">{h.detail.approvedBy}</span>
+                    {/if}
+                    {#if h.detail.disposalCost}
+                      <span class="tl-detail-label">ราคาจำหน่าย:</span><span class="tl-detail-val">{Number(h.detail.disposalCost).toLocaleString('th-TH', {minimumFractionDigits:2})} บาท</span>
+                    {/if}
+                    {#if h.detail.reason}
+                      <span class="tl-detail-label">เหตุผล:</span><span class="tl-detail-val">{h.detail.reason}</span>
+                    {/if}
+                  </div>
+                {/if}
+                {#if h.type === 'status_change' && h.remark}
+                  <div class="tl-remark">
+                    <svg width="13" height="13" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10M7 12h6"/></svg>
+                    {h.remark}
+                  </div>
+                {:else if h.type === 'edit' && diffFields.length > 0}
+                  <div class="tl-changes">
+                    {#each diffFields as field}
+                      <div class="tl-change-row">
+                        <span class="tl-field">{FIELD_LABELS[field]}</span>
+                        <div class="tl-diff">
+                          <span class="tl-old">{resolveFieldValue(field, h.before?.[field])}</span>
+                          <svg width="13" height="13" fill="none" stroke="currentColor" viewBox="0 0 24 24" class="tl-arrow"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                          <span class="tl-new">{resolveFieldValue(field, h.after?.[field])}</span>
+                        </div>
+                      </div>
+                    {/each}
+                  </div>
+                {/if}
+              </div>
+            </div>
+          {/each}
+        </div>
       {/if}
     </div>
   {/if}
@@ -876,11 +1050,21 @@
                 </div>
                 <div class="sm-fg" class:sm-fg-err={statusFieldErrors.borrowDate}>
                   <label class="sm-label">วันที่ยืม <span class="sm-req">*</span></label>
-                  <ThaiDatePicker bind:value={borrowDate} error={statusFieldErrors.borrowDate} inputClass="form-input" />
+                  <ThaiDatePicker
+                    bind:value={borrowDate}
+                    error={statusFieldErrors.borrowDate}
+                    inputClass="form-input"
+                    on:change={(e) => { if (returnDate && e.detail > returnDate) returnDate = ''; }}
+                  />
                 </div>
                 <div class="sm-fg" class:sm-fg-err={statusFieldErrors.returnDate}>
                   <label class="sm-label">วันที่คืน <span class="sm-req">*</span></label>
-                  <ThaiDatePicker bind:value={returnDate} error={statusFieldErrors.returnDate} inputClass="form-input" />
+                  <ThaiDatePicker
+                    bind:value={returnDate}
+                    error={statusFieldErrors.returnDate}
+                    inputClass="form-input"
+                    on:change={(e) => { if (borrowDate && e.detail < borrowDate) returnDate = borrowDate; }}
+                  />
                 </div>
               </div>
 
@@ -888,11 +1072,52 @@
               <div class="sm-form-grid">
                 <div class="sm-fg" class:sm-fg-err={statusFieldErrors.repairDate}>
                   <label class="sm-label">วันที่แจ้งซ่อม <span class="sm-req">*</span></label>
-                  <ThaiDatePicker bind:value={repairDate} error={statusFieldErrors.repairDate} inputClass="form-input" />
+                  <ThaiDatePicker bind:value={repairDate} error={statusFieldErrors.repairDate} inputClass="form-input"
+                    on:change={(e) => { if (repairEndDate && e.detail > repairEndDate) repairEndDate = ''; }} />
+                </div>
+                <div class="sm-fg" class:sm-fg-err={statusFieldErrors.repairEndDate}>
+                  <label class="sm-label">วันที่คาดว่าจะเสร็จ <span class="sm-req">*</span></label>
+                  <ThaiDatePicker bind:value={repairEndDate} error={statusFieldErrors.repairEndDate} inputClass="form-input"
+                    on:change={(e) => { if (repairDate && e.detail < repairDate) repairEndDate = repairDate; }} />
                 </div>
                 <div class="sm-fg" class:sm-fg-err={statusFieldErrors.repairBy}>
-                  <label class="sm-label">ผู้แจ้งซ่อม <span class="sm-req">*</span></label>
-                  <input class="sm-input" bind:value={repairBy} placeholder="ชื่อผู้แจ้งซ่อม" />
+                  <label class="sm-label">สาเหตุ <span class="sm-req">*</span></label>
+                  <input class="sm-input" bind:value={repairBy} placeholder="ระบุสาเหตุ" />
+                </div>
+                <div class="sm-fg" class:sm-fg-err={statusFieldErrors.repairCompany}>
+                  <label class="sm-label">บริษัทที่ซ่อม <span class="sm-req">*</span></label>
+                  <input class="sm-input" bind:value={repairCompany} placeholder="ชื่อบริษัท/ช่างซ่อม" />
+                </div>
+                <div class="sm-fg" class:sm-fg-err={statusFieldErrors.repairCost}>
+                  <label class="sm-label">ค่าซ่อม (บาท) <span class="sm-req">*</span></label>
+                  <input class="sm-input" type="number" bind:value={repairCost} placeholder="0.00" min="0" />
+                </div>
+                <div class="sm-fg sm-fg-full">
+                  <label class="sm-label">เอกสารการซ่อม (ถ้ามี)</label>
+                  <label class="file-upload-label">
+                    <input type="file" class="file-input-hidden" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" multiple
+                      on:change={(e) => { repairFiles = Array.from(e.currentTarget.files ?? []); }} />
+                    <div class="file-upload-box" class:file-selected={repairFiles.length > 0}>
+                      {#if repairFiles.length > 0}
+                        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                        <span>{repairFiles.length === 1 ? repairFiles[0].name : `${repairFiles.length} ไฟล์`}</span>
+                        <button type="button" class="file-clear-btn" on:click|stopPropagation|preventDefault={() => repairFiles = []}>✕</button>
+                      {:else}
+                        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg>
+                        <span>คลิกเพื่อเลือกไฟล์</span>
+                      {/if}
+                    </div>
+                  </label>
+                  {#if repairFiles.length > 1}
+                    <div class="file-list">
+                      {#each repairFiles as f, i}
+                        <div class="file-item">
+                          <span class="file-item-name">{f.name}</span>
+                          <button type="button" class="file-clear-btn" on:click={() => repairFiles = repairFiles.filter((_, j) => j !== i)}>✕</button>
+                        </div>
+                      {/each}
+                    </div>
+                  {/if}
                 </div>
               </div>
 
@@ -908,9 +1133,48 @@
                   <label class="sm-label">วันที่จำหน่าย <span class="sm-req">*</span></label>
                   <ThaiDatePicker bind:value={disposeDate} error={statusFieldErrors.disposeDate} inputClass="form-input" />
                 </div>
-                <div class="sm-fg">
-                  <label class="sm-label">ราคาจำหน่าย</label>
-                  <input class="sm-input" type="number" bind:value={disposePrice} placeholder="0.00" />
+                <div class="sm-fg" class:sm-fg-err={statusFieldErrors.disposePrice}>
+                  <label class="sm-label">ราคาจำหน่าย (บาท) <span class="sm-req">*</span></label>
+                  <input class="sm-input" type="number" bind:value={disposePrice} placeholder="0.00" min="0" />
+                </div>
+                <div class="sm-fg" class:sm-fg-err={statusFieldErrors.disposeMethod}>
+                  <label class="sm-label">วิธีการจำหน่าย <span class="sm-req">*</span></label>
+                  <input class="sm-input" bind:value={disposeMethod} placeholder="เช่น ขายทอดตลาด, บริจาค, ทำลาย" />
+                </div>
+                <div class="sm-fg" class:sm-fg-err={statusFieldErrors.disposeApprovedBy}>
+                  <label class="sm-label">ผู้อนุมัติ <span class="sm-req">*</span></label>
+                  <input class="sm-input" bind:value={disposeApprovedBy} placeholder="ชื่อ-นามสกุล ผู้อนุมัติ" />
+                </div>
+                <div class="sm-fg sm-fg-full" class:sm-fg-err={statusFieldErrors.disposeReason}>
+                  <label class="sm-label">เหตุผลการจำหน่าย <span class="sm-req">*</span></label>
+                  <textarea class="sm-textarea" bind:value={disposeReason} rows="2" placeholder="ระบุเหตุผล..."></textarea>
+                </div>
+                <div class="sm-fg sm-fg-full">
+                  <label class="sm-label">เอกสารการจำหน่าย (ถ้ามี)</label>
+                  <label class="file-upload-label">
+                    <input type="file" class="file-input-hidden" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" multiple
+                      on:change={(e) => { disposeFiles = Array.from(e.currentTarget.files ?? []); }} />
+                    <div class="file-upload-box" class:file-selected={disposeFiles.length > 0}>
+                      {#if disposeFiles.length > 0}
+                        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                        <span>{disposeFiles.length === 1 ? disposeFiles[0].name : `${disposeFiles.length} ไฟล์`}</span>
+                        <button type="button" class="file-clear-btn" on:click|stopPropagation|preventDefault={() => disposeFiles = []}>✕</button>
+                      {:else}
+                        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg>
+                        <span>คลิกเพื่อเลือกไฟล์</span>
+                      {/if}
+                    </div>
+                  </label>
+                  {#if disposeFiles.length > 1}
+                    <div class="file-list">
+                      {#each disposeFiles as f, i}
+                        <div class="file-item">
+                          <span class="file-item-name">{f.name}</span>
+                          <button type="button" class="file-clear-btn" on:click={() => disposeFiles = disposeFiles.filter((_, j) => j !== i)}>✕</button>
+                        </div>
+                      {/each}
+                    </div>
+                  {/if}
                 </div>
               </div>
             {/if}
@@ -932,8 +1196,8 @@
 
       <div class="modal-footer">
         <button class="modal-btn-cancel" on:click={() => (showStatusModal = false)}>ยกเลิก</button>
-        <button class="modal-btn-confirm" on:click={saveStatus} disabled={statusSaving || (mainEquipAlreadyInStatus && extraEquipment.length === 0)}>
-          {statusSaving ? 'กำลังบันทึก...' : 'ยืนยัน'}
+        <button class="modal-btn-confirm" on:click={saveStatus} disabled={statusSaving || repairFileUploading || disposeFileUploading || (mainEquipAlreadyInStatus && extraEquipment.length === 0)}>
+          {(repairFileUploading || disposeFileUploading) ? 'กำลังอัปโหลด...' : statusSaving ? 'กำลังบันทึก...' : 'ยืนยัน'}
         </button>
       </div>
     </div>
@@ -1425,53 +1689,187 @@
     font-size: 0.875rem;
   }
 
-  .history-table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 0.875rem;
+  /* ── Timeline ── */
+  .timeline { padding: 0.25rem 0; }
+
+  .tl-item {
+    display: flex;
+    gap: 1rem;
   }
 
-  .history-table th {
-    text-align: left;
-    font-size: 0.75rem;
-    font-weight: 500;
-    color: #6b7280;
-    padding: 0 1rem 0.75rem;
-    white-space: nowrap;
-  }
-
-  .history-table td {
-    padding: 0.75rem 1rem;
-    border-top: 1px solid #f3f4f6;
-    color: #1f2937;
-    vertical-align: middle;
-  }
-
-  .history-table tr:hover td {
-    background: #fafafa;
-  }
-
-  .h-status {
-    display: inline-flex;
+  .tl-line-wrap {
+    display: flex;
+    flex-direction: column;
     align-items: center;
-    gap: 0.5rem;
+    flex-shrink: 0;
+    width: 20px;
+    padding-top: 0.3rem;
   }
 
-  .h-dot {
-    display: inline-block;
+  .tl-dot {
     width: 10px;
     height: 10px;
     border-radius: 50%;
+    background: #ffa200;
+    border: 2px solid #fff7e6;
+    box-shadow: 0 0 0 2px #ffa200;
     flex-shrink: 0;
   }
 
-  .h-status-text {
-    font-weight: 500;
-    font-size: 0.875rem;
+  .tl-dot-edit {
+    background: #3b82f6;
+    border-color: #eff6ff;
+    box-shadow: 0 0 0 2px #3b82f6;
   }
 
-  .remark-cell {
+  .tl-line {
+    flex: 1;
+    width: 2px;
+    background: #f3f4f6;
+    margin: 4px 0;
+    min-height: 24px;
+  }
+
+  .tl-body {
+    flex: 1;
+    padding-bottom: 1.5rem;
+  }
+
+  .tl-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.5rem;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+  }
+
+  .tl-header-left {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+  }
+
+  .tl-badge {
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    border-radius: 99px;
+    padding: 0.15rem 0.6rem;
+    border: 1px solid;
+  }
+
+  .tl-badge-status {
+    color: #92400e;
+    background: #fef3c7;
+    border-color: #fde68a;
+  }
+
+  .tl-badge-edit {
+    color: #1d4ed8;
+    background: #eff6ff;
+    border-color: #bfdbfe;
+  }
+
+  .tl-user {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #111827;
+  }
+
+  .tl-time {
+    font-size: 0.78rem;
+    color: #9ca3af;
+    white-space: nowrap;
+  }
+
+  .tl-detail-grid {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 0.3rem 0.75rem;
+    background: #fafafa;
+    border: 1px solid #f0f0f0;
+    border-radius: 0.5rem;
+    padding: 0.6rem 0.875rem;
+    margin-bottom: 0.375rem;
+    font-size: 0.8125rem;
+    align-items: center;
+  }
+
+  .tl-detail-label {
+    color: #9ca3af;
+    font-weight: 500;
+    white-space: nowrap;
+  }
+
+  .tl-detail-val {
+    color: #111827;
+    font-weight: 500;
+  }
+
+  .tl-remark {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    font-size: 0.8125rem;
     color: #6b7280;
+    background: #f9fafb;
+    border: 1px solid #f0f0f0;
+    border-radius: 0.375rem;
+    padding: 0.35rem 0.75rem;
+  }
+
+  .tl-changes {
+    background: #fafafa;
+    border: 1px solid #f0f0f0;
+    border-radius: 0.5rem;
+    overflow: hidden;
+  }
+
+  .tl-change-row {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.5rem 0.875rem;
+    border-bottom: 1px solid #f3f4f6;
+  }
+
+  .tl-change-row:last-child { border-bottom: none; }
+
+  .tl-field {
+    min-width: 100px;
+    font-size: 0.78rem;
+    font-weight: 500;
+    color: #6b7280;
+    flex-shrink: 0;
+  }
+
+  .tl-diff {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+  }
+
+  .tl-old {
+    font-size: 0.8125rem;
+    color: #b91c1c;
+    background: #fef2f2;
+    border-radius: 0.25rem;
+    padding: 0.1rem 0.45rem;
+    text-decoration: line-through;
+  }
+
+  .tl-arrow { color: #9ca3af; flex-shrink: 0; }
+
+  .tl-new {
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: #15803d;
+    background: #f0fdf4;
+    border-radius: 0.25rem;
+    padding: 0.1rem 0.45rem;
   }
 
   /* Loading & Error */
@@ -1673,9 +2071,10 @@
 
   .sm-tab-active {
     border-color: var(--tc, #ffa200);
-    background: color-mix(in srgb, var(--tc, #ffa200) 12%, white);
-    color: var(--tc, #ffa200);
+    background: var(--tc, #ffa200);
+    color: white;
     font-weight: 600;
+    box-shadow: 0 2px 8px color-mix(in srgb, var(--tc, #ffa200) 40%, transparent);
   }
 
   .sm-card {
@@ -1764,6 +2163,73 @@
     display: flex;
     flex-direction: column;
     gap: 0.3rem;
+  }
+
+  .sm-fg-full { grid-column: 1 / -1; }
+
+  .file-upload-label { cursor: pointer; display: block; }
+
+  .file-input-hidden { display: none; }
+
+  .file-upload-box {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    border: 1.5px dashed #e5e7eb;
+    border-radius: 0.5rem;
+    padding: 0.6rem 0.875rem;
+    font-size: 0.8125rem;
+    color: #9ca3af;
+    background: #fafafa;
+    transition: border-color 0.15s, background 0.15s;
+  }
+
+  .file-upload-box:hover { border-color: #ffa200; background: #fffbf2; color: #374151; }
+
+  .file-upload-box.file-selected {
+    border-color: #22c55e;
+    background: #f0fdf4;
+    color: #15803d;
+    border-style: solid;
+  }
+
+  .file-clear-btn {
+    margin-left: auto;
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #9ca3af;
+    font-size: 0.75rem;
+    padding: 0 0.25rem;
+    line-height: 1;
+  }
+
+  .file-clear-btn:hover { color: #ef4444; }
+
+  .file-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    margin-top: 0.375rem;
+  }
+
+  .file-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: #f0fdf4;
+    border: 1px solid #bbf7d0;
+    border-radius: 0.375rem;
+    padding: 0.3rem 0.625rem;
+    font-size: 0.8rem;
+  }
+
+  .file-item-name {
+    flex: 1;
+    color: #15803d;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .sm-label {

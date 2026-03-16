@@ -3,7 +3,7 @@
   import { page } from '$app/stores';
   import { goto } from '$app/navigation';
   import ThaiDatePicker from '$lib/components/ui/ThaiDatePicker.svelte';
-  import SearchableDropdown from '$lib/components/ui/SearchableDropdown.svelte';
+  import Dropdown from '$lib/components/ui/Dropdown.svelte';
 
   type Project = {
     id: number;
@@ -45,6 +45,14 @@
 
   type MasterData = { id: number; name: string };
 
+  type HistoryEntry = {
+    action: string;
+    before: any;
+    after: any;
+    createdAt: string;
+    changedBy: string;
+  };
+
   const API_URL = 'http://localhost:3000';
 
   let project: Project | null = null;
@@ -52,6 +60,15 @@
   let equipmentList: EquipmentRecord[] = [];
   let loading = true;
   let error = '';
+  let history: HistoryEntry[] = [];
+  let historyLoading = false;
+
+  const TABLE_LIMIT = 10;
+  let showAllMhesi = false;
+  let showAllEquipment = false;
+
+  $: mhesiDisplay    = showAllMhesi    ? mhesiList     : mhesiList.slice(0, TABLE_LIMIT);
+  $: equipmentDisplay = showAllEquipment ? equipmentList : equipmentList.slice(0, TABLE_LIMIT);
 
   let acquisitionSources: MasterData[] = [];
   let projectTypes: MasterData[] = [];
@@ -95,6 +112,13 @@
     completed: 'เสร็จสิ้น',
     pending: 'รอดำเนินการ',
     cancelled: 'ยกเลิก',
+  };
+
+  const STATUS_COLORS: Record<string, string> = {
+    active: '#16a34a',
+    completed: '#2563eb',
+    pending: '#d97706',
+    cancelled: '#dc2626',
   };
 
   const EQUIPMENT_STATUS_LABELS: Record<string, string> = {
@@ -158,11 +182,25 @@
         const data = await equipRes.json();
         equipmentList = data.data || [];
       }
+
     } catch (e) {
       error = 'ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้';
     } finally {
       loading = false;
     }
+    await fetchHistory();
+  }
+
+  async function fetchHistory() {
+    historyLoading = true;
+    try {
+      const res = await fetch(`${API_URL}/api/projects/${uuid}/history`, { credentials: 'include' });
+      if (res.ok) {
+        const data = await res.json();
+        history = data.data || [];
+      }
+    } catch (_) {}
+    historyLoading = false;
   }
 
   function getAcquisitionSourceName(id: number | null) {
@@ -198,6 +236,44 @@
     return d.toLocaleDateString('th-TH', { day: '2-digit', month: '2-digit', year: 'numeric' });
   }
 
+  const PROJECT_FIELD_LABELS: Record<string, string> = {
+    projectName:         'ชื่อโครงการ',
+    projectTypeId:       'ประเภท',
+    projectDate:         'วันที่',
+    budget:              'งบประมาณ',
+    status:              'สถานะ',
+    acquisitionSourceId: 'แหล่งเงินทุน',
+    note:                'หมายเหตุ',
+  };
+
+  function resolveProjectValue(field: string, val: any): string {
+    if (val === null || val === undefined || val === '') return '-';
+    if (field === 'projectTypeId')       return projectTypes.find(t => t.id === val)?.name ?? String(val);
+    if (field === 'acquisitionSourceId') return acquisitionSources.find(s => s.id === val)?.name ?? String(val);
+    if (field === 'status')              return STATUS_LABELS[val] ?? String(val);
+    if (field === 'projectDate')         return formatDate(val);
+    if (field === 'budget')              return formatCurrency(val) + ' บาท';
+    return String(val);
+  }
+
+  function getDiffFields(before: Record<string, any> | null | undefined, after: Record<string, any> | null | undefined): string[] {
+    if (!before || !after) return [];
+    return Object.keys(PROJECT_FIELD_LABELS).filter(f => String(before[f] ?? '') !== String(after[f] ?? ''));
+  }
+
+  function formatDateOnly(dt: string): string {
+    const parts = dt.split('T')[0].split('-');
+    if (parts.length !== 3) return dt;
+    const [year, month, day] = parts;
+    return `${day}/${month}/${parseInt(year) + 543}`;
+  }
+
+  function formatTimeOnly(dt: string): string {
+    const timePart = dt.includes('T') ? dt.split('T')[1] : '';
+    if (!timePart) return '-';
+    return timePart.slice(0, 5);
+  }
+
   function formatCurrency(amount: string | number | null) {
     if (!amount) return '0';
     return Number(amount).toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -230,7 +306,7 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           projectName: editForm.projectName.trim(),
-          projectType: editForm.projectType || null,
+          projectTypeId: editForm.projectTypeId || null,
           projectDate: editForm.projectDate || null,
           budget: editForm.budget ? parseFloat(editForm.budget) : null,
           status: editForm.status,
@@ -241,6 +317,7 @@
       if (res.status === 401) { window.location.href = '/login'; return; }
       if (!res.ok) throw new Error('เกิดข้อผิดพลาดในการบันทึกข้อมูล');
       await fetchAll();
+      await fetchHistory();
       showEditModal = false;
     } catch (e) {
       editError = e instanceof Error ? e.message : 'บันทึกไม่สำเร็จ กรุณาลองใหม่';
@@ -339,7 +416,12 @@
 
     <!-- MHESI Table -->
     <div class="section-card">
-      <h2 class="section-title">เลข อว. ในโครงการ</h2>
+      <div class="section-header">
+        <h2 class="section-title">เลข อว. ในโครงการ</h2>
+        {#if mhesiList.length > 0}
+          <span class="section-count">{mhesiList.length} รายการ</span>
+        {/if}
+      </div>
       {#if mhesiList.length === 0}
         <p class="empty-text">ยังไม่มีเลข อว. ในโครงการนี้</p>
       {:else}
@@ -355,7 +437,7 @@
               </tr>
             </thead>
             <tbody>
-              {#each mhesiList as m (m.uuid)}
+              {#each mhesiDisplay as m (m.uuid ?? m.mhesiNumber)}
                 <tr on:click={() => goto(`/mhesi/detail/${m.uuid}`)} class="clickable-row">
                   <td class="font-medium">{m.mhesiNumber}</td>
                   <td>{m.activityName || '-'}</td>
@@ -367,12 +449,28 @@
             </tbody>
           </table>
         </div>
+        {#if mhesiList.length > TABLE_LIMIT}
+          <div class="show-more">
+            <button class="show-more-btn" on:click={() => showAllMhesi = !showAllMhesi}>
+              {#if showAllMhesi}
+                แสดงน้อยลง ▲
+              {:else}
+                ดูทั้งหมด ({mhesiList.length} รายการ) ▼
+              {/if}
+            </button>
+          </div>
+        {/if}
       {/if}
     </div>
 
     <!-- Equipment Table -->
     <div class="section-card">
-      <h2 class="section-title">ครุภัณฑ์ ในโครงการ</h2>
+      <div class="section-header">
+        <h2 class="section-title">ครุภัณฑ์ ในโครงการ</h2>
+        {#if equipmentList.length > 0}
+          <span class="section-count">{equipmentList.length} รายการ</span>
+        {/if}
+      </div>
       {#if equipmentList.length === 0}
         <p class="empty-text">ยังไม่มีครุภัณฑ์ในโครงการนี้</p>
       {:else}
@@ -391,7 +489,7 @@
               </tr>
             </thead>
             <tbody>
-              {#each equipmentList as e (e.uuid)}
+              {#each equipmentDisplay as e (e.uuid ?? e.equipmentNumber)}
                 <tr on:click={() => goto(`/equipments/detail/${e.uuid}`)} class="clickable-row">
                   <td class="font-medium font-mono">{e.equipmentNumber}</td>
                   <td>{e.equipmentName}</td>
@@ -408,6 +506,64 @@
               {/each}
             </tbody>
           </table>
+        </div>
+        {#if equipmentList.length > TABLE_LIMIT}
+          <div class="show-more">
+            <button class="show-more-btn" on:click={() => showAllEquipment = !showAllEquipment}>
+              {#if showAllEquipment}
+                แสดงน้อยลง ▲
+              {:else}
+                ดูทั้งหมด ({equipmentList.length} รายการ) ▼
+              {/if}
+            </button>
+          </div>
+        {/if}
+      {/if}
+    </div>
+
+    <!-- History -->
+    <div class="history-card">
+      <h2 class="section-title">ประวัติการแก้ไข</h2>
+      {#if historyLoading}
+        <div class="empty-history"><p>กำลังโหลด...</p></div>
+      {:else if history.length === 0}
+        <div class="empty-history"><p>ยังไม่มีประวัติการแก้ไข</p></div>
+      {:else}
+        <div class="timeline">
+          {#each history as h, idx}
+            {@const diffFields = getDiffFields(h.before, h.after)}
+            <div class="tl-item">
+              <div class="tl-line-wrap">
+                <div class="tl-dot"></div>
+                {#if idx < history.length - 1}<div class="tl-line"></div>{/if}
+              </div>
+              <div class="tl-body">
+                <div class="tl-header">
+                  <div class="tl-header-left">
+                    <span class="tl-badge">แก้ไขข้อมูล</span>
+                    <span class="tl-user">{h.changedBy || 'ไม่ระบุ'}</span>
+                  </div>
+                  <span class="tl-time">{new Date(h.createdAt).toLocaleString('th-TH', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' })}</span>
+                </div>
+                {#if diffFields.length > 0}
+                  <div class="tl-changes">
+                    {#each diffFields as field}
+                      <div class="tl-change-row">
+                        <span class="tl-field">{PROJECT_FIELD_LABELS[field]}</span>
+                        <div class="tl-diff">
+                          <span class="tl-old">{resolveProjectValue(field, h.before?.[field])}</span>
+                          <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" class="tl-arrow"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                          <span class="tl-new">{resolveProjectValue(field, h.after?.[field])}</span>
+                        </div>
+                      </div>
+                    {/each}
+                  </div>
+                {:else}
+                  <p class="tl-nochange">ไม่มีการเปลี่ยนแปลง</p>
+                {/if}
+              </div>
+            </div>
+          {/each}
         </div>
       {/if}
     </div>
@@ -446,9 +602,10 @@
         <!-- ประเภท -->
         <div class="modal-field">
           <label class="modal-label">ประเภทโครงการ</label>
-          <SearchableDropdown
-            options={projectTypeOptions}
-            bind:value={editForm.projectType}
+          <Dropdown
+            fullWidth
+            options={projectTypes.map(t => ({ value: t.id, label: t.name }))}
+            bind:value={editForm.projectTypeId}
             placeholder="เลือกประเภท"
           />
         </div>
@@ -474,7 +631,8 @@
         <!-- แหล่งเงินทุน -->
         <div class="modal-field">
           <label class="modal-label">แหล่งเงินทุน</label>
-          <SearchableDropdown
+          <Dropdown
+            fullWidth
             options={acquisitionSources.map(s => ({ value: s.id, label: s.name }))}
             bind:value={editForm.acquisitionSourceId}
             placeholder="เลือกแหล่งเงินทุน"
@@ -484,7 +642,8 @@
         <!-- สถานะ -->
         <div class="modal-field">
           <label class="modal-label">สถานะ</label>
-          <SearchableDropdown
+          <Dropdown
+            fullWidth
             options={statusOptions}
             bind:value={editForm.status}
             placeholder="เลือกสถานะ"
@@ -510,8 +669,9 @@
 
 <style>
   .page-container {
-    max-width: 1200px;
-    margin: 0 auto;
+    background: #e5e5e5;
+    min-height: 100vh;
+    padding: 2rem;
   }
 
   .header {
@@ -608,12 +768,51 @@
     margin-bottom: 1.5rem;
   }
 
+  .section-header {
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+    margin-bottom: 1.25rem;
+  }
+
   .section-title {
     font-size: 1.125rem;
     font-weight: 600;
     color: #1f2937;
-    margin: 0 0 1.25rem;
+    margin: 0;
   }
+
+  .section-count {
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: #ffa200;
+    background: #fff8ec;
+    border: 1px solid #ffd580;
+    border-radius: 99px;
+    padding: 0.1rem 0.55rem;
+  }
+
+  .show-more {
+    display: flex;
+    justify-content: center;
+    padding: 0.75rem 0 0.25rem;
+    border-top: 1px solid #f3f4f6;
+    margin-top: 0.25rem;
+  }
+
+  .show-more-btn {
+    background: none;
+    border: none;
+    color: #ffa200;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    cursor: pointer;
+    padding: 0.25rem 0.75rem;
+    border-radius: 0.375rem;
+    transition: background 0.15s;
+  }
+
+  .show-more-btn:hover { background: #fff8ec; }
 
   .empty-text {
     color: #9ca3af;
@@ -675,6 +874,129 @@
     margin-right: 0.375rem;
     vertical-align: middle;
   }
+
+  .history-card {
+    background: white;
+    border-radius: 0.75rem;
+    padding: 1.5rem;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    margin-top: 1.5rem;
+  }
+
+  .history-card .section-title { margin-bottom: 1.25rem; }
+
+  .empty-history {
+    padding: 2rem;
+    text-align: center;
+    color: #6b7280;
+    font-size: 0.875rem;
+  }
+
+  .timeline { padding: 0.25rem 0; }
+
+  .tl-item { display: flex; gap: 1rem; }
+
+  .tl-line-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    flex-shrink: 0;
+    width: 20px;
+    padding-top: 0.3rem;
+  }
+
+  .tl-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #3b82f6;
+    border: 2px solid #eff6ff;
+    box-shadow: 0 0 0 2px #3b82f6;
+    flex-shrink: 0;
+  }
+
+  .tl-line {
+    flex: 1;
+    width: 2px;
+    background: #f3f4f6;
+    margin: 4px 0;
+    min-height: 24px;
+  }
+
+  .tl-body { flex: 1; padding-bottom: 1.5rem; }
+
+  .tl-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.625rem;
+  }
+
+  .tl-header-left { display: flex; align-items: center; gap: 0.5rem; }
+
+  .tl-badge {
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    color: #1d4ed8;
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+    border-radius: 99px;
+    padding: 0.15rem 0.6rem;
+  }
+
+  .tl-user { font-size: 0.875rem; font-weight: 600; color: #111827; }
+
+  .tl-time { font-size: 0.78rem; color: #9ca3af; }
+
+  .tl-changes {
+    background: #fafafa;
+    border: 1px solid #f0f0f0;
+    border-radius: 0.5rem;
+    overflow: hidden;
+  }
+
+  .tl-change-row {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.55rem 0.875rem;
+    border-bottom: 1px solid #f3f4f6;
+  }
+
+  .tl-change-row:last-child { border-bottom: none; }
+
+  .tl-field {
+    min-width: 90px;
+    font-size: 0.78rem;
+    font-weight: 500;
+    color: #6b7280;
+    flex-shrink: 0;
+  }
+
+  .tl-diff { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+
+  .tl-old {
+    font-size: 0.8125rem;
+    color: #b91c1c;
+    background: #fef2f2;
+    border-radius: 0.25rem;
+    padding: 0.1rem 0.45rem;
+    text-decoration: line-through;
+  }
+
+  .tl-arrow { color: #9ca3af; flex-shrink: 0; }
+
+  .tl-new {
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: #15803d;
+    background: #f0fdf4;
+    border-radius: 0.25rem;
+    padding: 0.1rem 0.45rem;
+  }
+
+  .tl-nochange { font-size: 0.8rem; color: #9ca3af; font-style: italic; }
 
   /* Loading / Error */
   .loading {

@@ -234,7 +234,7 @@
       {#if filtered.length === 0}
         <div class="dropdown-empty">ไม่พบรายการ</div>
       {:else}
-        {#each filtered as option (option.value)}
+        {#each filtered as option, i (option.value ?? i)}
           <button
             class="dropdown-item {value === option.value ? 'active' : ''}"
             on:click={() => select(option)}

@@ -90,6 +90,7 @@
     if (!formData.projectId) errors.projectId = true;
     if (!formData.activityName.trim()) errors.activityName = true;
     if (!formData.date) errors.date = true;
+    if (!formData.amount || isNaN(parseFloat(formData.amount)) || parseFloat(formData.amount) < 0) errors.amount = true;
 
     if (Object.keys(errors).length > 0) {
       errorMessage = 'กรุณากรอกข้อมูลที่จำเป็นให้ครบทุกช่อง';
@@ -281,24 +282,25 @@
 
           <!-- จำนวนเงิน -->
           <div class="form-group">
-            <label class="label">จำนวนเงิน</label>
+            <label class="label">จำนวนเงิน <span class="required">*</span></label>
             <input
               type="text"
               inputmode="decimal"
               bind:value={formData.amount}
               on:input={(e) => { formData.amount = e.currentTarget.value.replace(/[^0-9.]/g, ''); }}
               class="input"
+              class:input-error={errors.amount}
             />
           </div>
 
           <!-- หมายเหตุ -->
           <div class="form-group">
             <label class="label">หมายเหตุ</label>
-            <input
-              type="text"
+            <textarea
               bind:value={formData.note}
-              class="input"
-            />
+              class="input textarea"
+              rows="3"
+            ></textarea>
           </div>
 
         </div>
@@ -367,6 +369,11 @@
     transform: translateY(-50%);
     pointer-events: none;
     color: #9ca3af;
+  }
+
+  .textarea {
+    resize: vertical;
+    min-height: 80px;
   }
 
   .input-readonly {

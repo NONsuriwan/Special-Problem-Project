@@ -260,12 +260,10 @@
 
   function formatDate(dateStr: string | null): string {
     if (!dateStr) return '-';
-    const d = new Date(dateStr);
-    return d.toLocaleDateString('th-TH', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric'
-    });
+    const parts = dateStr.split('T')[0].split('-');
+    if (parts.length !== 3) return '-';
+    const [year, month, day] = parts;
+    return `${day}/${month}/${parseInt(year) + 543}`;
   }
 
   function handleSearch() {
@@ -547,7 +545,7 @@
             bind:value={draftDateTo}
             inputClass="filter-input"
             placeholder="วันที่สิ้นสุด"
-            on:change={(e) => { if (draftDateFrom && e.detail < draftDateFrom) draftDateFrom = ''; }}
+            on:change={(e) => { if (draftDateFrom && e.detail < draftDateFrom) draftDateTo = draftDateFrom; }}
           />
         </div>
       </div>

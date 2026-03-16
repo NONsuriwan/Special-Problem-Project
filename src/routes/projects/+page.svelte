@@ -2,13 +2,14 @@
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
   import Dropdown from '$lib/components/ui/Dropdown.svelte';
+  import ThaiDatePicker from '$lib/components/ui/ThaiDatePicker.svelte';
 
   // กำหนด Interface
   interface Project {
     id: number;
     uuid: string;
     projectName: string;
-    projectType: string | null;
+    projectTypeId: number | null;
     projectDate: string | null;
     budget: string | number | null;
     status: string | null;
@@ -43,8 +44,22 @@
 
   // Filter popup state
   let showFilter = false;
-  let draftStatus = '';
-  let activeStatus = '';
+
+  let draftStatus             = '';
+  let draftProjectTypeId      = null as number | null;
+  let draftAcquisitionSourceId = null as number | null;
+  let draftDateFrom           = '';
+  let draftDateTo             = '';
+  let draftBudgetMin          = '';
+  let draftBudgetMax          = '';
+
+  let activeStatus             = '';
+  let activeProjectTypeId      = null as number | null;
+  let activeAcquisitionSourceId = null as number | null;
+  let activeDateFrom           = '';
+  let activeDateTo             = '';
+  let activeBudgetMin          = '';
+  let activeBudgetMax          = '';
 
   const statusOptions = [
     { value: '', label: 'ทั้งหมด' },
@@ -53,22 +68,40 @@
     { value: 'cancelled', label: 'ยกเลิก' },
   ];
 
-  $: hasActiveFilter = !!(activeStatus);
+  $: hasActiveFilter = !!(activeStatus || activeProjectTypeId || activeAcquisitionSourceId || activeDateFrom || activeDateTo || activeBudgetMin || activeBudgetMax);
 
   function openFilter() {
-    draftStatus = activeStatus;
+    draftStatus              = activeStatus;
+    draftProjectTypeId       = activeProjectTypeId;
+    draftAcquisitionSourceId = activeAcquisitionSourceId;
+    draftDateFrom            = activeDateFrom;
+    draftDateTo              = activeDateTo;
+    draftBudgetMin           = activeBudgetMin;
+    draftBudgetMax           = activeBudgetMax;
     showFilter = true;
   }
 
   function applyFilter() {
-    activeStatus = draftStatus;
+    activeStatus              = draftStatus;
+    activeProjectTypeId       = draftProjectTypeId;
+    activeAcquisitionSourceId = draftAcquisitionSourceId;
+    activeDateFrom            = draftDateFrom;
+    activeDateTo              = draftDateTo;
+    activeBudgetMin           = draftBudgetMin;
+    activeBudgetMax           = draftBudgetMax;
     showFilter = false;
     currentPage = 1;
     fetchProjects();
   }
 
   function clearDraftFilter() {
-    draftStatus = '';
+    draftStatus              = '';
+    draftProjectTypeId       = null;
+    draftAcquisitionSourceId = null;
+    draftDateFrom            = '';
+    draftDateTo              = '';
+    draftBudgetMin           = '';
+    draftBudgetMax           = '';
   }
 
   // Sort state
@@ -84,6 +117,7 @@
 
   // Master data
   let acquisitionSources: MasterData[] = [];
+  let projectTypes: MasterData[] = [];
 
   const API_URL = 'http://localhost:3000';
 
@@ -99,12 +133,12 @@
   // ดึงข้อมูล Master Data
   async function fetchMasterData() {
     try {
-      const sourcesRes = await fetch(`${API_URL}/api/masters/acquisition-sources`, { credentials: 'include' });
-      
-      if (sourcesRes.ok) {
-        const data = await sourcesRes.json();
-        acquisitionSources = data.data || [];
-      }
+      const [sourcesRes, typesRes] = await Promise.all([
+        fetch(`${API_URL}/api/masters/acquisition-sources`, { credentials: 'include' }),
+        fetch(`${API_URL}/api/masters/project-types`, { credentials: 'include' }),
+      ]);
+      if (sourcesRes.ok) acquisitionSources = (await sourcesRes.json()).data || [];
+      if (typesRes.ok)   projectTypes = (await typesRes.json()).data || [];
     } catch (err) {
       console.error('Error fetching master data:', err);
     }
@@ -119,9 +153,15 @@
       if (searchQuery) url.searchParams.append('search', searchQuery);
       url.searchParams.append('page',  String(currentPage));
       url.searchParams.append('limit', String(limit));
-      if (sortBy)  url.searchParams.append('sortBy',  sortBy);
-      if (sortDir) url.searchParams.append('sortDir', sortDir);
-      if (activeStatus) url.searchParams.append('status', activeStatus);
+      if (sortBy)                   url.searchParams.append('sortBy',              sortBy);
+      if (sortDir)                  url.searchParams.append('sortDir',             sortDir);
+      if (activeStatus)             url.searchParams.append('status',              activeStatus);
+      if (activeProjectTypeId)      url.searchParams.append('projectTypeId',       String(activeProjectTypeId));
+      if (activeAcquisitionSourceId) url.searchParams.append('acquisitionSourceId', String(activeAcquisitionSourceId));
+      if (activeDateFrom)           url.searchParams.append('dateFrom',            activeDateFrom);
+      if (activeDateTo)             url.searchParams.append('dateTo',              activeDateTo);
+      if (activeBudgetMin)          url.searchParams.append('budgetMin',           activeBudgetMin);
+      if (activeBudgetMax)          url.searchParams.append('budgetMax',           activeBudgetMax);
 
       const res = await fetch(url.toString(), { credentials: 'include' });
       if (res.status === 401) { window.location.href = '/login'; return; }
@@ -159,6 +199,26 @@
     return acquisitionSources.find(s => s.id === id)?.name || '-';
   }
 
+  function getProjectTypeName(id: number | null): string {
+    if (!id) return '-';
+    return projectTypes.find(t => t.id === id)?.name || '-';
+  }
+
+  const STATUS_LABELS: Record<string, string> = {
+    active:    'ดำเนินการ',
+    completed: 'เสร็จสิ้น',
+    pending:   'รอดำเนินการ',
+    cancelled: 'ยกเลิก',
+  };
+
+  function formatDate(dateStr: string | null): string {
+    if (!dateStr) return '-';
+    const parts = dateStr.split('T')[0].split('-');
+    if (parts.length !== 3) return '-';
+    const [year, month, day] = parts;
+    return `${day}/${month}/${parseInt(year) + 543}`;
+  }
+
   $: pageNumbers = (() => {
     if (totalPages <= 7) return Array.from({ length: totalPages }, (_, i) => i + 1);
     const pages: (number | '...')[] = [];
@@ -192,15 +252,6 @@
     });
   }
 
-  function formatDate(dateStr: string | null): string {
-    if (!dateStr) return '-';
-    const d = new Date(dateStr);
-    return d.toLocaleDateString('th-TH', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric'
-    });
-  }
 
   // Generate Project ID format (ใช้ id จริงหรือ format ตามต้องการ)
   function formatProjectId(id: number, date: string | null): string {
@@ -310,52 +361,47 @@
       <div class="table-container table-no-radius">
         <table class="table">
           <colgroup>
-            <col style="width: 20%" />
-            <col style="width: 30%" />
             <col style="width: 15%" />
+            <col style="width: 22%" />
+            <col style="width: 13%" />
             <col style="width: 15%" />
-            <col style="width: 20%" />
+            <col style="width: 10%" />
+            <col style="width: 10%" />
+            <col style="width: 15%" />
           </colgroup>
           <thead>
             <tr>
               <th class="sortable" on:click={() => toggleSort('id')}>
-                <span class="th-inner">
-                  <span>หมายเลขโครงการ</span>
-                  <span class="sort-icon" class:sort-active={sortBy === 'id'}>{sortBy === 'id' ? (sortDir === 'asc' ? '▲' : '▼') : '⇅'}</span>
-                </span>
+                <span class="th-inner"><span>หมายเลขโครงการ</span><span class="sort-icon" class:sort-active={sortBy === 'id'}>{sortBy === 'id' ? (sortDir === 'asc' ? '▲' : '▼') : '⇅'}</span></span>
               </th>
               <th class="sortable" on:click={() => toggleSort('projectName')}>
-                <span class="th-inner">
-                  <span>ชื่อโครงการ</span>
-                  <span class="sort-icon" class:sort-active={sortBy === 'projectName'}>{sortBy === 'projectName' ? (sortDir === 'asc' ? '▲' : '▼') : '⇅'}</span>
-                </span>
+                <span class="th-inner"><span>ชื่อโครงการ</span><span class="sort-icon" class:sort-active={sortBy === 'projectName'}>{sortBy === 'projectName' ? (sortDir === 'asc' ? '▲' : '▼') : '⇅'}</span></span>
               </th>
               <th class="sortable" on:click={() => toggleSort('projectType')}>
-                <span class="th-inner">
-                  <span>ประเภท</span>
-                  <span class="sort-icon" class:sort-active={sortBy === 'projectType'}>{sortBy === 'projectType' ? (sortDir === 'asc' ? '▲' : '▼') : '⇅'}</span>
-                </span>
+                <span class="th-inner"><span>ประเภท</span><span class="sort-icon" class:sort-active={sortBy === 'projectType'}>{sortBy === 'projectType' ? (sortDir === 'asc' ? '▲' : '▼') : '⇅'}</span></span>
+              </th>
+              <th class="sortable" on:click={() => toggleSort('acquisitionSourceId')}>
+                <span class="th-inner"><span>แหล่งเงินทุน</span><span class="sort-icon" class:sort-active={sortBy === 'acquisitionSourceId'}>{sortBy === 'acquisitionSourceId' ? (sortDir === 'asc' ? '▲' : '▼') : '⇅'}</span></span>
+              </th>
+              <th class="sortable" on:click={() => toggleSort('status')}>
+                <span class="th-inner"><span>สถานะ</span><span class="sort-icon" class:sort-active={sortBy === 'status'}>{sortBy === 'status' ? (sortDir === 'asc' ? '▲' : '▼') : '⇅'}</span></span>
               </th>
               <th class="sortable" on:click={() => toggleSort('projectDate')}>
-                <span class="th-inner">
-                  <span>วันที่</span>
-                  <span class="sort-icon" class:sort-active={sortBy === 'projectDate'}>{sortBy === 'projectDate' ? (sortDir === 'asc' ? '▲' : '▼') : '⇅'}</span>
-                </span>
+                <span class="th-inner"><span>วันที่</span><span class="sort-icon" class:sort-active={sortBy === 'projectDate'}>{sortBy === 'projectDate' ? (sortDir === 'asc' ? '▲' : '▼') : '⇅'}</span></span>
               </th>
               <th class="sortable" on:click={() => toggleSort('budget')}>
-                <span class="th-inner">
-                  <span>งบประมาณ</span>
-                  <span class="sort-icon" class:sort-active={sortBy === 'budget'}>{sortBy === 'budget' ? (sortDir === 'asc' ? '▲' : '▼') : '⇅'}</span>
-                </span>
+                <span class="th-inner"><span>งบประมาณ</span><span class="sort-icon" class:sort-active={sortBy === 'budget'}>{sortBy === 'budget' ? (sortDir === 'asc' ? '▲' : '▼') : '⇅'}</span></span>
               </th>
             </tr>
           </thead>
           <tbody>
-            {#each items as r (r.uuid)}
+            {#each items as r (r.uuid ?? r.id)}
               <tr class="clickable-row" on:click={() => goto(`/projects/detail/${r.uuid}`)}>
                 <td>{formatProjectId(r.id, r.projectDate)}</td>
                 <td>{r.projectName}</td>
-                <td>{r.projectType || '-'}</td>
+                <td>{getProjectTypeName(r.projectTypeId)}</td>
+                <td>{getAcquisitionSourceName(r.acquisitionSourceId)}</td>
+                <td>{STATUS_LABELS[r.status ?? ''] ?? r.status ?? '-'}</td>
                 <td>{formatDate(r.projectDate)}</td>
                 <td>{formatCurrency(r.budget)}</td>
               </tr>
@@ -423,14 +469,56 @@
   <div class="filter-popup">
     <h2 class="filter-title">ตัวกรองขั้นสูง</h2>
     <div class="filter-grid">
+      <!-- ประเภท -->
+      <div class="filter-field">
+        <label class="filter-label">ประเภท</label>
+        <Dropdown
+          fullWidth
+          options={[{ value: null, label: 'ทั้งหมด' }, ...projectTypes.map(t => ({ value: t.id, label: t.name }))]}
+          bind:value={draftProjectTypeId}
+          placeholder="ทั้งหมด"
+        />
+      </div>
+
+      <!-- แหล่งเงินทุน -->
+      <div class="filter-field">
+        <label class="filter-label">แหล่งเงินทุน</label>
+        <Dropdown
+          fullWidth
+          options={[{ value: null, label: 'ทั้งหมด' }, ...acquisitionSources.map(s => ({ value: s.id, label: s.name }))]}
+          bind:value={draftAcquisitionSourceId}
+          placeholder="ทั้งหมด"
+        />
+      </div>
+
       <!-- สถานะ -->
       <div class="filter-field">
         <label class="filter-label">สถานะ</label>
         <Dropdown
+          fullWidth
           options={statusOptions}
           bind:value={draftStatus}
           placeholder="ทั้งหมด"
         />
+      </div>
+
+      <!-- งบประมาณ (ช่วง) -->
+      <div class="filter-field">
+        <label class="filter-label">ช่วงงบประมาณ</label>
+        <div class="range-row">
+          <input type="number" min="0" class="filter-input" bind:value={draftBudgetMin} placeholder="ขั้นต่ำ" />
+          <input type="number" min="0" class="filter-input" bind:value={draftBudgetMax} placeholder="สูงสุด" />
+        </div>
+      </div>
+
+      <!-- วันที่ (ช่วง) full width -->
+      <div class="filter-field full-col">
+        <label class="filter-label">ช่วงวันที่</label>
+        <div class="date-range-row">
+          <ThaiDatePicker bind:value={draftDateFrom} inputClass="filter-input" placeholder="วันที่เริ่มต้น" />
+          <span class="range-sep">—</span>
+          <ThaiDatePicker bind:value={draftDateTo} inputClass="filter-input" placeholder="วันที่สิ้นสุด" />
+        </div>
       </div>
     </div>
     <div class="filter-footer">
@@ -534,9 +622,50 @@
     border-radius: 1rem;
     padding: 1.5rem;
     z-index: 401;
-    width: min(480px, 90vw);
+    width: min(640px, 90vw);
     box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+    max-height: 90vh;
+    overflow-y: auto;
   }
+
+  .filter-input {
+    padding: 0.5rem 0.75rem;
+    border: 1px solid #d1d5db;
+    border-radius: 0.5rem;
+    font-size: 0.875rem;
+    color: #374151;
+    width: 100%;
+    box-sizing: border-box;
+    outline: none;
+    font-family: inherit;
+  }
+
+  .filter-input:focus {
+    border-color: #ffa200;
+    box-shadow: 0 0 0 2px rgba(255,162,0,0.15);
+  }
+
+  .range-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.5rem;
+  }
+
+  .date-range-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .date-range-row .filter-input { flex: 1; }
+
+  .range-sep {
+    color: #9ca3af;
+    font-size: 1rem;
+    flex-shrink: 0;
+  }
+
+  .full-col { grid-column: 1 / -1; }
 
   .filter-title {
     font-size: 1rem;
