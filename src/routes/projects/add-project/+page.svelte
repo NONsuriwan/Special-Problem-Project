@@ -3,6 +3,8 @@
   import { goto } from '$app/navigation';
   import Dropdown from '$lib/components/ui/Dropdown.svelte';
   import ThaiDatePicker from '$lib/components/ui/ThaiDatePicker.svelte';
+  import { apiFetch } from '$lib/api/client';
+  import { API_ENDPOINTS } from '$lib/api/endpoints';
 
   type MasterData = { id: number; name: string };
 
@@ -35,12 +37,12 @@
 
   async function fetchMasterData() {
     try {
-      const [typesRes, sourcesRes] = await Promise.all([
-        fetch('http://localhost:3000/api/masters/project-types', { credentials: 'include' }),
-        fetch('http://localhost:3000/api/masters/acquisition-sources', { credentials: 'include' }),
+      const [typesData, sourcesData] = await Promise.all([
+        apiFetch<{ data: MasterData[] }>(API_ENDPOINTS.MASTERS.PROJECT_TYPES),
+        apiFetch<{ data: MasterData[] }>(API_ENDPOINTS.MASTERS.ACQUISITION_SOURCES),
       ]);
-      if (typesRes.ok)   projectTypes = (await typesRes.json()).data || [];
-      if (sourcesRes.ok) acquisitionSources = (await sourcesRes.json()).data || [];
+      projectTypes = typesData.data || [];
+      acquisitionSources = sourcesData.data || [];
     } catch (err) {
       console.error('Error fetching master data:', err);
     }
@@ -74,19 +76,10 @@
         note: formData.note || null,
       };
 
-      const response = await fetch('http://localhost:3000/api/projects', {
+      await apiFetch(API_ENDPOINTS.PROJECTS, {
         method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(submitData),
       });
-      if (response.status === 401) { window.location.href = '/login'; return; }
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error('เกิดข้อผิดพลาดในการบันทึกข้อมูล');
-      }
 
       showSuccessModal = true;
       setTimeout(() => goto('/projects'), 1500);

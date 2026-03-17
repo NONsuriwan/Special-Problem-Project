@@ -5,6 +5,8 @@
   import ThaiDatePicker from '$lib/components/ui/ThaiDatePicker.svelte';
   import SearchableDropdown from '$lib/components/ui/SearchableDropdown.svelte';
   import Dropdown from '$lib/components/ui/Dropdown.svelte';
+  import { apiFetch } from '$lib/api/client';
+  import { API_ENDPOINTS } from '$lib/api/endpoints';
 
   type Asset = {
     id: number;
@@ -135,34 +137,25 @@
   // Fetch master data
   async function fetchMasterData() {
     try {
-      const [
-        typesRes,
-        deptRes,
-        fundRes,
-        buildRes,
-        roomRes,
-        srcRes,
-        methodRes,
-        projRes
-      ] = await Promise.all([
-        fetch('http://localhost:3000/api/masters/equipment-types', { credentials: 'include' }),
-        fetch('http://localhost:3000/api/masters/departments', { credentials: 'include' }),
-        fetch('http://localhost:3000/api/masters/funds', { credentials: 'include' }),
-        fetch('http://localhost:3000/api/masters/buildings', { credentials: 'include' }),
-        fetch('http://localhost:3000/api/masters/rooms', { credentials: 'include' }),
-        fetch('http://localhost:3000/api/masters/acquisition-sources', { credentials: 'include' }),
-        fetch('http://localhost:3000/api/masters/acquisition-methods', { credentials: 'include' }),
-        fetch('http://localhost:3000/api/projects', { credentials: 'include' })
+      const [typesData, deptData, fundData, buildData, roomData, srcData, methodData, projData] = await Promise.all([
+        apiFetch<{ data: MasterData[] }>(API_ENDPOINTS.MASTERS.ASSET_TYPES),
+        apiFetch<{ data: MasterData[] }>(API_ENDPOINTS.MASTERS.DEPARTMENTS),
+        apiFetch<{ data: MasterData[] }>(API_ENDPOINTS.MASTERS.FUNDS),
+        apiFetch<{ data: MasterData[] }>(API_ENDPOINTS.MASTERS.BUILDINGS),
+        apiFetch<{ data: MasterData[] }>(API_ENDPOINTS.MASTERS.ROOMS),
+        apiFetch<{ data: MasterData[] }>(API_ENDPOINTS.MASTERS.ACQUISITION_SOURCES),
+        apiFetch<{ data: MasterData[] }>(API_ENDPOINTS.MASTERS.ACQUISITION_METHODS),
+        apiFetch<{ data: any[] }>(API_ENDPOINTS.PROJECTS),
       ]);
 
-      if (typesRes.ok) assetTypes = (await typesRes.json()).data || [];
-      if (deptRes.ok) departments = (await deptRes.json()).data || [];
-      if (fundRes.ok) funds = (await fundRes.json()).data || [];
-      if (buildRes.ok) buildings = (await buildRes.json()).data || [];
-      if (roomRes.ok) rooms = (await roomRes.json()).data || [];
-      if (srcRes.ok) acquisitionSources = (await srcRes.json()).data || [];
-      if (methodRes.ok) acquisitionMethods = (await methodRes.json()).data || [];
-      if (projRes.ok) projects = (await projRes.json()).data || [];
+      assetTypes = typesData.data || [];
+      departments = deptData.data || [];
+      funds = fundData.data || [];
+      buildings = buildData.data || [];
+      rooms = roomData.data || [];
+      acquisitionSources = srcData.data || [];
+      acquisitionMethods = methodData.data || [];
+      projects = projData.data || [];
     } catch (err) {
       console.error('Error fetching master data:', err);
     }
@@ -174,14 +167,8 @@
       loading = true;
       error = '';
 
-      const response = await fetch(`http://localhost:3000/api/equipment/${assetId}`, { credentials: 'include' });
-      if (response.status === 401) { window.location.href = '/login'; return; }
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      
-      const result = await response.json();
-      
+      const result = await apiFetch<{ success: boolean; data: Asset }>(API_ENDPOINTS.ASSET_DETAIL(assetId));
+
       if (result.success && result.data) {
         asset = result.data;
         await fetchAttachments();
@@ -199,11 +186,8 @@
   // Fetch attachments
   async function fetchAttachments() {
     try {
-      const response = await fetch(`http://localhost:3000/api/equipment/${assetId}/attachments`, { credentials: 'include' });
-      if (response.ok) {
-        const result = await response.json();
-        attachments = result.data || [];
-      }
+      const result = await apiFetch<{ data: Attachment[] }>(API_ENDPOINTS.ASSET_ATTACHMENTS(assetId));
+      attachments = result.data || [];
     } catch (err) {
       console.error('Error fetching attachments:', err);
     }
@@ -212,11 +196,8 @@
   // Fetch history
   async function fetchHistory() {
     try {
-      const res = await fetch(`http://localhost:3000/api/equipment/${assetId}/history`, { credentials: 'include' });
-      if (res.ok) {
-        const result = await res.json();
-        history = result.data || [];
-      }
+      const result = await apiFetch<{ data: HistoryEntry[] }>(API_ENDPOINTS.ASSET_HISTORY(assetId));
+      history = result.data || [];
     } catch (_) {}
   }
 
@@ -460,9 +441,8 @@
             const fd = new FormData();
             fd.append('file', f);
             fd.append('folder', 'repairs');
-            const res = await fetch('http://localhost:3000/api/attachments/upload', { method: 'POST', credentials: 'include', body: fd });
-            if (!res.ok) throw new Error(`อัปโหลด ${f.name} ไม่สำเร็จ`);
-            return (await res.json()).data;
+            const res = await apiFetch<{ data: { id: number } }>(API_ENDPOINTS.ATTACHMENTS_UPLOAD, { method: 'POST', body: fd });
+            return res.data;
           }));
           repairFileUploading = false;
           data.attachmentId = uploaded[0]?.id;
@@ -481,9 +461,8 @@
             const fd = new FormData();
             fd.append('file', f);
             fd.append('folder', 'disposals');
-            const res = await fetch('http://localhost:3000/api/attachments/upload', { method: 'POST', credentials: 'include', body: fd });
-            if (!res.ok) throw new Error(`อัปโหลด ${f.name} ไม่สำเร็จ`);
-            return (await res.json()).data;
+            const res = await apiFetch<{ data: { id: number } }>(API_ENDPOINTS.ATTACHMENTS_UPLOAD, { method: 'POST', body: fd });
+            return res.data;
           }));
           disposeFileUploading = false;
           data.attachmentId = uploaded[0]?.id;
@@ -492,21 +471,10 @@
       if (statusRemark.trim()) data.remark = statusRemark.trim();
 
       const targets = [assetId, ...extraEquipment.filter(e => e.status !== 'disposed').map(e => e.uuid)];
-      const res = await fetch('http://localhost:3000/api/equipment-status/change', {
+      await apiFetch(API_ENDPOINTS.EQUIPMENT_STATUS_CHANGE, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify({ equipmentUuids: targets, newStatus: selectedStatus, data }),
       });
-
-      if (res.status === 401) {
-        window.location.href = '/login';
-        return;
-      }
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.message || 'บันทึกไม่สำเร็จ');
-      }
 
       asset = { ...asset, status: selectedStatus };
       await fetchHistory();
@@ -599,15 +567,10 @@
         roomId: editForm.roomId,
       };
 
-      const res = await fetch(`http://localhost:3000/api/equipment/${assetId}`, {
+      const result = await apiFetch<{ data: Asset }>(API_ENDPOINTS.ASSET_DETAIL(assetId), {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify(payload),
       });
-      if (res.status === 401) { window.location.href = '/login'; return; }
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const result = await res.json();
       if (result.data) asset = result.data;
       showEditModal = false;
     } catch (err) {

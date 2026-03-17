@@ -3,6 +3,8 @@
   import { goto } from '$app/navigation';
   import Dropdown from '$lib/components/ui/Dropdown.svelte';
   import ThaiDatePicker from '$lib/components/ui/ThaiDatePicker.svelte';
+  import { apiFetch } from '$lib/api/client';
+  import { API_ENDPOINTS } from '$lib/api/endpoints';
 
   type Project = { id: number; projectName: string };
   type MhesiOption = { mhesiNumber: string; activityName?: string; taken: boolean };
@@ -51,14 +53,13 @@
 
   async function fetchMasterData() {
     try {
-      const [mhesiRes, projectsRes] = await Promise.all([
-        fetch('http://localhost:3000/api/mhesi', { credentials: 'include' }),
-        fetch('http://localhost:3000/api/projects', { credentials: 'include' }),
+      const [mhesiData, projectsData] = await Promise.all([
+        apiFetch<{ data: { mhesiNumber: string; activityName?: string }[] }>(API_ENDPOINTS.MHESI),
+        apiFetch<{ data: Project[] }>(API_ENDPOINTS.PROJECTS),
       ]);
 
-      if (mhesiRes.ok) {
-        const data = await mhesiRes.json();
-        const apiItems = data.data || [];
+      if (mhesiData) {
+        const apiItems = mhesiData.data || [];
 
         // เก็บเฉพาะ อว 7008.01/XXXX ที่มีในฐานข้อมูล
         const takenMap = new Map<string, string>();
@@ -79,10 +80,7 @@
         });
       }
 
-      if (projectsRes.ok) {
-        const data = await projectsRes.json();
-        projects = data.data || [];
-      }
+      projects = projectsData.data || [];
     } catch (err) {
       console.error('Error fetching master data:', err);
       errorMessage = 'เกิดข้อผิดพลาดในการโหลดข้อมูล';
@@ -118,19 +116,10 @@
         note: formData.note || null,
       };
 
-      const response = await fetch('http://localhost:3000/api/mhesi', {
+      await apiFetch(API_ENDPOINTS.MHESI, {
         method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(submitData),
       });
-      if (response.status === 401) { window.location.href = '/login'; return; }
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error('เกิดข้อผิดพลาดในการบันทึกข้อมูล');
-      }
 
       showSuccessModal = true;
       setTimeout(() => goto('/mhesi'), 1500);

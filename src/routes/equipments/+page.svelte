@@ -2,6 +2,8 @@
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
   import Dropdown from '$lib/components/ui/Dropdown.svelte';
+  import { apiFetch } from '$lib/api/client';
+  import { API_ENDPOINTS } from '$lib/api/endpoints';
 
   type Asset = {
     id: number;
@@ -37,7 +39,6 @@
   };
 
   let q = '';
-  let filter = 'ทั้งหมด';
   let items: Asset[] = [];
   let loading = true;
   let error = '';
@@ -158,43 +159,22 @@
     draftPriceMax = '';
   }
 
-  let categories = ['ทั้งหมด'];
-
-  // Active tab
-  let activeTab = 'ทั้งหมด';
-
   // Fetch master data
   async function fetchMasterData() {
     try {
-      const [typesRes, buildingsRes, roomsRes, unitsRes, sourcesRes] = await Promise.all([
-        fetch('http://localhost:3000/api/masters/equipment-types', { credentials: 'include' }),
-        fetch('http://localhost:3000/api/masters/buildings', { credentials: 'include' }),
-        fetch('http://localhost:3000/api/masters/rooms', { credentials: 'include' }),
-        fetch('http://localhost:3000/api/masters/support-units', { credentials: 'include' }),
-        fetch('http://localhost:3000/api/masters/acquisition-sources', { credentials: 'include' }),
+      const [typesData, buildingsData, roomsData, unitsData, sourcesData] = await Promise.all([
+        apiFetch<{ data: MasterData[] }>(API_ENDPOINTS.MASTERS.ASSET_TYPES),
+        apiFetch<{ data: MasterData[] }>(API_ENDPOINTS.MASTERS.BUILDINGS),
+        apiFetch<{ data: MasterData[] }>(API_ENDPOINTS.MASTERS.ROOMS),
+        apiFetch<{ data: MasterData[] }>(API_ENDPOINTS.MASTERS.SUPPORT_UNITS),
+        apiFetch<{ data: MasterData[] }>(API_ENDPOINTS.MASTERS.ACQUISITION_SOURCES),
       ]);
 
-      if (typesRes.ok) {
-        const typesData = await typesRes.json();
-        assetTypes = typesData.data || [];
-        categories = ['ทั้งหมด', ...assetTypes.map(t => t.name)];
-      }
-      if (buildingsRes.ok) {
-        const buildingsData = await buildingsRes.json();
-        buildings = buildingsData.data || [];
-      }
-      if (roomsRes.ok) {
-        const roomsData = await roomsRes.json();
-        rooms = roomsData.data || [];
-      }
-      if (unitsRes.ok) {
-        const d = await unitsRes.json();
-        supportUnits = d.data || [];
-      }
-      if (sourcesRes.ok) {
-        const d = await sourcesRes.json();
-        acquisitionSources = d.data || [];
-      }
+      assetTypes = typesData.data || [];
+      buildings = buildingsData.data || [];
+      rooms = roomsData.data || [];
+      supportUnits = unitsData.data || [];
+      acquisitionSources = sourcesData.data || [];
     } catch (err) {
       console.error('Error fetching master data:', err);
     }
@@ -206,32 +186,25 @@
       loading = true;
       error = '';
 
-      const url = new URL('http://localhost:3000/api/equipment');
-      url.searchParams.set('page', String(currentPage));
-      url.searchParams.set('limit', String(limit));
-      if (q.trim()) url.searchParams.set('search', q.trim());
+      const params = new URLSearchParams();
+      params.set('page', String(currentPage));
+      params.set('limit', String(limit));
+      if (q.trim()) params.set('search', q.trim());
       if (sortBy) {
-        url.searchParams.set('sortBy', sortBy);
-        url.searchParams.set('sortDir', sortDir);
+        params.set('sortBy', sortBy);
+        params.set('sortDir', sortDir);
       }
-      if (activeStatus)     url.searchParams.set('status',            activeStatus);
-      if (activeTypeId)     url.searchParams.set('equipmentTypeId',   String(activeTypeId));
-      if (activeBuildingId) url.searchParams.set('buildingId',        String(activeBuildingId));
-      if (activeRoomId)     url.searchParams.set('roomId',            String(activeRoomId));
-      if (activeUnitId)     url.searchParams.set('supportUnitId',     String(activeUnitId));
-      if (activeSourceId)   url.searchParams.set('acquisitionSourceId', String(activeSourceId));
-      if (activeBudgetYear) url.searchParams.set('budgetYear',        String(activeBudgetYear));
-      if (activePriceMin)   url.searchParams.set('priceMin',          activePriceMin);
-      if (activePriceMax)   url.searchParams.set('priceMax',          activePriceMax);
+      if (activeStatus)     params.set('status',               activeStatus);
+      if (activeTypeId)     params.set('equipmentTypeId',      String(activeTypeId));
+      if (activeBuildingId) params.set('buildingId',           String(activeBuildingId));
+      if (activeRoomId)     params.set('roomId',               String(activeRoomId));
+      if (activeUnitId)     params.set('supportUnitId',        String(activeUnitId));
+      if (activeSourceId)   params.set('acquisitionSourceId',  String(activeSourceId));
+      if (activeBudgetYear) params.set('budgetYear',           String(activeBudgetYear));
+      if (activePriceMin)   params.set('priceMin',             activePriceMin);
+      if (activePriceMax)   params.set('priceMax',             activePriceMax);
 
-      const response = await fetch(url.toString(), { credentials: 'include' });
-      if (response.status === 401) { window.location.href = '/login'; return; }
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const result: ApiResponse = await response.json();
+      const result = await apiFetch<ApiResponse>(`${API_ENDPOINTS.ASSETS}?${params.toString()}`);
 
       if (result.success && result.data) {
         items = result.data;
@@ -290,15 +263,7 @@
     return rooms.find(r => r.id === id)?.name || `ID: ${id}`;
   }
 
-  // Filter rows based on category (search is server-side)
   $: rows = items.filter((x) => {
-    const typeName = getEquipmentTypeName(x.equipmentTypeId);
-    const buildingName = getBuildingName(x.buildingId);
-    const roomName = getRoomName(x.roomId);
-
-    const byFilter = filter === 'ทั้งหมด' || typeName === filter;
-    const byTab = activeTab === 'ทั้งหมด' || typeName === activeTab;
-
     const byStatus = !activeStatus ||
       x.status === activeStatus ||
       (activeStatus === 'normal' && (x.status === 'normal' || x.status === 'available'));
@@ -314,8 +279,7 @@
     const byPriceMax = !activePriceMax ||
       (x.price !== null && parseFloat(x.price) <= parseFloat(activePriceMax));
 
-    return byFilter && byTab &&
-      byStatus && byType && byBuilding && byRoom &&
+    return byStatus && byType && byBuilding && byRoom &&
       byUnit && bySource && byYear && byPriceMin && byPriceMax;
   }).sort((a, b) => {
     if (!clientSortCols.includes(sortBy)) return 0;
@@ -434,12 +398,12 @@
       {#if hasActiveFilter}<span class="filter-dot"></span>{/if}
     </button>
     <div class="tabs">
-      {#each categories as tab}
-        <button 
-          class="tab {activeTab === tab ? 'active' : ''}"
-          on:click={() => activeTab = tab}
+      {#each [{ id: 0, name: 'ทั้งหมด' }, ...assetTypes] as type}
+        <button
+          class="tab {activeTypeId === type.id ? 'active' : ''}"
+          on:click={() => { activeTypeId = type.id; currentPage = 1; fetchAssets(); }}
         >
-          {tab}
+          {type.name}
         </button>
       {/each}
     </div>

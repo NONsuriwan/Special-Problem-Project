@@ -1,6 +1,11 @@
 export const API_ENDPOINTS = {
   ASSETS: '/api/equipment',
-  ASSET_DETAIL: (id: number) => `/api/equipment/${id}`,
+  ASSET_DETAIL: (id: string | number) => `/api/equipment/${id}`,
+  ASSET_STATS: '/api/equipment/stats',
+  ASSET_ATTACHMENTS: (id: string | number) => `/api/equipment/${id}/attachments`,
+  ASSET_HISTORY: (id: string | number) => `/api/equipment/${id}/history`,
+  EQUIPMENT_STATUS_CHANGE: '/api/equipment-status/change',
+  ATTACHMENTS_UPLOAD: '/api/attachments/upload',
 
   MASTERS: {
     DEPARTMENTS: '/api/masters/departments',
@@ -11,8 +16,16 @@ export const API_ENDPOINTS = {
     ACQUISITION_METHODS: '/api/masters/acquisition-methods',
     BUILDINGS: '/api/masters/buildings',
     ROOMS: '/api/masters/rooms',
+    SUPPORT_UNITS: '/api/masters/support-units',
+    PROJECT_TYPES: '/api/masters/project-types',
   },
 
   PROJECTS: '/api/projects',
   MHESI: '/api/mhesi',
+
+  AUTH: {
+    ME: '/api/auth/me',
+    LOGOUT: '/api/auth/logout',
+    REFRESH: '/api/auth/refresh',
+  },
 };

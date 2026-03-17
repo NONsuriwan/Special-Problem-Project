@@ -3,6 +3,8 @@
   import { goto } from '$app/navigation';
   import Dropdown from '$lib/components/ui/Dropdown.svelte';
   import ThaiDatePicker from '$lib/components/ui/ThaiDatePicker.svelte';
+  import { apiFetch } from '$lib/api/client';
+  import { API_ENDPOINTS } from '$lib/api/endpoints';
 
   type MasterData = {
     id: number;
@@ -74,29 +76,29 @@
   async function fetchMasterData() {
     try {
       const [
-        deptRes, actRes, fundRes, typeRes, srcRes, methodRes,
-        buildRes, roomRes, projRes
+        deptData, actData, fundData, typeData, srcData, methodData,
+        buildData, roomData, projData
       ] = await Promise.all([
-        fetch('http://localhost:3000/api/masters/departments', { credentials: 'include' }),
-        fetch('http://localhost:3000/api/masters/activities', { credentials: 'include' }),
-        fetch('http://localhost:3000/api/masters/funds', { credentials: 'include' }),
-        fetch('http://localhost:3000/api/masters/equipment-types', { credentials: 'include' }),
-        fetch('http://localhost:3000/api/masters/acquisition-sources', { credentials: 'include' }),
-        fetch('http://localhost:3000/api/masters/acquisition-methods', { credentials: 'include' }),
-        fetch('http://localhost:3000/api/masters/buildings', { credentials: 'include' }),
-        fetch('http://localhost:3000/api/masters/rooms', { credentials: 'include' }),
-        fetch('http://localhost:3000/api/projects', { credentials: 'include' })
+        apiFetch<{ data: MasterData[] }>(API_ENDPOINTS.MASTERS.DEPARTMENTS),
+        apiFetch<{ data: MasterData[] }>(API_ENDPOINTS.MASTERS.ACTIVITIES),
+        apiFetch<{ data: MasterData[] }>(API_ENDPOINTS.MASTERS.FUNDS),
+        apiFetch<{ data: MasterData[] }>(API_ENDPOINTS.MASTERS.ASSET_TYPES),
+        apiFetch<{ data: MasterData[] }>(API_ENDPOINTS.MASTERS.ACQUISITION_SOURCES),
+        apiFetch<{ data: MasterData[] }>(API_ENDPOINTS.MASTERS.ACQUISITION_METHODS),
+        apiFetch<{ data: MasterData[] }>(API_ENDPOINTS.MASTERS.BUILDINGS),
+        apiFetch<{ data: MasterData[] }>(API_ENDPOINTS.MASTERS.ROOMS),
+        apiFetch<{ data: Project[] }>(API_ENDPOINTS.PROJECTS),
       ]);
 
-      departments = (await deptRes.json()).data || [];
-      activities = (await actRes.json()).data || [];
-      funds = (await fundRes.json()).data || [];
-      assetTypes = (await typeRes.json()).data || [];
-      acquisitionSources = (await srcRes.json()).data || [];
-      acquisitionMethods = (await methodRes.json()).data || [];
-      buildings = (await buildRes.json()).data || [];
-      rooms = (await roomRes.json()).data || [];
-      projects = (await projRes.json()).data || [];
+      departments = deptData.data || [];
+      activities = actData.data || [];
+      funds = fundData.data || [];
+      assetTypes = typeData.data || [];
+      acquisitionSources = srcData.data || [];
+      acquisitionMethods = methodData.data || [];
+      buildings = buildData.data || [];
+      rooms = roomData.data || [];
+      projects = projData.data || [];
 
       const currentYearBE = new Date().getFullYear() + 543;
       const startYearBE = 2540;
@@ -189,21 +191,10 @@
         status: 'normal',
       };
 
-      const response = await fetch('http://localhost:3000/api/equipment', {
+      await apiFetch(API_ENDPOINTS.ASSETS, {
         method: 'POST',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(submitData)
+        body: JSON.stringify(submitData),
       });
-      if (response.status === 401) { window.location.href = '/login'; return; }
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error('เกิดข้อผิดพลาดในการบันทึกข้อมูล');
-      }
 
       // Success
       showSuccessModal = true;

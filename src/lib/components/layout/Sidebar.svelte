@@ -3,6 +3,8 @@
   import { page } from "$app/stores";
   import { onMount } from 'svelte';
   import { pageTitle, pageSubtitle } from "$lib/stores/pageTitle";
+  import { apiFetch } from '$lib/api/client';
+  import { API_ENDPOINTS } from '$lib/api/endpoints';
 
   // ข้อมูลเมนูตามรายการที่คุณระบุ
   const links = [
@@ -115,22 +117,16 @@
 
   async function fetchUser() {
     try {
-      const res = await fetch('http://localhost:3000/api/auth/me', { credentials: 'include' });
-      if (res.ok) {
-        const result = await res.json();
-        userInfo = result.data;
-      }
+      const result = await apiFetch<{ data: UserInfo }>(API_ENDPOINTS.AUTH.ME);
+      userInfo = result.data;
     } catch (_) { /* ไม่แสดง error */ }
   }
 
   async function logout() {
     loggingOut = true;
     try {
-      await fetch('http://localhost:3000/api/auth/logout', {
-        method: 'POST',
-        credentials: 'include',
-      });
-    } finally {
+      await apiFetch(API_ENDPOINTS.AUTH.LOGOUT, { method: 'POST' });
+    } catch (_) { /* ignore */ } finally {
       loggingOut = false;
       showUserMenu = false;
       // hard reload เพื่อให้ server hooks reset สถานะ auth ใหม่

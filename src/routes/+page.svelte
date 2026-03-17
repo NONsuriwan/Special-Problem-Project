@@ -2,6 +2,8 @@
   import { onMount } from 'svelte';
   import StatCard from '$lib/components/ui/StatCard.svelte';
   import Dropdown from '$lib/components/ui/Dropdown.svelte';
+  import { apiFetch } from '$lib/api/client';
+  import { API_ENDPOINTS } from '$lib/api/endpoints';
 
   let stats = [
     { label: 'ครุภัณฑ์ทั้งหมด', value: '-', icon: '📦' },
@@ -18,10 +20,7 @@
 
   onMount(async () => {
     try {
-      const res = await fetch('http://localhost:3000/api/equipment/stats', { credentials: 'include' });
-      if (res.status === 401) { window.location.href = '/login'; return; }
-      if (!res.ok) return;
-      const { data } = await res.json();
+      const { data } = await apiFetch<{ data: { total: string; byStatus: { status: string; count: number }[] } }>(API_ENDPOINTS.ASSET_STATS);
       const by = data.byStatus ?? [];
       stats = [
         { label: 'ครุภัณฑ์ทั้งหมด', value: Number(data.total).toLocaleString('th-TH'), icon: '📦' },

@@ -37,7 +37,6 @@
   // ตัวแปรสถานะ
   let q = '';
   let searchQuery = ''; // เก็บค่าที่จะใช้ในการค้นหาจริง
-  let activeTab = 'ทั้งหมด';
   let items: Project[] = [];
   let loading = true;
   let error = '';
@@ -121,8 +120,6 @@
 
   const API_URL = 'http://localhost:3000';
 
-  let categories: string[] = ['ทั้งหมด'];
-
   // ดึงข้อมูล Master Data
   async function fetchMasterData() {
     try {
@@ -131,10 +128,7 @@
         fetch(`${API_URL}/api/masters/project-types`, { credentials: 'include' }),
       ]);
       if (sourcesRes.ok) acquisitionSources = (await sourcesRes.json()).data || [];
-      if (typesRes.ok) {
-        projectTypes = (await typesRes.json()).data || [];
-        categories = ['ทั้งหมด', ...projectTypes.map(t => t.name)];
-      }
+      if (typesRes.ok) projectTypes = (await typesRes.json()).data || [];
     } catch (err) {
       console.error('Error fetching master data:', err);
     }
@@ -326,12 +320,12 @@
       {#if hasActiveFilter}<span class="filter-dot"></span>{/if}
     </button>
     <div class="tabs">
-      {#each categories as tab}
-        <button 
-          class="tab {activeTab === tab ? 'active' : ''}"
-          on:click={() => activeTab = tab}
+      {#each [{ id: null, name: 'ทั้งหมด' }, ...projectTypes] as type}
+        <button
+          class="tab {activeProjectTypeId === type.id ? 'active' : ''}"
+          on:click={() => { activeProjectTypeId = type.id; currentPage = 1; fetchProjects(); }}
         >
-          {tab}
+          {type.name}
         </button>
       {/each}
     </div>

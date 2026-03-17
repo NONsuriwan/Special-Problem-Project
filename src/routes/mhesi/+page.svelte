@@ -44,7 +44,6 @@
   // ตัวแปรสถานะ
   let q = '';
   let searchQuery = ''; // เก็บค่าที่จะใช้ในการค้นหาจริง
-  let activeTab = 'ทั้งหมด';
   let items: MhesiRecord[] = [];
   let loading = true;
   let error = '';
@@ -52,7 +51,7 @@
   // Filter popup state
   let showFilter = false;
   let draftProjectId = 0;
-  let draftSupportUnitId = 0;
+  let draftDepartmentId = 0;
   let draftPlanId = 0;
   let draftAmountMin = '';
   let draftAmountMax = '';
@@ -60,19 +59,19 @@
   let draftDateTo = '';
 
   let activeProjectId = 0;
-  let activeSupportUnitId = 0;
+  let activeDepartmentId = 0;
   let activePlanId = 0;
   let activeAmountMin = '';
   let activeAmountMax = '';
   let activeDateFrom = '';
   let activeDateTo = '';
 
-  $: hasActiveFilter = !!(activeProjectId || activeSupportUnitId || activePlanId ||
+  $: hasActiveFilter = !!(activeProjectId || activeDepartmentId || activePlanId ||
     activeAmountMin || activeAmountMax || activeDateFrom || activeDateTo);
 
   function openFilter() {
     draftProjectId     = activeProjectId;
-    draftSupportUnitId = activeSupportUnitId;
+    draftDepartmentId = activeDepartmentId;
     draftPlanId        = activePlanId;
     draftAmountMin     = activeAmountMin;
     draftAmountMax     = activeAmountMax;
@@ -83,7 +82,7 @@
 
   function applyFilter() {
     activeProjectId     = draftProjectId;
-    activeSupportUnitId = draftSupportUnitId;
+    activeDepartmentId = draftDepartmentId;
     activePlanId        = draftPlanId;
     activeAmountMin     = draftAmountMin;
     activeAmountMax     = draftAmountMax;
@@ -96,7 +95,7 @@
 
   function clearDraftFilter() {
     draftProjectId     = 0;
-    draftSupportUnitId = 0;
+    draftDepartmentId = 0;
     draftPlanId        = 0;
     draftAmountMin     = '';
     draftAmountMax     = '';
@@ -117,33 +116,24 @@
   const limitOptions = [10, 25, 50, 100];
 
   // Master data
-  let supportUnits: MasterData[] = [];
+  let departments: MasterData[] = [];
   let plans: MasterData[] = [];
   let projects: Project[] = [];
 
   const API_URL = 'http://localhost:3000';
 
-  const tabs = [
-    'ทั้งหมด',
-    'เครื่องมือวิทยาศาสตร์',
-    'เครื่องใช้ไฟฟ้า',
-    'อุปกรณ์เคลื่อนที่',
-    'เครื่องมือและอุปกรณ์งานช่าง',
-    'ครุภัณฑ์ต่างๆ'
-  ];
-
   // ดึงข้อมูล Master Data
   async function fetchMasterData() {
     try {
-      const [supportUnitsRes, plansRes, projectsRes] = await Promise.all([
-        fetch(`${API_URL}/api/masters/support-units`, { credentials: 'include' }),
+      const [departmentsRes, plansRes, projectsRes] = await Promise.all([
+        fetch(`${API_URL}/api/masters/departments`, { credentials: 'include' }),
         fetch(`${API_URL}/api/masters/plan-sections`, { credentials: 'include' }),
         fetch(`${API_URL}/api/projects`, { credentials: 'include' })
       ]);
 
-      if (supportUnitsRes.ok) {
-        const data = await supportUnitsRes.json();
-        supportUnits = data.data || [];
+      if (departmentsRes.ok) {
+        const data = await departmentsRes.json();
+        departments = data.data || [];
       }
 
       if (plansRes.ok) {
@@ -172,7 +162,7 @@
       if (sortBy)  url.searchParams.append('sortBy',  sortBy);
       if (sortDir) url.searchParams.append('sortDir', sortDir);
       if (activeProjectId)     url.searchParams.append('projectId',     String(activeProjectId));
-      if (activeSupportUnitId) url.searchParams.append('supportUnitId', String(activeSupportUnitId));
+      if (activeDepartmentId) url.searchParams.append('departmentId', String(activeDepartmentId));
       if (activePlanId)        url.searchParams.append('planId',        String(activePlanId));
       if (activeAmountMin)     url.searchParams.append('amountMin',     activeAmountMin);
       if (activeAmountMax)     url.searchParams.append('amountMax',     activeAmountMax);
@@ -210,9 +200,9 @@
   }
 
   // ฟังก์ชันแปลง ID เป็นชื่อ
-  function getSupportUnitName(id: number | null): string {
+  function getDepartmentName(id: number | null): string {
     if (!id) return '-';
-    return supportUnits.find(s => s.id === id)?.name || '-';
+    return departments.find(d => d.id === id)?.name || '-';
   }
 
   function getPlanName(id: number | null): string {
@@ -331,12 +321,12 @@
       {#if hasActiveFilter}<span class="filter-dot"></span>{/if}
     </button>
     <div class="tabs">
-      {#each tabs as tab}
-        <button 
-          class="tab {activeTab === tab ? 'active' : ''}"
-          on:click={() => activeTab = tab}
+      {#each [{ id: 0, name: 'ทั้งหมด' }, ...plans] as plan}
+        <button
+          class="tab {activePlanId === plan.id ? 'active' : ''}"
+          on:click={() => { activePlanId = plan.id; currentPage = 1; fetchMhesi(); }}
         >
-          {tab}
+          {plan.name}
         </button>
       {/each}
     </div>
@@ -422,7 +412,7 @@
                 <td class="mhesi-number">{r.mhesiNumber || '-'}</td>
                 <td>{r.activityName || '-'}</td>
                 <td>{getProjectName(r.projectId)}</td>
-                <td>{getSupportUnitName(r.departmentId)}</td>
+                <td>{getDepartmentName(r.departmentId)}</td>
                 <td>{getPlanName(r.planId)}</td>
                 <td>{formatDate(r.date)}</td>
                 <td>{formatCurrency(r.amount)}</td>
@@ -505,8 +495,8 @@
       <div class="filter-field">
         <label class="filter-label">ส่วนสนับสนุน</label>
         <Dropdown
-          options={[{ value: 0, label: 'ทั้งหมด' }, ...supportUnits.map(u => ({ value: u.id, label: u.name }))]}
-          bind:value={draftSupportUnitId}
+          options={[{ value: 0, label: 'ทั้งหมด' }, ...departments.map(u => ({ value: u.id, label: u.name }))]}
+          bind:value={draftDepartmentId}
           placeholder="ทั้งหมด"
         />
       </div>

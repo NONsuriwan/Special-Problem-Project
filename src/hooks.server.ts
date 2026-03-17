@@ -23,7 +23,7 @@ export const handle: Handle = async ({ event, resolve }) => {
     // No access token but has refresh token → ask backend to issue new access token.
     // Backend reads refresh_token from the request cookie, so we forward all cookies.
     try {
-      const apiUrl = env.VITE_API_URL || 'http://localhost:3000';
+      const apiUrl = (env.VITE_API_URL || 'http://localhost:3000').replace(/\/$/, '');
 
       // Forward browser cookies to backend so it can read refresh_token
       const cookieHeader = event.cookies
@@ -31,25 +31,32 @@ export const handle: Handle = async ({ event, resolve }) => {
         .map((c) => `${c.name}=${c.value}`)
         .join('; ');
 
+
+
       const res = await fetch(`${apiUrl}/api/auth/refresh`, {
         method: 'POST',
         headers: { Cookie: cookieHeader }
       });
 
-      if (res.ok) {
-        // Backend sets a new access_token cookie in its Set-Cookie response header.
-        // Parse it and mirror it to the browser.
-        const setCookie = res.headers.get('set-cookie') ?? '';
-        const match = setCookie.match(/access_token=([^;]+)/);
 
-        if (match) {
-          const newToken = match[1];
+      if (res.ok) {
+        // Backend sets new cookies in Set-Cookie response header.
+        // Parse and mirror them to the browser.
+        const setCookie = res.headers.get('set-cookie') ?? '';
+
+        // parse access_token
+        const accessMatch = setCookie.match(/access_token=([^;]+)/);
+        // parse refresh_token ด้วย ในกรณีที่ backend rotate
+        const refreshMatch = setCookie.match(/refresh_token=([^;]+)/);
+
+        if (accessMatch) {
+          const newToken = accessMatch[1];
           event.cookies.set('access_token', newToken, {
             path: '/',
             httpOnly: true,
             secure: false,
             sameSite: 'lax',
-            maxAge: 60 * 15   // 15 minutes
+            maxAge: 60 * 15, // 15 minutes
           });
           event.locals.accessToken = newToken;
           event.locals.isAuthenticated = true;
@@ -57,12 +64,22 @@ export const handle: Handle = async ({ event, resolve }) => {
           // Refresh succeeded but couldn't parse new token — still mark authenticated
           event.locals.isAuthenticated = true;
         }
+
+        // ถ้า backend ออก refresh_token ใหม่มาด้วย ให้ set ให้ browser ด้วย
+        if (refreshMatch) {
+          event.cookies.set('refresh_token', refreshMatch[1], {
+            path: '/',
+            httpOnly: true,
+            secure: false,
+            sameSite: 'lax',
+            maxAge: 60 * 60 * 24 * 7, // 7 วัน
+          });
+        }
       } else {
-        // Refresh failed → clear refresh token and send to login
-        event.cookies.delete('refresh_token', { path: '/' });
+        // Refresh failed — ไม่ลบ refresh_token ทันที เผื่อ backend down ชั่วคราว
         redirect(303, '/login');
       }
-    } catch {
+    } catch (err) {
       redirect(303, '/login');
     }
   } else {
