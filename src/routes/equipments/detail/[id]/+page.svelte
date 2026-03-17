@@ -57,6 +57,8 @@
       borrowerName?: string;
       borrowDate?: string;
       expectedReturnDate?: string;
+      borrowingBuildingId?: number;
+      borrowingRoomId?: number;
       reason?: string;
       repairReason?: string;
       startDate?: string;
@@ -320,6 +322,9 @@
   let borrowUnitId = 0;
   let borrowDate = '';
   let returnDate = '';
+  let borrowingBuildingId = 0;
+  let borrowingRoomId = 0;
+  let borrowReason = '';
   let repairDate = '';
   let repairBy = '';
   let repairCompany = '';
@@ -372,6 +377,7 @@
     extraEquipment = [];
     statusPickerValue = null;
     borrowerName = ''; borrowUnitId = 0; borrowDate = ''; returnDate = '';
+    borrowingBuildingId = 0; borrowingRoomId = 0; borrowReason = '';
     repairDate = ''; repairBy = ''; repairCompany = ''; repairCost = ''; repairEndDate = ''; repairFiles = []; unavailableReason = '';
     disposeDate = ''; disposePrice = ''; disposeMethod = ''; disposeApprovedBy = ''; disposeReason = ''; disposeFiles = []; statusRemark = '';
     statusFieldErrors = {};
@@ -428,7 +434,9 @@
         if (borrowUnitId) data.borrowerDepartmentId = borrowUnitId;
         data.borrowDate = borrowDate;
         if (returnDate) data.expectedReturnDate = returnDate;
-        if (statusRemark.trim()) data.reason = statusRemark.trim();
+        if (borrowingBuildingId) data.borrowingBuildingId = borrowingBuildingId;
+        if (borrowingRoomId) data.borrowingRoomId = borrowingRoomId;
+        if (borrowReason.trim()) data.reason = borrowReason.trim();
       } else if (selectedStatus === 'repair') {
         data.repairReason = repairBy;
         data.startDate = repairDate;
@@ -860,6 +868,12 @@
                     {#if h.detail.expectedReturnDate}
                       <span class="tl-detail-label">กำหนดคืน:</span><span class="tl-detail-val">{formatDate(h.detail.expectedReturnDate)}</span>
                     {/if}
+                    {#if h.detail.borrowingBuildingId}
+                      <span class="tl-detail-label">อาคาร:</span><span class="tl-detail-val">{getMasterName(buildings, h.detail.borrowingBuildingId)}</span>
+                    {/if}
+                    {#if h.detail.borrowingRoomId}
+                      <span class="tl-detail-label">ห้อง:</span><span class="tl-detail-val">{getMasterName(rooms, h.detail.borrowingRoomId)}</span>
+                    {/if}
                     {#if h.detail.repairReason}
                       <span class="tl-detail-label">สาเหตุ:</span><span class="tl-detail-val">{h.detail.repairReason}</span>
                     {/if}
@@ -1024,6 +1038,28 @@
                     inputClass="form-input"
                     on:change={(e) => { if (borrowDate && e.detail < borrowDate) returnDate = borrowDate; }}
                   />
+                </div>
+                <div class="sm-fg">
+                  <label class="sm-label">อาคารที่ยืมไปใช้</label>
+                  <Dropdown
+                    options={buildings.map(b => ({ value: b.id, label: b.name }))}
+                    bind:value={borrowingBuildingId}
+                    fullWidth={true}
+                    placeholder="กรุณาเลือก"
+                  />
+                </div>
+                <div class="sm-fg">
+                  <label class="sm-label">ห้องที่ยืมไปใช้</label>
+                  <Dropdown
+                    options={rooms.map(r => ({ value: r.id, label: r.name }))}
+                    bind:value={borrowingRoomId}
+                    fullWidth={true}
+                    placeholder="กรุณาเลือก"
+                  />
+                </div>
+                <div class="sm-fg sm-fg-full">
+                  <label class="sm-label">เหตุผลการยืม</label>
+                  <textarea class="sm-textarea" bind:value={borrowReason} rows="2" placeholder="ระบุเหตุผล..."></textarea>
                 </div>
               </div>
 
