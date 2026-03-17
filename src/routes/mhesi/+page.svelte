@@ -422,7 +422,7 @@
                 <td class="mhesi-number">{r.mhesiNumber || '-'}</td>
                 <td>{r.activityName || '-'}</td>
                 <td>{getProjectName(r.projectId)}</td>
-                <td>{getSupportUnitName(r.supportUnitId)}</td>
+                <td>{getSupportUnitName(r.departmentId)}</td>
                 <td>{getPlanName(r.planId)}</td>
                 <td>{formatDate(r.date)}</td>
                 <td>{formatCurrency(r.amount)}</td>
@@ -602,6 +602,9 @@
     padding: 0.875rem 1rem;
     font-size: 0.875rem;
     color: #1f2937;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .table tbody tr {

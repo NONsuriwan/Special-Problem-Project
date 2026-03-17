@@ -273,7 +273,7 @@
           <!-- Row 1: เลข อว. | คณะ -->
           <div class="detail-item">
             <div class="detail-icon">📋</div>
-            <div>
+            <div class="detail-content">
               <div class="detail-label">เลข อว.</div>
               <div class="detail-value">{record.mhesiNumber}</div>
             </div>
@@ -281,7 +281,7 @@
 
           <div class="detail-item">
             <div class="detail-icon">🎓</div>
-            <div>
+            <div class="detail-content">
               <div class="detail-label">คณะ</div>
               <div class="detail-value">{getDepartmentName(record.departmentId)}</div>
             </div>
@@ -290,7 +290,7 @@
           <!-- Row 2: ส่วนสนับสนุน | แผนงาน -->
           <div class="detail-item">
             <div class="detail-icon">🏢</div>
-            <div>
+            <div class="detail-content">
               <div class="detail-label">ส่วนสนับสนุน</div>
               <div class="detail-value">{getSupportUnitName(record.supportUnitId)}</div>
             </div>
@@ -298,7 +298,7 @@
 
           <div class="detail-item">
             <div class="detail-icon">📊</div>
-            <div>
+            <div class="detail-content">
               <div class="detail-label">แผนงาน</div>
               <div class="detail-value">{getPlanName(record.planId)}</div>
             </div>
@@ -307,7 +307,7 @@
           <!-- Row 3: โครงการ | กิจกรรม -->
           <div class="detail-item">
             <div class="detail-icon">🗂️</div>
-            <div>
+            <div class="detail-content">
               <div class="detail-label">โครงการ</div>
               <div class="detail-value">{getProjectName(record.projectId)}</div>
             </div>
@@ -315,16 +315,16 @@
 
           <div class="detail-item">
             <div class="detail-icon">🎯</div>
-            <div>
+            <div class="detail-content">
               <div class="detail-label">กิจกรรม</div>
-              <div class="detail-value">{record.activityName || '-'}</div>
+              <div class="detail-value detail-value--wrap">{record.activityName || '-'}</div>
             </div>
           </div>
 
           <!-- Row 4: วันที่ | จำนวนเงิน -->
           <div class="detail-item">
             <div class="detail-icon">📅</div>
-            <div>
+            <div class="detail-content">
               <div class="detail-label">วันที่</div>
               <div class="detail-value">{formatDate(record.date)}</div>
             </div>
@@ -332,7 +332,7 @@
 
           <div class="detail-item">
             <div class="detail-icon">💰</div>
-            <div>
+            <div class="detail-content">
               <div class="detail-label">จำนวนเงิน</div>
               <div class="detail-value">{formatCurrency(record.amount)} บาท</div>
             </div>
@@ -341,9 +341,9 @@
           <!-- Row 5: หมายเหตุ full width -->
           <div class="detail-item full-width">
             <div class="detail-icon">📝</div>
-            <div>
+            <div class="detail-content">
               <div class="detail-label">หมายเหตุ</div>
-              <div class="detail-value">{record.note || '-'}</div>
+              <div class="detail-value detail-value--wrap">{record.note || '-'}</div>
             </div>
           </div>
         </div>
@@ -544,6 +544,10 @@
     font-weight: 400;
     margin: 0.25rem 0;
     font-family: var(--font-thai);
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
   }
 
   .meta-label {
@@ -619,6 +623,12 @@
   .detail-item {
     display: flex;
     gap: 0.75rem;
+    min-width: 0;
+  }
+
+  .detail-content {
+    min-width: 0;
+    flex: 1;
   }
 
   .detail-item.full-width {
@@ -642,6 +652,17 @@
     color: #1f2937;
     font-weight: 500;
     font-family: var(--font-thai);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .detail-value--wrap {
+    white-space: normal;
+    overflow: visible;
+    text-overflow: unset;
+    overflow-wrap: break-word;
+    word-break: break-word;
   }
 
   .detail-value.highlight {

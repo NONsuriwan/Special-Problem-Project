@@ -32,13 +32,13 @@
     assetCode: '',
     assetCodeFrom: '',
     assetCodeTo: '',
-    activityCode: '',
+    padLength: '',
+    activity: '',
     assetName: '',
     assetNumber: '',
     unit: '',
     departmentId: null as number | null,
     assetTypeId: null as number | null,
-    activityId: null as number | null,
     fundId: null as number | null,
     fiscalYearId: null as number | null,
     price: '',
@@ -136,7 +136,7 @@
     errors = {};
 
     if (!formData.departmentId) errors.departmentId = true;
-    if (!formData.activityCode.trim()) errors.activityCode = true;
+    if (!formData.activity.trim()) errors.activity = true;
     if (!formData.fundId) errors.fundId = true;
     if (!formData.fiscalYearId) errors.fiscalYearId = true;
     if (!formData.assetCode.trim()) errors.assetCode = true;
@@ -164,14 +164,15 @@
     try {
       // Map frontend field names to backend schema names
       const submitData = {
+        equipmentCode: formData.assetCode,
         numberPrefix: formData.assetNumber || '',
         start: formData.assetCodeFrom ? parseInt(formData.assetCodeFrom) : 1,
         end: formData.assetCodeTo ? parseInt(formData.assetCodeTo) : undefined,
-        equipmentCode: formData.assetCode,
+        padLength: formData.padLength ? parseInt(formData.padLength) : undefined,
         equipmentName: formData.assetName,
         equipmentTypeId: formData.assetTypeId || null,
         departmentId: formData.departmentId || null,
-        activityId: formData.activityId || null,
+        activity: formData.activity || null,
         fundId: formData.fundId || null,
         fiscalYear: formData.fiscalYearId || null,
         price: formData.price ? parseFloat(formData.price) : null,
@@ -276,12 +277,9 @@
             </label>
             <input
               type="text"
-              inputmode="numeric"
-              pattern="[0-9]*"
-              bind:value={formData.activityCode}
-              on:input={(e) => { formData.activityCode = e.currentTarget.value.replace(/[^0-9]/g, ''); }}
+              bind:value={formData.activity}
               class="input"
-              class:input-error={errors.activityCode}
+              class:input-error={errors.activity}
             />
           </div>
 

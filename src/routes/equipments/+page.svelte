@@ -163,15 +163,6 @@
   // Active tab
   let activeTab = 'ทั้งหมด';
 
-  const tabs = [
-    'ทั้งหมด',
-    'เครื่องมือวิทยาศาสตร์',
-    'เครื่องใช้ไฟฟ้า',
-    'อุปกรณ์เคลื่อนที่',
-    'เครื่องมือและอุปกรณ์งานช่าง',
-    'ครุภัณฑ์ต่างๆ'
-  ];
-
   // Fetch master data
   async function fetchMasterData() {
     try {
@@ -443,7 +434,7 @@
       {#if hasActiveFilter}<span class="filter-dot"></span>{/if}
     </button>
     <div class="tabs">
-      {#each tabs as tab}
+      {#each categories as tab}
         <button 
           class="tab {activeTab === tab ? 'active' : ''}"
           on:click={() => activeTab = tab}

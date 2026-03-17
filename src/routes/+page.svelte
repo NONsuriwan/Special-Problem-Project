@@ -1,15 +1,40 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
   import StatCard from '$lib/components/ui/StatCard.svelte';
   import Dropdown from '$lib/components/ui/Dropdown.svelte';
 
-  const stats = [
-    { label: 'ครุภัณฑ์ทั้งหมด', value: 'X,XXX', icon: '📦' },
-    { label: 'พร้อมใช้งาน', value: 'X,XXX', icon: '✅' },
-    { label: 'ถูกยืม', value: 'X,XXX', icon: '📥' },
-    { label: 'กำลังซ่อม', value: 'X,XXX', icon: '🛠️' },
-    { label: 'รอตรวจรับ', value: 'X,XXX', icon: '🧾' },
-    { label: 'ไม่พร้อมใช้งาน', value: 'X,XXX', icon: '⛔' }
+  let stats = [
+    { label: 'ครุภัณฑ์ทั้งหมด', value: '-', icon: '📦' },
+    { label: 'พร้อมใช้งาน',      value: '-', icon: '✅' },
+    { label: 'ถูกยืม',           value: '-', icon: '📥' },
+    { label: 'กำลังซ่อม',        value: '-', icon: '🛠️' },
+    { label: 'ไม่พร้อมใช้งาน',  value: '-', icon: '⛔' },
+    { label: 'จำหน่ายแล้ว',      value: '-', icon: '🗑️' },
   ];
+
+  function getCount(byStatus: { status: string; count: number }[], status: string): string {
+    return String(byStatus.find(s => s.status === status)?.count ?? 0);
+  }
+
+  onMount(async () => {
+    try {
+      const res = await fetch('http://localhost:3000/api/equipment/stats', { credentials: 'include' });
+      if (res.status === 401) { window.location.href = '/login'; return; }
+      if (!res.ok) return;
+      const { data } = await res.json();
+      const by = data.byStatus ?? [];
+      stats = [
+        { label: 'ครุภัณฑ์ทั้งหมด', value: Number(data.total).toLocaleString('th-TH'), icon: '📦' },
+        { label: 'พร้อมใช้งาน',      value: getCount(by, 'normal'),      icon: '✅' },
+        { label: 'ถูกยืม',           value: getCount(by, 'borrowed'),     icon: '📥' },
+        { label: 'กำลังซ่อม',        value: getCount(by, 'repair'),       icon: '🛠️' },
+        { label: 'ไม่พร้อมใช้งาน',  value: getCount(by, 'unavailable'),  icon: '⛔' },
+        { label: 'จำหน่ายแล้ว',      value: getCount(by, 'disposed'),     icon: '🗑️' },
+      ];
+    } catch (e) {
+      console.error('Failed to fetch stats:', e);
+    }
+  });
 
   const periods = [
     { value: '7d', label: 'ย้อนหลัง 7 วัน' },

@@ -4,22 +4,17 @@
   import Dropdown from '$lib/components/ui/Dropdown.svelte';
   import ThaiDatePicker from '$lib/components/ui/ThaiDatePicker.svelte';
 
-  type MasterData = { id: number; name: string };
   type Project = { id: number; projectName: string };
-  type MhesiOption = { id: number; mhesiNumber: string };
+  type MhesiOption = { mhesiNumber: string; activityName?: string; taken: boolean };
 
   // Master data lists
-  let mhesiOptions: MhesiOption[] = [];
-  let supportUnits: MasterData[] = [];
-  let plans: MasterData[] = [];
+  let allVirtualOptions: MhesiOption[] = [];
   let projects: Project[] = [];
 
   // Form data
   let formData = {
     mhesiNumber: '',
     facultyName: 'วิทยาศาสตร์',
-    supportUnitId: null as number | null,
-    planId: null as number | null,
     projectId: null as number | null,
     activityName: '',
     date: '',
@@ -36,12 +31,17 @@
   let mhesiOpen = false;
   let mhesiInputEl: HTMLInputElement;
 
-  $: mhesiFiltered = formData.mhesiNumber
-    ? mhesiOptions.filter(o => o.mhesiNumber.toLowerCase().includes(formData.mhesiNumber.toLowerCase()))
-    : mhesiOptions;
+  $: mhesiFiltered = (() => {
+    const query = formData.mhesiNumber.toLowerCase();
+    const filtered = allVirtualOptions.filter(o =>
+      o.mhesiNumber.toLowerCase().includes(query)
+    );
+    return filtered.slice(0, 100);
+  })();
 
-  function selectMhesi(value: string) {
-    formData.mhesiNumber = value;
+  function selectMhesi(opt: MhesiOption) {
+    if (opt.taken) return;
+    formData.mhesiNumber = opt.mhesiNumber;
     mhesiOpen = false;
   }
 
@@ -51,25 +51,34 @@
 
   async function fetchMasterData() {
     try {
-      const [mhesiRes, supportUnitsRes, plansRes, projectsRes] = await Promise.all([
+      const [mhesiRes, projectsRes] = await Promise.all([
         fetch('http://localhost:3000/api/mhesi', { credentials: 'include' }),
-        fetch('http://localhost:3000/api/masters/support-units', { credentials: 'include' }),
-        fetch('http://localhost:3000/api/masters/plan-sections', { credentials: 'include' }),
         fetch('http://localhost:3000/api/projects', { credentials: 'include' }),
       ]);
 
       if (mhesiRes.ok) {
         const data = await mhesiRes.json();
-        mhesiOptions = data.data || [];
+        const apiItems = data.data || [];
+
+        // เก็บเฉพาะ อว 7008.01/XXXX ที่มีในฐานข้อมูล
+        const takenMap = new Map<string, string>();
+        for (const item of apiItems) {
+          if (/^อว 7008\.01\/\d{4}$/.test(item.mhesiNumber)) {
+            takenMap.set(item.mhesiNumber, item.activityName ?? '');
+          }
+        }
+
+        // สร้าง virtual list 0001-9999
+        allVirtualOptions = Array.from({ length: 9999 }, (_, i) => {
+          const num = `อว 7008.01/${String(i + 1).padStart(4, '0')}`;
+          return {
+            mhesiNumber: num,
+            activityName: takenMap.get(num),
+            taken: takenMap.has(num),
+          };
+        });
       }
-      if (supportUnitsRes.ok) {
-        const data = await supportUnitsRes.json();
-        supportUnits = data.data || [];
-      }
-      if (plansRes.ok) {
-        const data = await plansRes.json();
-        plans = data.data || [];
-      }
+
       if (projectsRes.ok) {
         const data = await projectsRes.json();
         projects = data.data || [];
@@ -85,8 +94,6 @@
     errors = {};
 
     if (!formData.mhesiNumber.trim()) errors.mhesiNumber = true;
-    if (!formData.supportUnitId) errors.supportUnitId = true;
-    if (!formData.planId) errors.planId = true;
     if (!formData.projectId) errors.projectId = true;
     if (!formData.activityName.trim()) errors.activityName = true;
     if (!formData.date) errors.date = true;
@@ -101,8 +108,9 @@
     try {
       const submitData = {
         mhesiNumber: formData.mhesiNumber.trim(),
-        supportUnitId: formData.supportUnitId,
-        planId: formData.planId,
+        faculty: 'วิทยาศาสตร์',
+        departmentId: 1,
+        planId: 3,
         projectId: formData.projectId,
         activityName: formData.activityName || null,
         date: formData.date || null,
@@ -198,15 +206,19 @@
               </button>
               {#if mhesiOpen && mhesiFiltered.length > 0}
                 <ul class="combobox-list">
-                  {#each mhesiFiltered as opt, i (opt.id ?? i)}
+                  {#each mhesiFiltered as opt (opt.mhesiNumber)}
                     <li>
                       <button
                         type="button"
                         class="combobox-option"
                         class:selected={formData.mhesiNumber === opt.mhesiNumber}
-                        on:mousedown|preventDefault={() => selectMhesi(opt.mhesiNumber)}
+                        class:taken={opt.taken}
+                        on:mousedown|preventDefault={() => selectMhesi(opt)}
                       >
-                        {opt.mhesiNumber}
+                        <span class="option-number">{opt.mhesiNumber}</span>
+                        {#if opt.activityName}
+                          <span class="option-activity">{opt.activityName}</span>
+                        {/if}
                       </button>
                     </li>
                   {/each}
@@ -227,25 +239,15 @@
           </div>
 
           <!-- ส่วนสนับสนุน -->
-          <div class="form-group" class:error-wrapper={errors.supportUnitId}>
-            <label class="label">ส่วนสนับสนุน <span class="required">*</span></label>
-            <Dropdown
-              fullWidth
-              options={supportUnits.map(s => ({ value: s.id, label: s.name }))}
-              bind:value={formData.supportUnitId}
-              placeholder="กรุณาเลือก"
-            />
+          <div class="form-group">
+            <label class="label">ส่วนสนับสนุน</label>
+            <input type="text" class="input input-readonly" value="ส่วนสนับสนุนวิชาการ" readonly />
           </div>
 
           <!-- แผนงาน -->
-          <div class="form-group" class:error-wrapper={errors.planId}>
-            <label class="label">แผนงาน <span class="required">*</span></label>
-            <Dropdown
-              fullWidth
-              options={plans.map(p => ({ value: p.id, label: p.name }))}
-              bind:value={formData.planId}
-              placeholder="กรุณาเลือก"
-            />
+          <div class="form-group">
+            <label class="label">แผนงาน</label>
+            <input type="text" class="input input-readonly" value="งานพัสดุ" readonly />
           </div>
 
           <!-- โครงการ -->
@@ -345,32 +347,6 @@
 {/if}
 
 <style>
-  .date-wrapper {
-    position: relative;
-  }
-
-  .date-picker-hidden {
-    position: absolute;
-    inset: 0;
-    opacity: 0;
-    width: 100%;
-    cursor: pointer;
-  }
-
-  .date-display {
-    cursor: pointer;
-    padding-right: 2.5rem;
-  }
-
-  .cal-icon {
-    position: absolute;
-    right: 0.75rem;
-    top: 50%;
-    transform: translateY(-50%);
-    pointer-events: none;
-    color: #9ca3af;
-  }
-
   .textarea {
     resize: vertical;
     min-height: 80px;
@@ -458,6 +434,9 @@
     color: #374151;
     cursor: pointer;
     transition: background-color 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 8px;
   }
 
   .combobox-option:hover {
@@ -468,5 +447,29 @@
     background: #fef3f2;
     color: #ffa200;
     font-weight: 500;
+  }
+
+  /* taken = ใช้ไปแล้ว */
+  .combobox-option.taken {
+    cursor: not-allowed;
+    opacity: 0.6;
+  }
+
+  .combobox-option.taken:hover {
+    background: none;
+  }
+
+  .option-number {
+    flex-shrink: 0;
+    font-weight: 500;
+  }
+
+  .option-activity {
+    color: #9ca3af;
+    font-size: 12px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;  
   }
 </style>

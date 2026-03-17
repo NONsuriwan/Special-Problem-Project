@@ -14,7 +14,7 @@
     equipmentNumber: string | null;
     equipmentTypeId: number | null;
     departmentId: number | null;
-    activityId: number | null;
+    activity: string | null;
     fundId: number | null;
     fiscalYear: number | null;
     price: string | null;
@@ -77,7 +77,7 @@
     equipmentNumber:     'หมายเลขสินทรัพย์',
     equipmentTypeId:     'ประเภท',
     departmentId:        'หน่วยงาน',
-    activityId:          'กิจกรรม',
+    activity:            'กิจกรรม',
     fundId:              'แหล่งเงินทุน',
     buildingId:          'อาคาร',
     roomId:              'ห้อง',
@@ -96,7 +96,7 @@
     if (val === null || val === undefined || val === '') return '-';
     if (field === 'equipmentTypeId')      return getMasterName(assetTypes, val);
     if (field === 'departmentId')         return getMasterName(departments, val);
-    if (field === 'activityId')           return getMasterName(activities, val);
+    if (field === 'activity')             return String(val);
     if (field === 'fundId')               return getMasterName(funds, val);
     if (field === 'buildingId')           return getMasterName(buildings, val);
     if (field === 'roomId')               return getMasterName(rooms, val);
@@ -122,7 +122,6 @@
   // Master data
   let assetTypes: MasterData[] = [];
   let departments: MasterData[] = [];
-  let activities: MasterData[] = [];
   let funds: MasterData[] = [];
   let buildings: MasterData[] = [];
   let rooms: MasterData[] = [];
@@ -139,7 +138,6 @@
       const [
         typesRes,
         deptRes,
-        actRes,
         fundRes,
         buildRes,
         roomRes,
@@ -149,7 +147,6 @@
       ] = await Promise.all([
         fetch('http://localhost:3000/api/masters/equipment-types', { credentials: 'include' }),
         fetch('http://localhost:3000/api/masters/departments', { credentials: 'include' }),
-        fetch('http://localhost:3000/api/masters/activities', { credentials: 'include' }),
         fetch('http://localhost:3000/api/masters/funds', { credentials: 'include' }),
         fetch('http://localhost:3000/api/masters/buildings', { credentials: 'include' }),
         fetch('http://localhost:3000/api/masters/rooms', { credentials: 'include' }),
@@ -160,7 +157,6 @@
 
       if (typesRes.ok) assetTypes = (await typesRes.json()).data || [];
       if (deptRes.ok) departments = (await deptRes.json()).data || [];
-      if (actRes.ok) activities = (await actRes.json()).data || [];
       if (fundRes.ok) funds = (await fundRes.json()).data || [];
       if (buildRes.ok) buildings = (await buildRes.json()).data || [];
       if (roomRes.ok) rooms = (await roomRes.json()).data || [];
@@ -553,7 +549,7 @@
     if (!a) return;
     editForm = {
       departmentId: a.departmentId,
-      activityName: activities.find(x => x.id === a.activityId)?.name || '',
+      activityName: a.activity || '',
       fundId: a.fundId,
       fiscalYear: a.fiscalYear,
       equipmentCode: a.equipmentCode || '',
@@ -593,7 +589,7 @@
         acquisitionDate: editForm.acquisitionDate || null,
         fiscalYear: editForm.fiscalYear || null,
         departmentId: editForm.departmentId,
-        activityId: activities.find(a => a.name === editForm.activityName)?.id ?? null,
+        activity: editForm.activityName || null,
         fundId: editForm.fundId,
         equipmentTypeId: editForm.equipmentTypeId,
         acquisitionSourceId: editForm.acquisitionSourceId,
@@ -691,7 +687,7 @@
             <div class="detail-icon">🏢</div>
             <div>
               <div class="detail-label">กิจกรรม</div>
-              <div class="detail-value">{getMasterName(activities, asset.activityId)}</div>
+              <div class="detail-value">{asset.activity || '-'}</div>
             </div>
           </div>
 

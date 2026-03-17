@@ -121,14 +121,7 @@
 
   const API_URL = 'http://localhost:3000';
 
-  const tabs = [
-    'ทั้งหมด',
-    'เครื่องมือวิทยาศาสตร์',
-    'เครื่องใช้ไฟฟ้า',
-    'อุปกรณ์เคลื่อนที่',
-    'เครื่องมือและอุปกรณ์งานช่าง',
-    'ครุภัณฑ์ต่างๆ'
-  ];
+  let categories: string[] = ['ทั้งหมด'];
 
   // ดึงข้อมูล Master Data
   async function fetchMasterData() {
@@ -138,7 +131,10 @@
         fetch(`${API_URL}/api/masters/project-types`, { credentials: 'include' }),
       ]);
       if (sourcesRes.ok) acquisitionSources = (await sourcesRes.json()).data || [];
-      if (typesRes.ok)   projectTypes = (await typesRes.json()).data || [];
+      if (typesRes.ok) {
+        projectTypes = (await typesRes.json()).data || [];
+        categories = ['ทั้งหมด', ...projectTypes.map(t => t.name)];
+      }
     } catch (err) {
       console.error('Error fetching master data:', err);
     }
@@ -330,7 +326,7 @@
       {#if hasActiveFilter}<span class="filter-dot"></span>{/if}
     </button>
     <div class="tabs">
-      {#each tabs as tab}
+      {#each categories as tab}
         <button 
           class="tab {activeTab === tab ? 'active' : ''}"
           on:click={() => activeTab = tab}
