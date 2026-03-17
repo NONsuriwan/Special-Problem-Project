@@ -211,6 +211,17 @@
         {/if}
       </div>
     {/each}
+
+    {#if $page.data.user?.role === 'admin'}
+      <a
+        href="/admin/users"
+        class="flex items-center gap-5 px-4 py-3 rounded-lg hover:bg-black/5 transition-colors
+               {isActive(currentPath, '/admin') ? 'bg-white/20' : 'opacity-90'}"
+      >
+        <span class="text-xl">👥</span>
+        <span class="text-b6">จัดการผู้ใช้</span>
+      </a>
+    {/if}
   </nav>
 
   <!-- User bar -->

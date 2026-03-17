@@ -6,13 +6,11 @@ declare global {
 		interface Locals {
 			isAuthenticated: boolean;
 			accessToken?: string;
-			user?: {
-				id: string;
-				email: string;
-				name: string;
-			};
+			user: { role: string; email: string; uuid?: string } | null;
 		}
-		// interface PageData {}
+		interface PageData {
+			user?: { role: string; email: string; uuid?: string } | null;
+		}
 		// interface PageState {}
 		// interface Platform {}
 	}

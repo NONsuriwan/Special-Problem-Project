@@ -20,6 +20,9 @@ export const API_ENDPOINTS = {
     PROJECT_TYPES: '/api/masters/project-types',
   },
 
+  USERS: '/api/users',
+  USER_DETAIL: (uuid: string) => `/api/users/${uuid}`,
+
   PROJECTS: '/api/projects',
   MHESI: '/api/mhesi',
 
