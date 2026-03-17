@@ -358,7 +358,7 @@
     .filter(e =>
       !extraEquipment.find(x => x.uuid === e.uuid) &&
       e.uuid !== assetId &&
-      e.status !== selectedStatus
+      e.status === asset?.status
     )
     .sort((a, b) => a._i - b._i || (a.equipmentNumber ?? a.equipmentCode).localeCompare(b.equipmentNumber ?? b.equipmentCode, 'th', { numeric: true }))
     .map(e => ({ value: e.uuid, label: e.equipmentName, sublabel: e.equipmentNumber ?? '' }));

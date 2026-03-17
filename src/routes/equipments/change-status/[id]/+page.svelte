@@ -83,6 +83,8 @@
       if (allRes.ok) {
         const r = await allRes.json();
         allEquipment = (r.data || []).filter((a: Asset) => a.uuid !== assetId);
+        console.log('equipment sample:', allEquipment[0]); // ← เพิ่มบรรทัดนี้
+
       }
       if (unitsRes.ok) {
         const r = await unitsRes.json();
@@ -95,14 +97,18 @@
     }
   }
 
-  // Dropdown search
+  // Dropdown search — แสดงเฉพาะครุภัณฑ์ที่มีสถานะเดียวกับครุภัณฑ์หลัก
   $: filteredEquipment = searchQ.trim()
     ? allEquipment.filter(e =>
+        e.status === selectedStatus &&
         !extraEquipment.find(x => x.uuid === e.uuid) &&
         (e.equipmentName.toLowerCase().includes(searchQ.toLowerCase()) ||
-         e.equipmentCode.toLowerCase().includes(searchQ.toLowerCase()))
+        e.equipmentCode.toLowerCase().includes(searchQ.toLowerCase()))
       )
-    : allEquipment.filter(e => !extraEquipment.find(x => x.uuid === e.uuid)).slice(0, 20);
+    : allEquipment.filter(e =>
+        e.status === selectedStatus &&
+        !extraEquipment.find(x => x.uuid === e.uuid)
+      ).slice(0, 20);
 
   function selectEquipment(eq: Asset) {
     extraEquipment = [...extraEquipment, eq];
