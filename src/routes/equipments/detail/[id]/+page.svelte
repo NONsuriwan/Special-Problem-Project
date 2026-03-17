@@ -386,11 +386,8 @@
     // Load all equipment for dropdown (lazy)
     if (allEquipment.length === 0) {
       try {
-        const res = await fetch(`http://localhost:3000/api/equipment?limit=1000`, { credentials: 'include' });
-        if (res.ok) {
-          const r = await res.json();
-          allEquipment = (r.data || []).filter((a: typeof allEquipment[0]) => a.uuid !== assetId);
-        }
+        const r = await apiFetch<{ data: typeof allEquipment }>(`${API_ENDPOINTS.ASSETS}?limit=1000`);
+        allEquipment = (r.data || []).filter((a: typeof allEquipment[0]) => a.uuid !== assetId);
       } catch (_) {}
     }
   }

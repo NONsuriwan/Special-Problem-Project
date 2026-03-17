@@ -30,5 +30,6 @@ export const API_ENDPOINTS = {
     ME: '/api/auth/me',
     LOGOUT: '/api/auth/logout',
     REFRESH: '/api/auth/refresh',
+    GOOGLE: 'http://localhost:3000/api/auth/google',
   },
 };

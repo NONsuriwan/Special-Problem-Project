@@ -3,6 +3,8 @@
   import { page } from '$app/stores';
   import { goto } from '$app/navigation';
   import ThaiDatePicker from '$lib/components/ui/ThaiDatePicker.svelte';
+  import { apiFetch } from '$lib/api/client';
+  import { API_ENDPOINTS } from '$lib/api/endpoints';
 
   type Asset = {
     id: number;
@@ -68,28 +70,17 @@
   async function fetchData() {
     loading = true;
     try {
-      const [assetRes, allRes, unitsRes] = await Promise.all([
-        fetch(`http://localhost:3000/api/equipment/${assetId}`, { credentials: 'include' }),
-        fetch(`http://localhost:3000/api/equipment?limit=1000`, { credentials: 'include' }),
-        fetch(`http://localhost:3000/api/masters/support-units`, { credentials: 'include' }),
+      const [assetData, allData, unitsData] = await Promise.all([
+        apiFetch<{ data: Asset }>(API_ENDPOINTS.ASSET_DETAIL(assetId)),
+        apiFetch<{ data: Asset[] }>(`${API_ENDPOINTS.ASSETS}?limit=1000`),
+        apiFetch<{ data: MasterData[] }>(API_ENDPOINTS.MASTERS.SUPPORT_UNITS),
       ]);
 
-      if (assetRes.status === 401) { window.location.href = '/login'; return; }
-      if (assetRes.ok) {
-        const r = await assetRes.json();
-        asset = r.data;
-        selectedStatus = asset?.status || 'normal';
-      }
-      if (allRes.ok) {
-        const r = await allRes.json();
-        allEquipment = (r.data || []).filter((a: Asset) => a.uuid !== assetId);
-        console.log('equipment sample:', allEquipment[0]); // ← เพิ่มบรรทัดนี้
-
-      }
-      if (unitsRes.ok) {
-        const r = await unitsRes.json();
-        supportUnits = r.data || [];
-      }
+      asset = assetData.data;
+      selectedStatus = asset?.status || 'normal';
+      allEquipment = (allData.data || []).filter((a: Asset) => a.uuid !== assetId);
+      console.log('equipment sample:', allEquipment[0]); // ← เพิ่มบรรทัดนี้
+      supportUnits = unitsData.data || [];
     } catch (e) {
       error = 'ไม่สามารถโหลดข้อมูลได้';
     } finally {
@@ -176,15 +167,12 @@
 
       // Save all equipment (main + extra)
       const targets = [assetId, ...extraEquipment.map(e => e.uuid)];
-      const responses = await Promise.all(targets.map(uuid =>
-        fetch(`http://localhost:3000/api/equipment/${uuid}`, {
+      await Promise.all(targets.map(uuid =>
+        apiFetch(API_ENDPOINTS.ASSET_DETAIL(uuid), {
           method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
           body: JSON.stringify(payload),
         })
       ));
-      if (responses.some(r => r.status === 401)) { window.location.href = '/login'; return; }
 
       goto(`/equipments/detail/${assetId}`);
     } catch (e) {
