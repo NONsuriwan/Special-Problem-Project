@@ -15,7 +15,7 @@
       children: [
         { href: "/equipments/add-equipments", label: "ลงทะเบียนครุภัณฑ์", subtitle: "เพิ่มครุภัณฑ์ใหม่เข้าสู่ระบบ" },
         { href: "/equipments", label: "สืบค้นครุภัณฑ์", subtitle: "ค้นหา จัดการ และเพิ่มครุภัณฑ์" },
-        { href: "/equipments", label: "รายงานค่าเสื่อม", subtitle: "รายงานค่าเสื่อมราคาของครุภัณฑ์" },
+        { href: "/reports/depreciation", label: "รายงานค่าเสื่อม", subtitle: "รายงานค่าเสื่อมราคาของครุภัณฑ์" },
       ]
     },
     {
@@ -34,7 +34,7 @@
         { href: "/projects", label: "สืบค้นโครงการ", subtitle: "ค้นหา จัดการ และเพิ่มโครงการ" },
       ]
     },
-    { href: "/reports", label: "รายงาน", icon: "📈", subtitle: "จัดการและสรุปข้อมูลของครุภัณฑ์" },
+    { href: "/reports", label: "รายงาน", icon: "📈", subtitle: "จัดการและสรุปข้อมูลของครุภัณฑ์", exact: true },
   ];
 
   // เก็บสถานะการเปิด/ปิด Dropdown
@@ -50,8 +50,8 @@
 
   // ตรวจสอบสถานะ Active ของ URL
   $: currentPath = $page.url.pathname;
-  const isActive = (p: string, href: string) =>
-    p === href || (href !== "/" && p.startsWith(href));
+  const isActive = (p: string, href: string, exact = false) =>
+    p === href || (!exact && href !== "/" && p.startsWith(href + '/'));
 
   // ติดตาม child ที่ถูกเลือกด้วย label
   let selectedChildLabel: string | null = null;
@@ -203,7 +203,7 @@
             href={l.href}
             on:click={() => selectLink(l.label, l.subtitle ?? '')}
             class="flex items-center gap-5 px-4 py-3 rounded-lg hover:bg-black/5 transition-colors
-                  {isActive(currentPath, l.href) ? 'bg-white/20' : 'opacity-90'}"
+                  {isActive(currentPath, l.href, l.exact) ? 'bg-white/20' : 'opacity-90'}"
           >
             <span class="text-xl">{l.icon}</span>
             <span class="text-b6">{l.label}</span>

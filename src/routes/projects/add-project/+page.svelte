@@ -32,6 +32,7 @@
 
   let loading = false;
   let showSuccessModal = false;
+  let createdProjectNumber = '';
   let errorMessage = '';
   let errors: Record<string, boolean> = {};
 
@@ -76,11 +77,12 @@
         note: formData.note || null,
       };
 
-      await apiFetch(API_ENDPOINTS.PROJECTS, {
+      const result = await apiFetch<{ data?: { projectNumber?: string }; projectNumber?: string }>(API_ENDPOINTS.PROJECTS, {
         method: 'POST',
         body: JSON.stringify(submitData),
       });
 
+      createdProjectNumber = result?.data?.projectNumber ?? result?.projectNumber ?? '';
       showSuccessModal = true;
       setTimeout(() => goto('/projects'), 1500);
     } catch (err) {
@@ -240,6 +242,9 @@
       </div>
       <h3 class="modal-title">บันทึกสำเร็จ</h3>
       <p class="modal-text">เพิ่มโครงการเรียบร้อยแล้ว</p>
+      {#if createdProjectNumber}
+        <p class="modal-project-number">หมายเลขโครงการ: <strong>{createdProjectNumber}</strong></p>
+      {/if}
     </div>
   </div>
 {/if}
@@ -274,5 +279,18 @@
   .textarea {
     resize: vertical;
     min-height: 100px;
+  }
+
+  .modal-project-number {
+    font-size: 0.875rem;
+    color: #374151;
+    margin-top: 0.5rem;
+    font-family: 'Courier New', monospace;
+    letter-spacing: 0.04em;
+  }
+
+  .modal-project-number strong {
+    color: #ffa200;
+    font-size: 1rem;
   }
 </style>

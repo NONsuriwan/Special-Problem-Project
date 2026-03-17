@@ -8,6 +8,7 @@
   type Project = {
     id: number;
     uuid: string;
+    projectNumber: string | null;
     projectName: string;
     projectTypeId: number | null;
     projectType?: string | null;
@@ -360,6 +361,15 @@
     <!-- Project Info Card -->
     <div class="info-card">
       <div class="info-grid">
+        {#if project.projectNumber}
+          <div class="info-item">
+            <span class="info-icon">🔢</span>
+            <div>
+              <div class="info-label">หมายเลขโครงการ</div>
+              <div class="info-value">: {project.projectNumber}</div>
+            </div>
+          </div>
+        {/if}
         <div class="info-item">
           <span class="info-icon">📁</span>
           <div>
@@ -478,7 +488,7 @@
           <table class="detail-table">
             <thead>
               <tr>
-                <th>รหัสครุภัณฑ์</th>
+                <th>รหัสสินทรัพย์</th>
                 <th>ชื่อครุภัณฑ์</th>
                 <th>ประเภท</th>
                 <th>สถานะ</th>
@@ -491,7 +501,7 @@
             <tbody>
               {#each equipmentDisplay as e (e.uuid ?? e.equipmentNumber)}
                 <tr on:click={() => goto(`/equipments/detail/${e.uuid}`)} class="clickable-row">
-                  <td class="font-medium font-mono">{e.equipmentNumber}</td>
+                  <td class="font-medium">{e.equipmentNumber}</td>
                   <td>{e.equipmentName}</td>
                   <td>{getEquipmentTypeName(e.equipmentTypeId)}</td>
                   <td>
@@ -672,6 +682,7 @@
     background: #e5e5e5;
     min-height: 100vh;
     padding: 2rem;
+    font-family: var(--font-thai);
   }
 
   .header {
@@ -1050,6 +1061,7 @@
     max-height: 90vh;
     overflow-y: auto;
     box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+    font-family: var(--font-thai);
   }
 
   .modal-header {
@@ -1125,7 +1137,6 @@
     width: 100%;
     box-sizing: border-box;
     transition: border-color 0.15s, box-shadow 0.15s;
-    font-family: inherit;
   }
 
   .modal-input:focus {
