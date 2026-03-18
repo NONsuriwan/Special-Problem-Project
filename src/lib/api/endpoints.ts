@@ -3,9 +3,11 @@ export const API_ENDPOINTS = {
   ASSET_DETAIL: (id: string | number) => `/api/equipment/${id}`,
   ASSET_STATS: '/api/equipment/stats',
   ASSET_ATTACHMENTS: (id: string | number) => `/api/equipment/${id}/attachments`,
+  ASSET_ATTACHMENTS_BULK: '/api/equipment/attachments',
   ASSET_HISTORY: (id: string | number) => `/api/equipment/${id}/history`,
   EQUIPMENT_STATUS_CHANGE: '/api/equipment-status/change',
   ATTACHMENTS_UPLOAD: '/api/attachments/upload',
+  ATTACHMENT_DETAIL: (id: number) => `/api/attachments/${id}`,
 
   MASTERS: {
     DEPARTMENTS: '/api/masters/departments',
@@ -18,6 +20,7 @@ export const API_ENDPOINTS = {
     ROOMS: '/api/masters/rooms',
     SUPPORT_UNITS: '/api/masters/support-units',
     PROJECT_TYPES: '/api/masters/project-types',
+    PLAN_SECTIONS: '/api/masters/plan-sections',
   },
 
   USERS: '/api/users',
@@ -25,6 +28,8 @@ export const API_ENDPOINTS = {
 
   PROJECTS: '/api/projects',
   MHESI: '/api/mhesi',
+  MHESI_DETAIL: (uuid: string) => `/api/mhesi/${uuid}`,
+  MHESI_HISTORY: (uuid: string) => `/api/mhesi/${uuid}/history`,
 
   AUTH: {
     ME: '/api/auth/me',

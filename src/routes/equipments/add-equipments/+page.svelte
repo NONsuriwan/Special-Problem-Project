@@ -191,11 +191,23 @@
         status: 'normal',
       };
 
-      await apiFetch(API_ENDPOINTS.ASSETS, {
+      const result = await apiFetch<{ data: { uuid: string }[] }>(API_ENDPOINTS.ASSETS, {
         method: 'POST',
         body: JSON.stringify(submitData),
       });
 
+      // เปลี่ยนจาก result?.data?.uuids เป็น map uuid ออกมาจาก array
+      const uuids = result?.data?.map((item: { uuid: string }) => item.uuid) ?? [];
+      console.log('uuids:', uuids);
+
+      if (attachmentFiles.length > 0 && uuids.length > 0) {
+        const fd = new FormData();
+        fd.append('uuids', JSON.stringify(uuids));
+        for (const file of attachmentFiles) {
+          fd.append('files', file);
+        }
+        await apiFetch(API_ENDPOINTS.ASSET_ATTACHMENTS_BULK, { method: 'POST', body: fd });
+      }
       // Success
       showSuccessModal = true;
 

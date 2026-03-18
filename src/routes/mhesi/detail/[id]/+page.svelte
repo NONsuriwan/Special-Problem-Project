@@ -4,6 +4,8 @@
   import { goto } from '$app/navigation';
   import ThaiDatePicker from '$lib/components/ui/ThaiDatePicker.svelte';
   import Dropdown from '$lib/components/ui/Dropdown.svelte';
+  import { apiFetch, apiFetchBlob } from '$lib/api/client';
+  import { API_ENDPOINTS } from '$lib/api/endpoints';
 
   type MhesiRecord = {
     uuid: string;
@@ -16,18 +18,81 @@
     date: string | null;
     amount: string | number | null;
     note: string | null;
+    attachmentId: number | null;
+    attachment?: { id: number; fileName: string; filePath: string } | null;
     createdAt: string;
     updatedAt: string;
   };
 
   type MasterData = { id: number; name: string };
   type Project = { id: number; projectName: string };
-
-  const API_URL = 'http://localhost:3000';
+  type AttachmentInfo = { id: number; fileName: string; filePath: string; refType: string };
 
   let record: MhesiRecord | null = null;
   let loading = true;
   let error = '';
+  let attachmentInfo: AttachmentInfo | null = null;
+  let showPreviewModal = false;
+  let previewUrl: string | null = null;
+  let previewLoading = false;
+
+  let directUploadFile: File | null = null;
+  let directUploading = false;
+  let directUploadError = '';
+
+  async function uploadDirectFile() {
+    console.log('uploading to:', `${API_ENDPOINTS.ATTACHMENTS_UPLOAD}?folder=mhesi`);
+    if (!directUploadFile || !record) return;
+    directUploading = true;
+    directUploadError = '';
+    try {
+      const fd = new FormData();
+      fd.append('file', directUploadFile);
+      const uploaded = await apiFetch<{ data: { id: number } }>(
+        `${API_ENDPOINTS.ATTACHMENTS_UPLOAD}?folder=mhesi`,
+        { method: 'POST', body: fd }
+      );
+      const newAttachmentId = uploaded.data?.id ?? null;
+      if (!newAttachmentId) throw new Error('อัปโหลดไฟล์ไม่สำเร็จ');
+
+      await apiFetch(API_ENDPOINTS.MHESI_DETAIL(uuid), {
+        method: 'PUT',
+        body: JSON.stringify({
+          mhesiNumber: record.mhesiNumber,
+          supportUnitId: record.supportUnitId,
+          planId: record.planId,
+          projectId: record.projectId,
+          activityName: record.activityName || null,
+          date: record.date || null,
+          amount: record.amount ? parseFloat(String(record.amount)) : null,
+          note: record.note || null,
+          attachmentId: newAttachmentId,
+        }),
+      });
+
+      directUploadFile = null;
+      await fetchAll();
+    } catch (e) {
+      directUploadError = e instanceof Error ? e.message : 'อัปโหลดไม่สำเร็จ';
+    } finally {
+      directUploading = false;
+    }
+  }
+
+  async function loadPreview() {
+    if (!attachmentInfo) return;
+    previewLoading = true;
+    try {
+      const blob = await apiFetchBlob(`/api/attachments/${attachmentInfo.id}/file`);
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+      previewUrl = URL.createObjectURL(blob);
+      showPreviewModal = true;
+    } catch (err) {
+      console.error('preview failed:', err);
+    } finally {
+      previewLoading = false;
+    }
+  }
 
   let departments: MasterData[] = [];
   let supportUnits: MasterData[] = [];
@@ -78,11 +143,8 @@
   async function fetchHistory() {
     historyLoading = true;
     try {
-      const res = await fetch(`${API_URL}/api/mhesi/${uuid}/history`, { credentials: 'include' });
-      if (res.ok) {
-        const data = await res.json();
-        history = data.data ?? data ?? [];
-      }
+      const data = await apiFetch<{ data: HistoryEntry[] }>(API_ENDPOINTS.MHESI_HISTORY(uuid));
+      history = data.data ?? [];
     } catch (_) {}
     historyLoading = false;
   }
@@ -91,6 +153,7 @@
   let showEditModal = false;
   let editSaving = false;
   let editError = '';
+  let editAttachmentFile: File | null = null;
   let editForm = {
     mhesiNumber: '',
     supportUnitId: null as number | null,
@@ -108,26 +171,32 @@
     loading = true;
     error = '';
     try {
-      const [recRes, deptRes, supportRes, planRes, projectRes] = await Promise.all([
-        fetch(`${API_URL}/api/mhesi/${uuid}`, { credentials: 'include' }),
-        fetch(`${API_URL}/api/masters/departments`, { credentials: 'include' }),
-        fetch(`${API_URL}/api/masters/support-units`, { credentials: 'include' }),
-        fetch(`${API_URL}/api/masters/plan-sections`, { credentials: 'include' }),
-        fetch(`${API_URL}/api/projects`, { credentials: 'include' }),
+      const [recData, deptData, supportData, planData, projectData] = await Promise.all([
+        apiFetch<{ data: MhesiRecord }>(API_ENDPOINTS.MHESI_DETAIL(uuid)),
+        apiFetch<{ data: MasterData[] }>(API_ENDPOINTS.MASTERS.DEPARTMENTS),
+        apiFetch<{ data: MasterData[] }>(API_ENDPOINTS.MASTERS.SUPPORT_UNITS),
+        apiFetch<{ data: MasterData[] }>(API_ENDPOINTS.MASTERS.PLAN_SECTIONS),
+        apiFetch<{ data: Project[] }>(API_ENDPOINTS.PROJECTS),
       ]);
 
-      if (recRes.status === 401) { window.location.href = '/login'; return; }
-      if (recRes.ok) {
-        const data = await recRes.json();
-        record = data.data ?? data;
-      } else {
-        error = 'ไม่พบข้อมูลเลข อว.';
-      }
+      record = recData.data ?? null;
+      if (!record) error = 'ไม่พบข้อมูลเลข อว.';
 
-      if (deptRes.ok) departments = (await deptRes.json()).data || [];
-      if (supportRes.ok) supportUnits = (await supportRes.json()).data || [];
-      if (planRes.ok) plans = (await planRes.json()).data || [];
-      if (projectRes.ok) projects = (await projectRes.json()).data || [];
+      // fetch attachment info ถ้ามี
+      if (record?.attachmentId) {
+        try {
+          const attData = await apiFetch<{ data: AttachmentInfo }>(
+            API_ENDPOINTS.ATTACHMENT_DETAIL(record.attachmentId)
+          );
+          attachmentInfo = attData.data ?? null;
+        } catch (_) {}
+      } else {
+        attachmentInfo = null;
+      }
+      departments = deptData.data || [];
+      supportUnits = supportData.data || [];
+      plans = planData.data || [];
+      projects = projectData.data || [];
     } catch (e) {
       error = 'ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้';
     } finally {
@@ -205,23 +274,31 @@
     editSaving = true;
     editError = '';
     try {
-      const res = await fetch(`${API_URL}/api/mhesi/${uuid}`, {
+      let attachmentId: number | null = null;
+      if (editAttachmentFile) {
+        const fd = new FormData();
+        fd.append('file', editAttachmentFile);
+        const uploaded = await apiFetch<{ data: { id: number } }>(`${API_ENDPOINTS.ATTACHMENTS_UPLOAD}?folder=mhesi`, { method: 'POST', body: fd });
+        attachmentId = uploaded.data?.id ?? null;
+      }
+
+      const payload: Record<string, unknown> = {
+        mhesiNumber: editForm.mhesiNumber.trim(),
+        supportUnitId: editForm.supportUnitId,
+        planId: editForm.planId,
+        projectId: editForm.projectId,
+        activityName: editForm.activityName || null,
+        date: editForm.date || null,
+        amount: editForm.amount ? parseFloat(editForm.amount) : null,
+        note: editForm.note || null,
+      };
+      if (attachmentId !== null) payload.attachmentId = attachmentId;
+
+      await apiFetch(API_ENDPOINTS.MHESI_DETAIL(uuid), {
         method: 'PUT',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          mhesiNumber: editForm.mhesiNumber.trim(),
-          supportUnitId: editForm.supportUnitId,
-          planId: editForm.planId,
-          projectId: editForm.projectId,
-          activityName: editForm.activityName || null,
-          date: editForm.date || null,
-          amount: editForm.amount ? parseFloat(editForm.amount) : null,
-          note: editForm.note || null,
-        }),
+        body: JSON.stringify(payload),
       });
-      if (res.status === 401) { window.location.href = '/login'; return; }
-      if (!res.ok) throw new Error('เกิดข้อผิดพลาดในการบันทึกข้อมูล');
+      editAttachmentFile = null;
       await fetchAll();
       await fetchHistory();
       showEditModal = false;
@@ -353,15 +430,68 @@
       <div class="right-column">
         <div class="attachment-card">
           <h2 class="card-title">เอกสารแนบ</h2>
-          <div class="empty-state">
-            <div class="upload-placeholder">
-              <svg class="upload-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-              </svg>
-              <p>คลิกเพื่อเพิ่มไฟล์แนบ</p>
-              <p class="hint">หรือลากไฟล์มาวางที่นี่</p>
+          {#if attachmentInfo}
+            <div class="attachment-list">
+              <div class="attachment-item">
+                <svg class="file-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                <div class="file-info">
+                  <div class="file-name">{attachmentInfo.fileName}</div>
+                </div>
+                <button class="btn-preview" on:click={loadPreview} disabled={previewLoading}>
+                  {previewLoading ? 'กำลังโหลด...' : 'ดูไฟล์'}
+                </button>
+              </div>
             </div>
-          </div>
+
+            <!-- เปลี่ยนไฟล์ -->
+            <div class="direct-upload-row">
+              <label class="direct-upload-label">
+                <input
+                  type="file"
+                  accept=".jpg,.jpeg,.png,.webp,.pdf"
+                  hidden
+                  on:change={(e) => { directUploadFile = e.currentTarget.files?.[0] ?? null; directUploadError = ''; }}
+                />
+                {directUploadFile ? directUploadFile.name : 'เลือกไฟล์ใหม่เพื่อเปลี่ยน'}
+              </label>
+              {#if directUploadFile}
+                <button class="btn-upload" on:click={uploadDirectFile} disabled={directUploading}>
+                  {directUploading ? 'กำลังอัปโหลด...' : 'เปลี่ยนไฟล์'}
+                </button>
+              {/if}
+            </div>
+            {#if directUploadError}
+              <p class="upload-error">{directUploadError}</p>
+            {/if}
+
+          {:else}
+            <!-- ยังไม่มีไฟล์ — อัปโหลดได้เลย -->
+            <div class="direct-upload-empty">
+              <label class="upload-placeholder" style="cursor:pointer; display:block;">
+                <input
+                  type="file"
+                  accept=".jpg,.jpeg,.png,.webp,.pdf"
+                  hidden
+                  on:change={(e) => { directUploadFile = e.currentTarget.files?.[0] ?? null; directUploadError = ''; }}
+                />
+                <svg class="upload-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                </svg>
+                <p>{directUploadFile ? directUploadFile.name : 'คลิกเพื่ออัปโหลดไฟล์'}</p>
+                <p class="hint">jpg, png, webp, pdf · สูงสุด 10 MB</p>
+              </label>
+              {#if directUploadFile}
+                <button class="btn-upload-full" on:click={uploadDirectFile} disabled={directUploading}>
+                  {directUploading ? 'กำลังอัปโหลด...' : 'อัปโหลด'}
+                </button>
+              {/if}
+              {#if directUploadError}
+                <p class="upload-error">{directUploadError}</p>
+              {/if}
+            </div>
+          {/if}
         </div>
       </div>
     </div>
@@ -414,6 +544,36 @@
     </div>
   {/if}
 </div>
+
+<!-- Preview Modal -->
+{#if showPreviewModal && attachmentInfo && previewUrl}
+  <div class="modal-backdrop" on:click={() => showPreviewModal = false} role="presentation">
+    <div class="modal-box modal-preview" on:click|stopPropagation role="dialog" aria-modal="true">
+      <div class="modal-header">
+        <span class="modal-title">{attachmentInfo.fileName}</span>
+        <button class="modal-close" on:click={() => showPreviewModal = false}>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M18 6L6 18M6 6l12 12"/>
+          </svg>
+        </button>
+      </div>
+      <div class="preview-body">
+        {#if attachmentInfo.fileName.match(/\.(jpg|jpeg|png|webp)$/i)}
+          <img src={previewUrl} alt={attachmentInfo.fileName} class="preview-image" />
+        {:else if attachmentInfo.fileName.match(/\.pdf$/i)}
+          <iframe src={previewUrl} title={attachmentInfo.fileName} class="preview-iframe"></iframe>
+        {:else}
+          <div class="preview-unsupported">
+            <p>ไม่สามารถแสดง preview ได้</p>
+            <a href={previewUrl} download={attachmentInfo.fileName} class="btn-primary">
+              ดาวน์โหลดไฟล์
+            </a>
+          </div>
+        {/if}
+      </div>
+    </div>
+  </div>
+{/if}
 
 <!-- Edit Modal -->
 {#if showEditModal}
@@ -475,6 +635,15 @@
         <div class="form-group full-col">
           <label class="form-label">หมายเหตุ</label>
           <textarea class="form-input form-textarea" bind:value={editForm.note} placeholder="หมายเหตุ (ถ้ามี)"></textarea>
+        </div>
+        <div class="form-group full-col">
+          <label class="form-label">เอกสารแนบ</label>
+          <input
+            type="file"
+            accept=".jpg,.jpeg,.png,.webp,.pdf"
+            class="form-input"
+            on:change={(e) => { editAttachmentFile = e.currentTarget.files?.[0] ?? null; }}
+          />
         </div>
       </div>
       {#if editError}
@@ -1045,6 +1214,166 @@
   .form-input:focus {
     border-color: #ffa200;
     box-shadow: 0 0 0 3px rgba(255, 162, 0, 0.12);
+  }
+
+  /* Attachment list */
+  .attachment-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .attachment-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem;
+    border: 1px solid #e5e7eb;
+    border-radius: 0.5rem;
+  }
+
+  .file-icon {
+    width: 2rem;
+    height: 2rem;
+    color: #ffa200;
+    flex-shrink: 0;
+  }
+
+  .file-info {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .file-name {
+    font-size: 0.875rem;
+    color: #1f2937;
+    font-weight: 500;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .btn-preview {
+    background: #f3f4f6;
+    color: #374151;
+    border: 1px solid #e5e7eb;
+    padding: 0.375rem 0.75rem;
+    border-radius: 0.375rem;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: background 0.15s;
+  }
+
+  .btn-preview:hover { background: #e5e7eb; }
+
+  .direct-upload-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 0.75rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid #f3f4f6;
+  }
+
+  .direct-upload-label {
+    flex: 1;
+    font-size: 0.8125rem;
+    color: #6b7280;
+    border: 1px dashed #d1d5db;
+    border-radius: 0.375rem;
+    padding: 0.5rem 0.75rem;
+    cursor: pointer;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    transition: border-color 0.15s;
+  }
+
+  .direct-upload-label:hover { border-color: #ffa200; color: #374151; }
+
+  .btn-upload {
+    background: #ffa200;
+    color: white;
+    border: none;
+    padding: 0.5rem 0.875rem;
+    border-radius: 0.375rem;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: background 0.15s;
+  }
+
+  .btn-upload:hover:not(:disabled) { background: #e69200; }
+  .btn-upload:disabled { opacity: 0.6; cursor: not-allowed; }
+
+  .btn-upload-full {
+    width: 100%;
+    background: #ffa200;
+    color: white;
+    border: none;
+    padding: 0.625rem;
+    border-radius: 0.5rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    cursor: pointer;
+    margin-top: 0.75rem;
+    transition: background 0.15s;
+  }
+
+  .btn-upload-full:hover:not(:disabled) { background: #e69200; }
+  .btn-upload-full:disabled { opacity: 0.6; cursor: not-allowed; }
+
+  .direct-upload-empty { display: flex; flex-direction: column; }
+
+  .upload-error {
+    color: #dc2626;
+    font-size: 0.8125rem;
+    margin-top: 0.5rem;
+  }
+
+  /* Preview modal */
+  .modal-preview {
+    max-width: 860px;
+    width: 96vw;
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .preview-body {
+    flex: 1;
+    overflow: auto;
+    padding: 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 300px;
+  }
+
+  .preview-image {
+    max-width: 100%;
+    max-height: 70vh;
+    object-fit: contain;
+    border-radius: 0.5rem;
+  }
+
+  .preview-iframe {
+    width: 100%;
+    height: 70vh;
+    border: none;
+    border-radius: 0.5rem;
+  }
+
+  .preview-unsupported {
+    text-align: center;
+    color: #6b7280;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    align-items: center;
   }
 
 .form-textarea {

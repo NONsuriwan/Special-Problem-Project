@@ -29,6 +29,8 @@
   let errorMessage = '';
   let errors: Record<string, boolean> = {};
 
+  let mhesiFile: File | null = null;
+
   // Combobox state
   let mhesiOpen = false;
   let mhesiInputEl: HTMLInputElement;
@@ -104,7 +106,15 @@
 
     loading = true;
     try {
-      const submitData = {
+      let attachmentId: number | null = null;
+      if (mhesiFile) {
+        const fd = new FormData();
+        fd.append('file', mhesiFile);
+        const uploaded = await apiFetch<{ data: { id: number } }>(`${API_ENDPOINTS.ATTACHMENTS_UPLOAD}?folder=mhesi`, { method: 'POST', body: fd });
+        attachmentId = uploaded.data?.id ?? null;
+      }
+
+      const submitData: Record<string, unknown> = {
         mhesiNumber: formData.mhesiNumber.trim(),
         faculty: 'วิทยาศาสตร์',
         departmentId: 1,
@@ -115,6 +125,7 @@
         amount: formData.amount ? parseFloat(formData.amount) : null,
         note: formData.note || null,
       };
+      if (attachmentId !== null) submitData.attachmentId = attachmentId;
 
       await apiFetch(API_ENDPOINTS.MHESI, {
         method: 'POST',
@@ -292,6 +303,17 @@
               class="input textarea"
               rows="3"
             ></textarea>
+          </div>
+
+          <!-- เอกสารแนบ -->
+          <div class="form-group">
+            <label class="label">เอกสารแนบ</label>
+            <input
+              type="file"
+              accept=".jpg,.jpeg,.png,.webp,.pdf"
+              class="input"
+              on:change={(e) => { mhesiFile = e.currentTarget.files?.[0] ?? null; }}
+            />
           </div>
 
         </div>

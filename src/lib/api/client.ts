@@ -20,4 +20,15 @@ export async function apiFetch<T>(path: string, options?: RequestInit): Promise<
   }
 
   return res.json();
+
+}
+
+export async function apiFetchBlob(path: string): Promise<Blob> {
+  const res = await fetch(path, { credentials: 'include' });
+  if (res.status === 401) {
+    window.location.href = '/login';
+    throw new Error('Session expired');
+  }
+  if (!res.ok) throw new Error(`Error! status: ${res.status}`);
+  return res.blob();
 }

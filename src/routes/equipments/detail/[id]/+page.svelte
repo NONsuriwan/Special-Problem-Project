@@ -5,7 +5,7 @@
   import ThaiDatePicker from '$lib/components/ui/ThaiDatePicker.svelte';
   import SearchableDropdown from '$lib/components/ui/SearchableDropdown.svelte';
   import Dropdown from '$lib/components/ui/Dropdown.svelte';
-  import { apiFetch } from '$lib/api/client';
+  import { apiFetch, apiFetchBlob } from '$lib/api/client';
   import { API_ENDPOINTS } from '$lib/api/endpoints';
 
   type Asset = {
@@ -122,6 +122,30 @@
   let history: HistoryEntry[] = [];
   let loading = true;
   let error = '';
+
+  // Attachment upload
+  let attachUploadFiles: File[] = [];
+  let attachUploading = false;
+  let attachUploadError = '';
+
+  async function uploadAttachments() {
+    if (!attachUploadFiles.length) return;
+    attachUploading = true;
+    attachUploadError = '';
+    try {
+      const fd = new FormData();
+      for (const file of attachUploadFiles) {
+        fd.append('files', file);
+      }
+      await apiFetch(API_ENDPOINTS.ASSET_ATTACHMENTS(assetId), { method: 'POST', body: fd });
+      attachUploadFiles = [];
+      await fetchAttachments();
+    } catch (err: any) {
+      attachUploadError = err.message || 'อัปโหลดไม่สำเร็จ';
+    } finally {
+      attachUploading = false;
+    }
+  }
 
   // Master data
   let assetTypes: MasterData[] = [];
@@ -491,6 +515,26 @@
     }
   }
 
+  let showPreviewModal = false;
+  let previewUrl: string | null = null;
+  let previewLoading = false;
+  let previewFileName = '';
+
+  async function loadPreview(attachment: Attachment) {
+    previewLoading = true;
+    previewFileName = attachment.fileName;
+    try {
+      const blob = await apiFetchBlob(`/api/attachments/${attachment.id}/file`);
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+      previewUrl = URL.createObjectURL(blob);
+      showPreviewModal = true;
+    } catch (err) {
+      console.error('preview failed:', err);
+    } finally {
+      previewLoading = false;
+    }
+  }
+
   // --- Edit Modal ---
   let showEditModal = false;
   let editSaving = false;
@@ -794,7 +838,32 @@
         <!-- Attachments -->
         <div class="attachment-card">
           <h2 class="card-title">เอกสารแนบ</h2>
-          
+
+          <div class="attach-upload-row">
+            <input
+              type="file"
+              id="attach-file-input"
+              accept=".pdf,.jpg,.jpeg,.png"
+              multiple
+              hidden
+              on:change={(e) => { attachUploadFiles = Array.from(e.currentTarget.files ?? []); e.currentTarget.value = ''; }}
+            />
+            <label for="attach-file-input" class="attach-file-label">
+              {attachUploadFiles.length > 0 ? `${attachUploadFiles.length} ไฟล์` : 'เลือกไฟล์'}
+            </label>
+            <button
+              type="button"
+              class="attach-upload-btn"
+              disabled={attachUploadFiles.length === 0 || attachUploading}
+              on:click={uploadAttachments}
+            >
+              {attachUploading ? 'กำลังอัปโหลด...' : 'อัปโหลด'}
+            </button>
+          </div>
+          {#if attachUploadError}
+            <p class="attach-upload-error">{attachUploadError}</p>
+          {/if}
+
           {#if attachments.length === 0}
             <div class="empty-state">
               <div class="upload-placeholder">
@@ -807,15 +876,22 @@
             </div>
           {:else}
             <div class="attachment-list">
-              {#each attachments as attachment}
+              {#each attachments as attachment (attachment.id)}
                 <div class="attachment-item">
                   <svg class="file-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                   </svg>
                   <div class="file-info">
                     <div class="file-name">{attachment.fileName}</div>
-                    <div class="file-size">1.2 MB</div>
                   </div>
+                  <button
+                    type="button"
+                    class="btn-preview"
+                    disabled={previewLoading}
+                    on:click={() => loadPreview(attachment)}
+                  >
+                    {previewLoading && previewFileName === attachment.fileName ? 'กำลังโหลด...' : 'ดูไฟล์'}
+                  </button>
                 </div>
               {/each}
             </div>
@@ -1191,6 +1267,34 @@
         <button class="modal-btn-confirm" on:click={saveStatus} disabled={statusSaving || repairFileUploading || disposeFileUploading || (mainEquipAlreadyInStatus && extraEquipment.length === 0)}>
           {(repairFileUploading || disposeFileUploading) ? 'กำลังอัปโหลด...' : statusSaving ? 'กำลังบันทึก...' : 'ยืนยัน'}
         </button>
+      </div>
+    </div>
+  </div>
+{/if}
+
+<!-- Preview Modal -->
+{#if showPreviewModal && previewUrl}
+  <div class="modal-backdrop" on:click={() => showPreviewModal = false} role="presentation">
+    <div class="modal-box modal-preview" on:click|stopPropagation role="dialog" aria-modal="true">
+      <div class="modal-header">
+        <span class="modal-title">{previewFileName}</span>
+        <button class="modal-close" on:click={() => showPreviewModal = false}>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M18 6L6 18M6 6l12 12"/>
+          </svg>
+        </button>
+      </div>
+      <div class="preview-body">
+        {#if previewFileName.match(/\.(jpg|jpeg|png|webp)$/i)}
+          <img src={previewUrl} alt={previewFileName} class="preview-image" />
+        {:else if previewFileName.match(/\.pdf$/i)}
+          <iframe src={previewUrl} title={previewFileName} class="preview-iframe"></iframe>
+        {:else}
+          <div class="preview-unsupported">
+            <p>ไม่สามารถแสดง preview ได้</p>
+            <a href={previewUrl} download={previewFileName} class="btn-primary">ดาวน์โหลดไฟล์</a>
+          </div>
+        {/if}
       </div>
     </div>
   </div>
@@ -1577,6 +1681,52 @@
   }
 
   /* Attachments */
+  .attach-upload-row {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+    align-items: center;
+  }
+
+  .attach-file-label {
+    flex: 1;
+    border: 1px solid #d1d5db;
+    border-radius: 0.5rem;
+    padding: 0.4rem 0.75rem;
+    font-size: 0.8125rem;
+    color: #374151;
+    cursor: pointer;
+    background: #f9fafb;
+    transition: border-color 0.15s;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .attach-file-label:hover { border-color: #ffa200; }
+
+  .attach-upload-btn {
+    background: #ffa200;
+    color: white;
+    border: none;
+    border-radius: 0.5rem;
+    padding: 0.4rem 1rem;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.15s;
+  }
+
+  .attach-upload-btn:hover:not(:disabled) { background: #e69200; }
+  .attach-upload-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .attach-upload-error {
+    color: #dc2626;
+    font-size: 0.8rem;
+    margin: 0 0 0.5rem;
+  }
+
   .empty-state {
     padding: 2rem;
   }
@@ -1656,6 +1806,63 @@
     font-size: 0.75rem;
     color: #6b7280;
     margin-top: 0.125rem;
+  }
+
+  .btn-preview {
+    background: #f3f4f6;
+    color: #374151;
+    border: 1px solid #e5e7eb;
+    padding: 0.375rem 0.75rem;
+    border-radius: 0.375rem;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: background 0.15s;
+  }
+
+  .btn-preview:hover:not(:disabled) { background: #e5e7eb; }
+  .btn-preview:disabled { opacity: 0.6; cursor: not-allowed; }
+
+  .modal-preview {
+    max-width: 860px;
+    width: 96vw;
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .preview-body {
+    flex: 1;
+    overflow: auto;
+    padding: 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 300px;
+  }
+
+  .preview-image {
+    max-width: 100%;
+    max-height: 70vh;
+    object-fit: contain;
+    border-radius: 0.5rem;
+  }
+
+  .preview-iframe {
+    width: 100%;
+    height: 70vh;
+    border: none;
+    border-radius: 0.5rem;
+  }
+
+  .preview-unsupported {
+    text-align: center;
+    color: #6b7280;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    align-items: center;
   }
 
   /* Right Column */
