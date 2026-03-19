@@ -90,8 +90,12 @@
       if (previewUrl) URL.revokeObjectURL(previewUrl);
       previewUrl = URL.createObjectURL(blob);
       previewMimeType = blob.type;
-      if (previewMimeType === 'application/pdf') {
-        window.open(previewUrl, '_blank');
+     if (previewMimeType === 'application/pdf') {
+        // สร้าง HTML page ที่มี iframe embed PDF blob
+        const html = `<html><body style="margin:0"><iframe src="${previewUrl}" style="width:100%;height:100vh;border:none"></iframe></body></html>`;
+        const htmlBlob = new Blob([html], { type: 'text/html' });
+        const htmlUrl = URL.createObjectURL(htmlBlob);
+        window.open(htmlUrl, '_blank');
       } else {
         showPreviewModal = true;
       }
