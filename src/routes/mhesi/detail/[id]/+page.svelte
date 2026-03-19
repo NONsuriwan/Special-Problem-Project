@@ -90,16 +90,7 @@
       if (previewUrl) URL.revokeObjectURL(previewUrl);
       previewUrl = URL.createObjectURL(blob);
       previewMimeType = blob.type;
-     if (previewMimeType === 'application/pdf') {
-      // แปลง blob เป็น base64 แล้วเปิดเป็น data URL
-      const reader = new FileReader();
-      reader.onload = () => {
-        window.open(reader.result as string, '_blank');
-      };
-      reader.readAsDataURL(blob);
-    } else {
-        showPreviewModal = true;
-      }
+      showPreviewModal = true;
     } catch (err) {
       console.error('preview failed:', err);
     } finally {
@@ -115,11 +106,7 @@
       if (previewUrl) URL.revokeObjectURL(previewUrl);
       previewUrl = URL.createObjectURL(blob);
       previewMimeType = blob.type;
-      if (previewMimeType === 'application/pdf') {
-        window.open(previewUrl, '_blank');
-      } else {
-        showPreviewModal = true;
-      }
+      showPreviewModal = true;
     } catch (err) {
       console.error('preview failed:', err);
     } finally {
@@ -608,6 +595,8 @@
       <div class="preview-body">
         {#if previewMimeType.startsWith('image/')}
           <img src={previewUrl} alt={previewTitle} class="preview-image" />
+        {:else if previewMimeType === 'application/pdf'}
+          <embed src={previewUrl} type="application/pdf" class="preview-iframe" />
         {:else}
           <div class="preview-unsupported">
             <p>ไม่สามารถแสดง preview ได้</p>
