@@ -342,7 +342,7 @@
           <!-- หมายเลขสินทรัพย์ -->
           <div class="form-group">
             <label class="label">
-              หมายเลขสินทรัพย์ <span class="required">*</span>
+              หมายเลขสินทรัพย์ <span class="required">* </span>
             </label>
             <input
               type="text"
@@ -350,6 +350,9 @@
               class="input"
               class:input-error={errors.assetNumber}
             />
+            <p class="number-preview">
+              ตัวอย่าง: วท65-343-33-355
+            </p>
           </div>
 
           <!-- ถึง -->
@@ -364,6 +367,7 @@
                 on:input={(e) => { formData.assetCodeFrom = e.currentTarget.value.replace(/[^0-9]/g, ''); }}
                 class="input"
               />
+              
               <span class="range-separator">-</span>
               <input
                 type="text"
@@ -374,6 +378,11 @@
                 class="input"
               />
             </div>
+             <p class="number-preview">
+              ตัวอย่าง: ตัวเดียว 0001 หลายตัว 0001-0005
+            </p> 
+        
+            
           </div>
 
           <!-- ประเภท -->
@@ -766,4 +775,10 @@
     padding: 0;
     line-height: 1;
   }
+  
+  .number-preview {
+  font-size: 0.875rem;
+  color: #9a9b9c;
+  margin-top: 0.25rem;
+}
 </style>

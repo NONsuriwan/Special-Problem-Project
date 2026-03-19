@@ -213,6 +213,9 @@
           inputClass="finput"
           on:change={(e) => { if (endDate && e.detail > endDate) endDate = ''; }}
         />
+        <p class="number-preview">
+          ตัวอย่าง: 01/10/2565 
+        </p>
       </div>
 
       <div class="field" class:field-error={errors.endDate}>
@@ -224,6 +227,9 @@
           inputClass="finput"
           on:change={(e) => { if (startDate && e.detail < startDate) endDate = startDate; }}
         />
+        <p class="number-preview">
+          ตัวอย่าง: 30/09/2566
+        </p>
       </div>
 
       <div class="field">
@@ -661,5 +667,10 @@
     padding: 3rem;
     color: #9ca3af;
     font-size: 0.875rem;
+  }
+  .number-preview {
+  font-size: 0.875rem;
+  color: #9a9b9c;
+  margin-top: 0.25rem;
   }
 </style>

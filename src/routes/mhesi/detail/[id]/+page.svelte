@@ -35,6 +35,8 @@
   let showPreviewModal = false;
   let previewUrl: string | null = null;
   let previewLoading = false;
+  let previewMimeType = '';
+  let previewTitle = '';
 
   let directUploadFile: File | null = null;
   let directUploading = false;
@@ -82,10 +84,28 @@
   async function loadPreview() {
     if (!attachmentInfo) return;
     previewLoading = true;
+    previewTitle = attachmentInfo.fileName;
     try {
       const blob = await apiFetchBlob(`/api/attachments/${attachmentInfo.id}/file`);
       if (previewUrl) URL.revokeObjectURL(previewUrl);
       previewUrl = URL.createObjectURL(blob);
+      previewMimeType = blob.type;
+      showPreviewModal = true;
+    } catch (err) {
+      console.error('preview failed:', err);
+    } finally {
+      previewLoading = false;
+    }
+  }
+
+  async function loadPreviewById(id: number, fileName: string) {
+    previewLoading = true;
+    previewTitle = fileName;
+    try {
+      const blob = await apiFetchBlob(`/api/attachments/${id}/file`);
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+      previewUrl = URL.createObjectURL(blob);
+      previewMimeType = blob.type;
       showPreviewModal = true;
     } catch (err) {
       console.error('preview failed:', err);
@@ -536,6 +556,21 @@
                 {:else}
                   <p class="tl-nochange">ไม่มีการเปลี่ยนแปลง</p>
                 {/if}
+                {#if h.before?.attachmentId}
+                  <div class="tl-attachment">
+                    <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/>
+                    </svg>
+                    <span class="tl-attachment-name">ไฟล์แนบ</span>
+                    <button
+                      class="tl-attachment-btn"
+                      on:click={() => loadPreviewById(h.before.attachmentId, 'ไฟล์แนบ')}
+                      disabled={previewLoading}
+                    >
+                      ดูไฟล์
+                    </button>
+                  </div>
+                {/if}
               </div>
             </div>
           {/each}
@@ -546,11 +581,11 @@
 </div>
 
 <!-- Preview Modal -->
-{#if showPreviewModal && attachmentInfo && previewUrl}
+{#if showPreviewModal && previewUrl}
   <div class="modal-backdrop" on:click={() => showPreviewModal = false} role="presentation">
     <div class="modal-box modal-preview" on:click|stopPropagation role="dialog" aria-modal="true">
       <div class="modal-header">
-        <span class="modal-title">{attachmentInfo.fileName}</span>
+        <span class="modal-title">{previewTitle}</span>
         <button class="modal-close" on:click={() => showPreviewModal = false}>
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M18 6L6 18M6 6l12 12"/>
@@ -558,14 +593,14 @@
         </button>
       </div>
       <div class="preview-body">
-        {#if attachmentInfo.fileName.match(/\.(jpg|jpeg|png|webp)$/i)}
-          <img src={previewUrl} alt={attachmentInfo.fileName} class="preview-image" />
-        {:else if attachmentInfo.fileName.match(/\.pdf$/i)}
-          <iframe src={previewUrl} title={attachmentInfo.fileName} class="preview-iframe"></iframe>
+        {#if previewMimeType.startsWith('image/')}
+          <img src={previewUrl} alt={previewTitle} class="preview-image" />
+        {:else if previewMimeType === 'application/pdf'}
+          <iframe src={previewUrl} title={previewTitle} class="preview-iframe"></iframe>
         {:else}
           <div class="preview-unsupported">
             <p>ไม่สามารถแสดง preview ได้</p>
-            <a href={previewUrl} download={attachmentInfo.fileName} class="btn-primary">
+            <a href={previewUrl} download={previewTitle} class="btn-primary">
               ดาวน์โหลดไฟล์
             </a>
           </div>
@@ -1336,9 +1371,9 @@
 
   /* Preview modal */
   .modal-preview {
-    max-width: 860px;
-    width: 96vw;
-    max-height: 90vh;
+    max-width: min(1200px, 96vw) !important;
+    width: 96vw !important;
+    max-height: 95vh;
     display: flex;
     flex-direction: column;
   }
@@ -1355,14 +1390,14 @@
 
   .preview-image {
     max-width: 100%;
-    max-height: 70vh;
+    max-height: 80vh;
     object-fit: contain;
     border-radius: 0.5rem;
   }
 
   .preview-iframe {
     width: 100%;
-    height: 70vh;
+    height: 80vh;
     border: none;
     border-radius: 0.5rem;
   }
@@ -1375,6 +1410,42 @@
     gap: 1rem;
     align-items: center;
   }
+
+  .tl-attachment {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+    background: #f9fafb;
+    border: 1px solid #f0f0f0;
+    border-radius: 0.375rem;
+    padding: 0.4rem 0.75rem;
+  }
+
+  .tl-attachment-name {
+    flex: 1;
+    font-size: 0.8125rem;
+    color: #374151;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .tl-attachment-btn {
+    background: #f3f4f6;
+    color: #374151;
+    border: 1px solid #e5e7eb;
+    padding: 0.25rem 0.625rem;
+    border-radius: 0.3rem;
+    font-size: 0.75rem;
+    font-weight: 500;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: background 0.15s;
+  }
+
+  .tl-attachment-btn:hover:not(:disabled) { background: #e5e7eb; }
+  .tl-attachment-btn:disabled { opacity: 0.6; cursor: not-allowed; }
 
 .form-textarea {
     min-height: 80px;

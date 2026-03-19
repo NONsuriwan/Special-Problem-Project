@@ -69,6 +69,9 @@
       disposalMethod?: string;
       approvedBy?: string;
       disposalCost?: string | number;
+      attachmentId?: number;
+      fileName?: string;
+      fileUrl?: string;
     };
     before?: Record<string, any>;
     after?: Record<string, any>;
@@ -519,6 +522,7 @@
   let previewUrl: string | null = null;
   let previewLoading = false;
   let previewFileName = '';
+  let previewMimeType = '';
 
   async function loadPreview(attachment: Attachment) {
     previewLoading = true;
@@ -527,6 +531,23 @@
       const blob = await apiFetchBlob(`/api/attachments/${attachment.id}/file`);
       if (previewUrl) URL.revokeObjectURL(previewUrl);
       previewUrl = URL.createObjectURL(blob);
+      previewMimeType = blob.type;
+      showPreviewModal = true;
+    } catch (err) {
+      console.error('preview failed:', err);
+    } finally {
+      previewLoading = false;
+    }
+  }
+
+  async function loadPreviewById(id: number, fileName: string) {
+    previewLoading = true;
+    previewFileName = fileName;
+    try {
+      const blob = await apiFetchBlob(`/api/attachments/${id}/file`);
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+      previewUrl = URL.createObjectURL(blob);
+      previewMimeType = blob.type;
       showPreviewModal = true;
     } catch (err) {
       console.error('preview failed:', err);
@@ -979,6 +1000,21 @@
                     {/if}
                   </div>
                 {/if}
+                {#if h.type === 'status_change' && h.detail?.attachmentId}
+                  <div class="tl-attachment">
+                    <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/>
+                    </svg>
+                    <span class="tl-attachment-name">{h.detail.fileName ?? 'ไฟล์แนบ'}</span>
+                    <button
+                      class="tl-attachment-btn"
+                      on:click={() => loadPreviewById(h.detail.attachmentId, h.detail.fileName ?? 'ไฟล์แนบ')}
+                      disabled={previewLoading}
+                    >
+                      ดูไฟล์
+                    </button>
+                  </div>
+                {/if}
                 {#if h.type === 'status_change' && h.remark}
                   <div class="tl-remark">
                     <svg width="13" height="13" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10M7 12h6"/></svg>
@@ -996,6 +1032,21 @@
                         </div>
                       </div>
                     {/each}
+                  </div>
+                {/if}
+                {#if h.type === 'edit' && h.after?.attachmentId && h.after?.fileName}
+                  <div class="tl-attachment">
+                    <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/>
+                    </svg>
+                    <span class="tl-attachment-name">{h.after.fileName}</span>
+                    <button
+                      class="tl-attachment-btn"
+                      on:click={() => loadPreviewById(h.after.attachmentId, h.after.fileName)}
+                      disabled={previewLoading}
+                    >
+                      ดูไฟล์
+                    </button>
                   </div>
                 {/if}
               </div>
@@ -1285,9 +1336,9 @@
         </button>
       </div>
       <div class="preview-body">
-        {#if previewFileName.match(/\.(jpg|jpeg|png|webp)$/i)}
+        {#if previewMimeType.startsWith('image/')}
           <img src={previewUrl} alt={previewFileName} class="preview-image" />
-        {:else if previewFileName.match(/\.pdf$/i)}
+        {:else if previewMimeType === 'application/pdf'}
           <iframe src={previewUrl} title={previewFileName} class="preview-iframe"></iframe>
         {:else}
           <div class="preview-unsupported">
@@ -1825,9 +1876,9 @@
   .btn-preview:disabled { opacity: 0.6; cursor: not-allowed; }
 
   .modal-preview {
-    max-width: 860px;
-    width: 96vw;
-    max-height: 90vh;
+    max-width: min(1200px, 96vw) !important;
+    width: 96vw !important;
+    max-height: 95vh;
     display: flex;
     flex-direction: column;
   }
@@ -1851,7 +1902,7 @@
 
   .preview-iframe {
     width: 100%;
-    height: 70vh;
+    height: 80vh;
     border: none;
     border-radius: 0.5rem;
   }
@@ -2018,6 +2069,42 @@
     border-radius: 0.375rem;
     padding: 0.35rem 0.75rem;
   }
+
+  .tl-attachment {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+    background: #f9fafb;
+    border: 1px solid #f0f0f0;
+    border-radius: 0.375rem;
+    padding: 0.4rem 0.75rem;
+  }
+
+  .tl-attachment-name {
+    flex: 1;
+    font-size: 0.8125rem;
+    color: #374151;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .tl-attachment-btn {
+    background: #f3f4f6;
+    color: #374151;
+    border: 1px solid #e5e7eb;
+    padding: 0.25rem 0.625rem;
+    border-radius: 0.3rem;
+    font-size: 0.75rem;
+    font-weight: 500;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: background 0.15s;
+  }
+
+  .tl-attachment-btn:hover:not(:disabled) { background: #e5e7eb; }
+  .tl-attachment-btn:disabled { opacity: 0.6; cursor: not-allowed; }
 
   .tl-changes {
     background: #fafafa;
