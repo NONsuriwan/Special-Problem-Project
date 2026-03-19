@@ -90,7 +90,11 @@
       if (previewUrl) URL.revokeObjectURL(previewUrl);
       previewUrl = URL.createObjectURL(blob);
       previewMimeType = blob.type;
-      showPreviewModal = true;
+      if (previewMimeType === 'application/pdf') {
+        window.open(previewUrl, '_blank');
+      } else {
+        showPreviewModal = true;
+      }
     } catch (err) {
       console.error('preview failed:', err);
     } finally {
@@ -106,7 +110,11 @@
       if (previewUrl) URL.revokeObjectURL(previewUrl);
       previewUrl = URL.createObjectURL(blob);
       previewMimeType = blob.type;
-      showPreviewModal = true;
+      if (previewMimeType === 'application/pdf') {
+        window.open(previewUrl, '_blank');
+      } else {
+        showPreviewModal = true;
+      }
     } catch (err) {
       console.error('preview failed:', err);
     } finally {
@@ -595,16 +603,6 @@
       <div class="preview-body">
         {#if previewMimeType.startsWith('image/')}
           <img src={previewUrl} alt={previewTitle} class="preview-image" />
-       {:else if previewMimeType === 'application/pdf'}
-        <object data={previewUrl} type="application/pdf" class="preview-iframe">
-          <!-- แสดงเฉพาะเมื่อ object render ไม่ได้ -->
-          <div class="preview-unsupported">
-            <p>ไม่สามารถแสดง PDF ในเบราว์เซอร์นี้</p>
-            <a href={previewUrl} target="_blank" rel="noopener noreferrer" class="btn-primary">
-              เปิด PDF
-            </a>
-          </div>
-        </object>
         {:else}
           <div class="preview-unsupported">
             <p>ไม่สามารถแสดง preview ได้</p>
