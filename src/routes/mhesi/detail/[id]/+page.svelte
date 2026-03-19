@@ -596,7 +596,12 @@
         {#if previewMimeType.startsWith('image/')}
           <img src={previewUrl} alt={previewTitle} class="preview-image" />
         {:else if previewMimeType === 'application/pdf'}
-          <iframe src={previewUrl} title={previewTitle} class="preview-iframe"></iframe>
+          <object data={previewUrl} type="application/pdf" class="preview-iframe">
+            <div class="preview-unsupported">
+              <p>ไม่สามารถแสดง PDF ได้</p>
+              <a href={previewUrl} download={previewTitle ?? previewFileName} class="btn-primary">ดาวน์โหลดไฟล์</a>
+            </div>
+          </object>
         {:else}
           <div class="preview-unsupported">
             <p>ไม่สามารถแสดง preview ได้</p>
