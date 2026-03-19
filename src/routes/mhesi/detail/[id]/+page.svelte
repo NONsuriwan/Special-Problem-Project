@@ -91,12 +91,13 @@
       previewUrl = URL.createObjectURL(blob);
       previewMimeType = blob.type;
      if (previewMimeType === 'application/pdf') {
-        // สร้าง HTML page ที่มี iframe embed PDF blob
-        const html = `<html><body style="margin:0"><iframe src="${previewUrl}" style="width:100%;height:100vh;border:none"></iframe></body></html>`;
-        const htmlBlob = new Blob([html], { type: 'text/html' });
-        const htmlUrl = URL.createObjectURL(htmlBlob);
-        window.open(htmlUrl, '_blank');
-      } else {
+      // แปลง blob เป็น base64 แล้วเปิดเป็น data URL
+      const reader = new FileReader();
+      reader.onload = () => {
+        window.open(reader.result as string, '_blank');
+      };
+      reader.readAsDataURL(blob);
+    } else {
         showPreviewModal = true;
       }
     } catch (err) {
