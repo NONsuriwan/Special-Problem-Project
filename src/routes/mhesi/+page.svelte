@@ -3,6 +3,8 @@
   import { goto } from '$app/navigation';
   import Dropdown from '$lib/components/ui/Dropdown.svelte';
   import ThaiDatePicker from '$lib/components/ui/ThaiDatePicker.svelte';
+  import '../../styles/pagination.css';
+  import '../../styles/filter.css';
 
   // กำหนด Interface
   interface MhesiRecord {
@@ -426,11 +428,13 @@
       <div class="pagination-bar">
         <div class="pagination-info">
           <span class="pagination-label">แสดง</span>
-          <select class="limit-select" value={limit} on:change={onLimitChange}>
-            {#each limitOptions as opt}
-              <option value={opt}>{opt}</option>
-            {/each}
-          </select>
+          <Dropdown
+            compact
+            dropUp
+            options={limitOptions.map(o => ({ value: o, label: String(o) }))}
+            bind:value={limit}
+            on:change={() => { currentPage = 1; fetchMhesi(); }}
+          />
           <span class="pagination-label">รายการต่อหน้า</span>
           <span class="pagination-count">({totalItems.toLocaleString('th-TH')} รายการทั้งหมด)</span>
         </div>
@@ -632,243 +636,4 @@
     box-shadow: none !important;
   }
 
-  /* Filter */
-  .filter-btn-active {
-    background: #fff4e6;
-    border-color: #ffa200;
-    color: #ffa200;
-  }
-
-  .filter-dot {
-    position: absolute;
-    top: 4px;
-    right: 4px;
-    width: 7px;
-    height: 7px;
-    border-radius: 50%;
-    background: #ffa200;
-    border: 1.5px solid white;
-  }
-
-  .filter-backdrop {
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.3);
-    z-index: 400;
-  }
-
-  .filter-popup {
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    background: white;
-    border-radius: 1rem;
-    padding: 1.75rem;
-    z-index: 401;
-    width: min(640px, 90vw);
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
-  }
-
-  .filter-title {
-    font-size: 1rem;
-    font-weight: 600;
-    color: #111827;
-    margin: 0 0 1.25rem;
-  }
-
-  .filter-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 1rem;
-  }
-
-  .filter-field {
-    display: flex;
-    flex-direction: column;
-    gap: 0.375rem;
-  }
-
-  .filter-label {
-    font-size: 0.8125rem;
-    font-weight: 500;
-    color: #374151;
-  }
-
-  .filter-field-full {
-    grid-column: 1 / -1;
-  }
-
-  .price-range, .date-range {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-  }
-
-  .range-sep {
-    color: #9ca3af;
-    flex-shrink: 0;
-  }
-
-  .filter-input {
-    border: 1px solid #d1d5db;
-    border-radius: 0.5rem;
-    padding: 0.5rem 0.75rem;
-    font-size: 0.875rem;
-    color: #111827;
-    background: white;
-    width: 100%;
-    box-sizing: border-box;
-    font-family: inherit;
-  }
-
-  .filter-input:focus {
-    outline: none;
-    border-color: #ffa200;
-    box-shadow: 0 0 0 2px rgba(255, 162, 0, 0.15);
-  }
-
-  .filter-footer {
-    display: flex;
-    justify-content: space-between;
-    gap: 0.75rem;
-    margin-top: 1.5rem;
-    padding-top: 1rem;
-    border-top: 1px solid #f3f4f6;
-  }
-
-  .filter-clear-btn {
-    padding: 0.5rem 1rem;
-    border: 1px solid #d1d5db;
-    border-radius: 0.5rem;
-    background: white;
-    color: #374151;
-    font-size: 0.875rem;
-    cursor: pointer;
-  }
-
-  .filter-clear-btn:hover {
-    background: #f9fafb;
-  }
-
-  .filter-apply-btn {
-    padding: 0.5rem 1.25rem;
-    border: none;
-    border-radius: 0.5rem;
-    background: #ffa200;
-    color: white;
-    font-size: 0.875rem;
-    font-weight: 500;
-    cursor: pointer;
-  }
-
-  .filter-apply-btn:hover {
-    background: #e69100;
-  }
-
-  .pagination-bar {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 0.875rem 1.25rem;
-    background: white;
-    border-top: 1px solid #f3f4f6;
-  }
-
-  .pagination-info {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    color: #6b7280;
-    font-size: 0.875rem;
-  }
-
-  .pagination-label {
-    color: #6b7280;
-  }
-
-  .pagination-count {
-    color: #9ca3af;
-    font-size: 0.8125rem;
-    margin-left: 0.25rem;
-  }
-
-  .limit-select {
-    appearance: none;
-    background: white;
-    border: 1px solid #e5e7eb;
-    border-radius: 0.375rem;
-    padding: 0.25rem 1.75rem 0.25rem 0.625rem;
-    font-size: 0.875rem;
-    color: #374151;
-    cursor: pointer;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
-    background-repeat: no-repeat;
-    background-position: right 0.5rem center;
-  }
-
-  .limit-select:focus {
-    outline: none;
-    border-color: #ffa200;
-    box-shadow: 0 0 0 2px rgba(255, 162, 0, 0.15);
-  }
-
-  .pagination-nav {
-    display: flex;
-    align-items: center;
-    gap: 0.25rem;
-  }
-
-  .page-btn {
-    min-width: 2rem;
-    height: 2rem;
-    padding: 0 0.5rem;
-    border: 1px solid #e5e7eb;
-    border-radius: 0.375rem;
-    background: white;
-    color: #374151;
-    font-size: 0.875rem;
-    font-weight: 500;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.15s;
-  }
-
-  .page-btn:hover:not(:disabled):not(.active) {
-    border-color: #ffa200;
-    color: #ffa200;
-    background: #fffbf5;
-  }
-
-  .page-btn.active {
-    background: #ffa200;
-    border-color: #ffa200;
-    color: white;
-    font-weight: 600;
-    box-shadow: 0 1px 4px rgba(255, 162, 0, 0.35);
-  }
-
-  .page-btn:disabled {
-    opacity: 0.35;
-    cursor: not-allowed;
-  }
-
-  .page-btn.active:disabled {
-    opacity: 1;
-    cursor: default;
-  }
-
-  .nav-btn {
-    color: #6b7280;
-  }
-
-  .page-ellipsis {
-    min-width: 2rem;
-    text-align: center;
-    color: #9ca3af;
-    font-size: 0.875rem;
-    user-select: none;
-  }
 </style>

@@ -4,8 +4,11 @@
   import { goto } from '$app/navigation';
   import ThaiDatePicker from '$lib/components/ui/ThaiDatePicker.svelte';
   import Dropdown from '$lib/components/ui/Dropdown.svelte';
+  import Icon from '$lib/components/ui/Icon.svelte';
   import { apiFetch, apiFetchBlob } from '$lib/api/client';
   import { API_ENDPOINTS } from '$lib/api/endpoints';
+  import '../../../../styles/detail.css';
+  import '../../../../styles/timeline.css';
 
   type MhesiRecord = {
     uuid: string;
@@ -185,7 +188,7 @@
     note: '',
   };
 
-  $: uuid = $page.params.id;
+  $: uuid = $page.params.id ?? '';
 
   async function fetchAll() {
     loading = true;
@@ -369,7 +372,7 @@
         <div class="detail-grid">
           <!-- Row 1: เลข อว. | คณะ -->
           <div class="detail-item">
-            <div class="detail-icon">📋</div>
+            <div class="detail-icon"><Icon name="clipboard-list" size={24} /></div>
             <div class="detail-content">
               <div class="detail-label">เลข อว.</div>
               <div class="detail-value">{record.mhesiNumber}</div>
@@ -377,7 +380,7 @@
           </div>
 
           <div class="detail-item">
-            <div class="detail-icon">🎓</div>
+            <div class="detail-icon"><Icon name="academic-cap" size={24} /></div>
             <div class="detail-content">
               <div class="detail-label">คณะ</div>
               <div class="detail-value">{getDepartmentName(record.departmentId)}</div>
@@ -386,7 +389,7 @@
 
           <!-- Row 2: ส่วนสนับสนุน | แผนงาน -->
           <div class="detail-item">
-            <div class="detail-icon">🏢</div>
+            <div class="detail-icon"><Icon name="building" size={24} /></div>
             <div class="detail-content">
               <div class="detail-label">ส่วนสนับสนุน</div>
               <div class="detail-value">{getSupportUnitName(record.supportUnitId)}</div>
@@ -394,7 +397,7 @@
           </div>
 
           <div class="detail-item">
-            <div class="detail-icon">📊</div>
+            <div class="detail-icon"><Icon name="chart-bar" size={24} /></div>
             <div class="detail-content">
               <div class="detail-label">แผนงาน</div>
               <div class="detail-value">{getPlanName(record.planId)}</div>
@@ -403,7 +406,7 @@
 
           <!-- Row 3: โครงการ | กิจกรรม -->
           <div class="detail-item">
-            <div class="detail-icon">🗂️</div>
+            <div class="detail-icon"><Icon name="folder" size={24} /></div>
             <div class="detail-content">
               <div class="detail-label">โครงการ</div>
               <div class="detail-value">{getProjectName(record.projectId)}</div>
@@ -411,7 +414,7 @@
           </div>
 
           <div class="detail-item">
-            <div class="detail-icon">🎯</div>
+            <div class="detail-icon"><Icon name="flag" size={24} /></div>
             <div class="detail-content">
               <div class="detail-label">กิจกรรม</div>
               <div class="detail-value detail-value--wrap">{record.activityName || '-'}</div>
@@ -420,7 +423,7 @@
 
           <!-- Row 4: วันที่ | จำนวนเงิน -->
           <div class="detail-item">
-            <div class="detail-icon">📅</div>
+            <div class="detail-icon"><Icon name="calendar" size={24} /></div>
             <div class="detail-content">
               <div class="detail-label">วันที่</div>
               <div class="detail-value">{formatDate(record.date)}</div>
@@ -428,7 +431,7 @@
           </div>
 
           <div class="detail-item">
-            <div class="detail-icon">💰</div>
+            <div class="detail-icon"><Icon name="currency" size={24} /></div>
             <div class="detail-content">
               <div class="detail-label">จำนวนเงิน</div>
               <div class="detail-value">{formatCurrency(record.amount)} บาท</div>
@@ -437,7 +440,7 @@
 
           <!-- Row 5: หมายเหตุ full width -->
           <div class="detail-item full-width">
-            <div class="detail-icon">📝</div>
+            <div class="detail-icon"><Icon name="pencil" size={24} /></div>
             <div class="detail-content">
               <div class="detail-label">หมายเหตุ</div>
               <div class="detail-value detail-value--wrap">{record.note || '-'}</div>
@@ -817,63 +820,6 @@
     margin: 0 0 1.5rem 0;
   }
 
-  /* Detail Grid */
-  .detail-grid {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 1.25rem;
-  }
-
-  .detail-item {
-    display: flex;
-    gap: 0.75rem;
-    min-width: 0;
-  }
-
-  .detail-content {
-    min-width: 0;
-    flex: 1;
-  }
-
-  .detail-item.full-width {
-    grid-column: 1 / -1;
-  }
-
-  .detail-icon {
-    font-size: 1.25rem;
-    flex-shrink: 0;
-  }
-
-  .detail-label {
-    font-size: 0.8125rem;
-    color: #6b7280;
-    margin-bottom: 0.25rem;
-    font-family: var(--font-thai);
-  }
-
-  .detail-value {
-    font-size: 1rem;
-    color: #1f2937;
-    font-weight: 500;
-    font-family: var(--font-thai);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .detail-value--wrap {
-    white-space: normal;
-    overflow: visible;
-    text-overflow: unset;
-    overflow-wrap: break-word;
-    word-break: break-word;
-  }
-
-  .detail-value.highlight {
-    color: #ffa200;
-    font-weight: 700;
-  }
-
   /* Right Column */
   .right-column {
     display: flex;
@@ -930,141 +876,6 @@
     text-align: center;
     color: #6b7280;
     font-size: 0.875rem;
-  }
-
-  /* ── Timeline ── */
-  .timeline {
-    padding: 0.25rem 0;
-  }
-
-  .tl-item {
-    display: flex;
-    gap: 1rem;
-  }
-
-  .tl-line-wrap {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    flex-shrink: 0;
-    width: 20px;
-    padding-top: 0.3rem;
-  }
-
-  .tl-dot {
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-    background: #3b82f6;
-    border: 2px solid #eff6ff;
-    box-shadow: 0 0 0 2px #3b82f6;
-    flex-shrink: 0;
-  }
-
-  .tl-line {
-    flex: 1;
-    width: 2px;
-    background: #f3f4f6;
-    margin: 4px 0;
-    min-height: 24px;
-  }
-
-  .tl-body {
-    flex: 1;
-    padding-bottom: 1.5rem;
-  }
-
-  .tl-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 0.625rem;
-  }
-
-  .tl-header-left {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-  }
-
-  .tl-badge {
-    font-size: 0.7rem;
-    font-weight: 600;
-    letter-spacing: 0.04em;
-    color: #1d4ed8;
-    background: #eff6ff;
-    border: 1px solid #bfdbfe;
-    border-radius: 99px;
-    padding: 0.15rem 0.6rem;
-  }
-
-  .tl-user {
-    font-size: 0.875rem;
-    font-weight: 600;
-    color: #111827;
-  }
-
-  .tl-time {
-    font-size: 0.78rem;
-    color: #9ca3af;
-  }
-
-  .tl-changes {
-    background: #fafafa;
-    border: 1px solid #f0f0f0;
-    border-radius: 0.5rem;
-    overflow: hidden;
-  }
-
-  .tl-change-row {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    padding: 0.55rem 0.875rem;
-    border-bottom: 1px solid #f3f4f6;
-  }
-
-  .tl-change-row:last-child { border-bottom: none; }
-
-  .tl-field {
-    min-width: 90px;
-    font-size: 0.78rem;
-    font-weight: 500;
-    color: #6b7280;
-    flex-shrink: 0;
-  }
-
-  .tl-diff {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    flex-wrap: wrap;
-  }
-
-  .tl-old {
-    font-size: 0.8125rem;
-    color: #b91c1c;
-    background: #fef2f2;
-    border-radius: 0.25rem;
-    padding: 0.1rem 0.45rem;
-    text-decoration: line-through;
-  }
-
-  .tl-arrow { color: #9ca3af; flex-shrink: 0; }
-
-  .tl-new {
-    font-size: 0.8125rem;
-    font-weight: 500;
-    color: #15803d;
-    background: #f0fdf4;
-    border-radius: 0.25rem;
-    padding: 0.1rem 0.45rem;
-  }
-
-  .tl-nochange {
-    font-size: 0.8rem;
-    color: #9ca3af;
-    font-style: italic;
   }
 
   /* Loading & Error */
@@ -1410,42 +1221,6 @@
     gap: 1rem;
     align-items: center;
   }
-
-  .tl-attachment {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    margin-top: 0.5rem;
-    background: #f9fafb;
-    border: 1px solid #f0f0f0;
-    border-radius: 0.375rem;
-    padding: 0.4rem 0.75rem;
-  }
-
-  .tl-attachment-name {
-    flex: 1;
-    font-size: 0.8125rem;
-    color: #374151;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .tl-attachment-btn {
-    background: #f3f4f6;
-    color: #374151;
-    border: 1px solid #e5e7eb;
-    padding: 0.25rem 0.625rem;
-    border-radius: 0.3rem;
-    font-size: 0.75rem;
-    font-weight: 500;
-    cursor: pointer;
-    flex-shrink: 0;
-    transition: background 0.15s;
-  }
-
-  .tl-attachment-btn:hover:not(:disabled) { background: #e5e7eb; }
-  .tl-attachment-btn:disabled { opacity: 0.6; cursor: not-allowed; }
 
 .form-textarea {
     min-height: 80px;

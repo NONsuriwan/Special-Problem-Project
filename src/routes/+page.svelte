@@ -6,12 +6,12 @@
   import { API_ENDPOINTS } from '$lib/api/endpoints';
 
   let stats = [
-    { label: 'ครุภัณฑ์ทั้งหมด', value: '-', icon: '📦' },
-    { label: 'พร้อมใช้งาน',      value: '-', icon: '✅' },
-    { label: 'ถูกยืม',           value: '-', icon: '📥' },
-    { label: 'กำลังซ่อม',        value: '-', icon: '🛠️' },
-    { label: 'ไม่พร้อมใช้งาน',  value: '-', icon: '⛔' },
-    { label: 'จำหน่ายแล้ว',      value: '-', icon: '🗑️' },
+    { label: 'ครุภัณฑ์ทั้งหมด', value: '-', icon: 'box',          color: '#f39c12', bg: '#fff8ec' },
+    { label: 'พร้อมใช้งาน',      value: '-', icon: 'check-circle', color: '#16a34a', bg: '#f0fdf4' },
+    { label: 'ถูกยืม',           value: '-', icon: 'inbox',        color: '#2563eb', bg: '#eff6ff' },
+    { label: 'กำลังซ่อม',        value: '-', icon: 'wrench',       color: '#d97706', bg: '#fffbeb' },
+    { label: 'ไม่พร้อมใช้งาน',  value: '-', icon: 'x-circle',     color: '#dc2626', bg: '#fef2f2' },
+    { label: 'จำหน่ายแล้ว',      value: '-', icon: 'trash',        color: '#6b7280', bg: '#f3f4f6' },
   ];
 
   function getCount(byStatus: { status: string; count: number }[], status: string): string {
@@ -23,12 +23,12 @@
       const { data } = await apiFetch<{ data: { total: string; byStatus: { status: string; count: number }[] } }>(API_ENDPOINTS.ASSET_STATS);
       const by = data.byStatus ?? [];
       stats = [
-        { label: 'ครุภัณฑ์ทั้งหมด', value: Number(data.total).toLocaleString('th-TH'), icon: '📦' },
-        { label: 'พร้อมใช้งาน',      value: getCount(by, 'normal'),      icon: '✅' },
-        { label: 'ถูกยืม',           value: getCount(by, 'borrowed'),     icon: '📥' },
-        { label: 'กำลังซ่อม',        value: getCount(by, 'repair'),       icon: '🛠️' },
-        { label: 'ไม่พร้อมใช้งาน',  value: getCount(by, 'unavailable'),  icon: '⛔' },
-        { label: 'จำหน่ายแล้ว',      value: getCount(by, 'disposed'),     icon: '🗑️' },
+        { label: 'ครุภัณฑ์ทั้งหมด', value: Number(data.total).toLocaleString('th-TH'), icon: 'box',          color: '#f39c12', bg: '#fff8ec' },
+        { label: 'พร้อมใช้งาน',      value: getCount(by, 'normal'),      icon: 'check-circle', color: '#16a34a', bg: '#f0fdf4' },
+        { label: 'ถูกยืม',           value: getCount(by, 'borrowed'),     icon: 'inbox',        color: '#2563eb', bg: '#eff6ff' },
+        { label: 'กำลังซ่อม',        value: getCount(by, 'repair'),       icon: 'wrench',       color: '#d97706', bg: '#fffbeb' },
+        { label: 'ไม่พร้อมใช้งาน',  value: getCount(by, 'unavailable'),  icon: 'x-circle',     color: '#dc2626', bg: '#fef2f2' },
+        { label: 'จำหน่ายแล้ว',      value: getCount(by, 'disposed'),     icon: 'trash',        color: '#6b7280', bg: '#f3f4f6' },
       ];
     } catch (e) {
       console.error('Failed to fetch stats:', e);

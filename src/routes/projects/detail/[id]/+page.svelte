@@ -4,6 +4,8 @@
   import { goto } from '$app/navigation';
   import ThaiDatePicker from '$lib/components/ui/ThaiDatePicker.svelte';
   import Dropdown from '$lib/components/ui/Dropdown.svelte';
+  import Icon from '$lib/components/ui/Icon.svelte';
+  import '../../../../styles/timeline.css';
 
   type Project = {
     id: number;
@@ -138,7 +140,7 @@
     disposed: '#6b7280',
   };
 
-  $: uuid = $page.params.id;
+  $: uuid = $page.params.id ?? '';
 
   async function fetchAll() {
     loading = true;
@@ -363,7 +365,7 @@
       <div class="info-grid">
         {#if project.projectNumber}
           <div class="info-item">
-            <span class="info-icon">🔢</span>
+            <span class="info-icon"><Icon name="hashtag" size={24} /></span>
             <div>
               <div class="info-label">หมายเลขโครงการ</div>
               <div class="info-value">: {project.projectNumber}</div>
@@ -371,42 +373,42 @@
           </div>
         {/if}
         <div class="info-item">
-          <span class="info-icon">📁</span>
+          <span class="info-icon"><Icon name="document-text" size={24} /></span>
           <div>
             <div class="info-label">ชื่อโครงการ</div>
             <div class="info-value">: {project.projectName}</div>
           </div>
         </div>
         <div class="info-item">
-          <span class="info-icon">🗂️</span>
+          <span class="info-icon"><Icon name="collection" size={24} /></span>
           <div>
             <div class="info-label">ประเภท</div>
             <div class="info-value">: {getProjectTypeName(project)}</div>
           </div>
         </div>
         <div class="info-item">
-          <span class="info-icon">📅</span>
+          <span class="info-icon"><Icon name="calendar" size={24} /></span>
           <div>
             <div class="info-label">วันที่</div>
             <div class="info-value">: {formatDate(project.projectDate)}</div>
           </div>
         </div>
         <div class="info-item">
-          <span class="info-icon">💰</span>
+          <span class="info-icon"><Icon name="currency" size={24} /></span>
           <div>
             <div class="info-label">งบประมาณ</div>
             <div class="info-value">: {formatCurrency(project.budget)} บาท</div>
           </div>
         </div>
         <div class="info-item">
-          <span class="info-icon">🏦</span>
+          <span class="info-icon"><Icon name="library" size={24} /></span>
           <div>
             <div class="info-label">แหล่งเงินทุน</div>
             <div class="info-value">: {getAcquisitionSourceName(project.acquisitionSourceId)}</div>
           </div>
         </div>
         <div class="info-item">
-          <span class="info-icon">📌</span>
+          <span class="info-icon"><Icon name="check-circle" size={24} /></span>
           <div>
             <div class="info-label">สถานะ</div>
             <div class="info-value">: {STATUS_LABELS[project.status ?? ''] || project.status || '-'}</div>
@@ -414,7 +416,7 @@
         </div>
         {#if project.note}
           <div class="info-item info-item-full">
-            <span class="info-icon">📝</span>
+            <span class="info-icon"><Icon name="pencil" size={24} /></span>
             <div>
               <div class="info-label">หมายเหตุ</div>
               <div class="info-value">: {project.note}</div>
@@ -759,13 +761,13 @@
   }
 
   .info-label {
-    font-size: 0.75rem;
+    font-size: 0.8125rem;
     color: #9ca3af;
     margin-bottom: 0.125rem;
   }
 
   .info-value {
-    font-size: 0.9375rem;
+    font-size: 1rem;
     color: #1f2937;
     font-weight: 500;
   }
@@ -902,112 +904,6 @@
     color: #6b7280;
     font-size: 0.875rem;
   }
-
-  .timeline { padding: 0.25rem 0; }
-
-  .tl-item { display: flex; gap: 1rem; }
-
-  .tl-line-wrap {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    flex-shrink: 0;
-    width: 20px;
-    padding-top: 0.3rem;
-  }
-
-  .tl-dot {
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-    background: #3b82f6;
-    border: 2px solid #eff6ff;
-    box-shadow: 0 0 0 2px #3b82f6;
-    flex-shrink: 0;
-  }
-
-  .tl-line {
-    flex: 1;
-    width: 2px;
-    background: #f3f4f6;
-    margin: 4px 0;
-    min-height: 24px;
-  }
-
-  .tl-body { flex: 1; padding-bottom: 1.5rem; }
-
-  .tl-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 0.625rem;
-  }
-
-  .tl-header-left { display: flex; align-items: center; gap: 0.5rem; }
-
-  .tl-badge {
-    font-size: 0.7rem;
-    font-weight: 600;
-    letter-spacing: 0.04em;
-    color: #1d4ed8;
-    background: #eff6ff;
-    border: 1px solid #bfdbfe;
-    border-radius: 99px;
-    padding: 0.15rem 0.6rem;
-  }
-
-  .tl-user { font-size: 0.875rem; font-weight: 600; color: #111827; }
-
-  .tl-time { font-size: 0.78rem; color: #9ca3af; }
-
-  .tl-changes {
-    background: #fafafa;
-    border: 1px solid #f0f0f0;
-    border-radius: 0.5rem;
-    overflow: hidden;
-  }
-
-  .tl-change-row {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    padding: 0.55rem 0.875rem;
-    border-bottom: 1px solid #f3f4f6;
-  }
-
-  .tl-change-row:last-child { border-bottom: none; }
-
-  .tl-field {
-    min-width: 90px;
-    font-size: 0.78rem;
-    font-weight: 500;
-    color: #6b7280;
-    flex-shrink: 0;
-  }
-
-  .tl-diff { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
-
-  .tl-old {
-    font-size: 0.8125rem;
-    color: #b91c1c;
-    background: #fef2f2;
-    border-radius: 0.25rem;
-    padding: 0.1rem 0.45rem;
-    text-decoration: line-through;
-  }
-
-  .tl-arrow { color: #9ca3af; flex-shrink: 0; }
-
-  .tl-new {
-    font-size: 0.8125rem;
-    font-weight: 500;
-    color: #15803d;
-    background: #f0fdf4;
-    border-radius: 0.25rem;
-    padding: 0.1rem 0.45rem;
-  }
-
-  .tl-nochange { font-size: 0.8rem; color: #9ca3af; font-style: italic; }
 
   /* Loading / Error */
   .loading {

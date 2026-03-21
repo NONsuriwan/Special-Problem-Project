@@ -16,7 +16,7 @@
 
   type MasterData = { id: number; name: string };
 
-  $: assetId = $page.params.id;
+  $: assetId = $page.params.id ?? '';
 
   let asset: Asset | null = null;
   let allEquipment: Asset[] = [];

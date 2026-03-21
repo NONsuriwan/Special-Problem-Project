@@ -5,13 +5,14 @@
   import { pageTitle, pageSubtitle } from "$lib/stores/pageTitle";
   import { apiFetch } from '$lib/api/client';
   import { API_ENDPOINTS } from '$lib/api/endpoints';
+  import Icon from '$lib/components/ui/Icon.svelte';
 
   // ข้อมูลเมนูตามรายการที่คุณระบุ
   const links = [
-    { href: "/", label: "แดชบอร์ด", icon: "📊", subtitle: "ภาพรวมครุภัณฑ์คณะวิทยาศาสตร์" },
+    { href: "/", label: "แดชบอร์ด", icon: "chart-bar", subtitle: "ภาพรวมครุภัณฑ์คณะวิทยาศาสตร์" },
     {
       label: "ครุภัณฑ์",
-      icon: "📦",
+      icon: "box",
       children: [
         { href: "/equipments/add-equipments", label: "ลงทะเบียนครุภัณฑ์", subtitle: "เพิ่มครุภัณฑ์ใหม่เข้าสู่ระบบ" },
         { href: "/equipments", label: "สืบค้นครุภัณฑ์", subtitle: "ค้นหา จัดการ และเพิ่มครุภัณฑ์" },
@@ -20,7 +21,7 @@
     },
     {
       label: "เลข อว.",
-      icon: "🧾",
+      icon: "document-text",
       children: [
         { href: "/mhesi/add-mhesi", label: "ลงทะเบียนเลข อว.", subtitle: "เพิ่มเลข อว. ใหม่เข้าสู่ระบบ" },
         { href: "/mhesi", label: "สืบค้นเลข อว.", subtitle: "ค้นหา จัดการ และเพิ่มกิจกรรม" },
@@ -28,13 +29,13 @@
     },
     {
       label: "โครงการ",
-      icon: "📁",
+      icon: "folder",
       children: [
         { href: "/projects/add-project", label: "ลงทะเบียนโครงการ", subtitle: "เพิ่มโครงการใหม่เข้าสู่ระบบ" },
         { href: "/projects", label: "สืบค้นโครงการ", subtitle: "ค้นหา จัดการ และเพิ่มโครงการ" },
       ]
     },
-    { href: "/reports", label: "รายงาน", icon: "📈", subtitle: "จัดการและสรุปข้อมูลของครุภัณฑ์", exact: true },
+    { href: "/reports", label: "รายงาน", icon: "trending-up", subtitle: "จัดการและสรุปข้อมูลของครุภัณฑ์", exact: true },
   ];
 
   // เก็บสถานะการเปิด/ปิด Dropdown
@@ -174,8 +175,8 @@
             class="w-full flex items-center justify-between px-4 py-3 rounded-lg hover:bg-black/5 transition-colors
                   {l.children.some(child => isActive(currentPath, child.href)) ? 'bg-white/20' : ''}"
           >
-            <div class="flex items-end gap-4">
-              <span class="text-2xl">{l.icon}</span>
+            <div class="flex items-center gap-4">
+              <span class="sidebar-icon"><Icon name={l.icon} size={24} strokeWidth={1.8} /></span>
               <span class="text-b6 ">{l.label}</span>
             </div>
             <span class="text-[10px] transform transition-transform {openMenus[l.label] ? 'rotate-180' : ''}">
@@ -189,11 +190,11 @@
                 <a
                   href={child.href}
                   on:click={() => selectChild(child.label, child.subtitle ?? '')}
-                  class="flex items-center gap-2 pl-14 py-2 text-b6 hover:translate-x-1 transition-all
-                        {selectedChildLabel === child.label ? 'font-bold' : 'opacity-85'}"
+                  class="child-link flex items-center gap-2 pl-14 py-2 text-b6 transition-all
+                        {selectedChildLabel === child.label ? 'child-active' : 'opacity-70 hover:opacity-100'}"
                 >
                   <span class="text-white/60 text-base">›</span>
-                  {child.label}
+                  <span class={selectedChildLabel === child.label ? 'child-label-active' : ''}>{child.label}</span>
                 </a>
               {/each}
             </div>
@@ -205,7 +206,7 @@
             class="flex items-center gap-5 px-4 py-3 rounded-lg hover:bg-black/5 transition-colors
                   {isActive(currentPath, l.href, l.exact) ? 'bg-white/20' : 'opacity-90'}"
           >
-            <span class="text-xl">{l.icon}</span>
+            <span class="sidebar-icon"><Icon name={l.icon} size={24} strokeWidth={1.8} /></span>
             <span class="text-b6">{l.label}</span>
           </a>
         {/if}
@@ -218,7 +219,7 @@
         class="flex items-center gap-5 px-4 py-3 rounded-lg hover:bg-black/5 transition-colors
                {isActive(currentPath, '/admin') ? 'bg-white/20' : 'opacity-90'}"
       >
-        <span class="text-xl">👥</span>
+        <span class="sidebar-icon"><Icon name="users" size={24} strokeWidth={1.8} /></span>
         <span class="text-b6">จัดการผู้ใช้</span>
       </a>
     {/if}
@@ -258,6 +259,29 @@
 </aside>
 
 <style>
+  .sidebar-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+  }
+
+  .child-link {
+    letter-spacing: 0.01em;
+  }
+
+  .child-active {
+    opacity: 1;
+    font-weight: 600;
+  }
+
+  .child-label-active {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.7);
+    padding-bottom: 1px;
+  }
+
   /* ซ่อน Scrollbar สำหรับความสวยงาม */
   nav::-webkit-scrollbar {
     width: 0px;

@@ -8,7 +8,7 @@
 
   type MasterData = { id: number; name: string };
 
-  $: uuid = $page.params.uuid;
+  $: uuid = $page.params.uuid ?? '';
 
   let departments: MasterData[] = [];
   let formData = {
