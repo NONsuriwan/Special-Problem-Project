@@ -567,7 +567,7 @@
                     <span class="tl-attachment-name">ไฟล์แนบ</span>
                     <button
                       class="tl-attachment-btn"
-                      on:click={() => loadPreviewById(h.before.attachmentId, 'ไฟล์แนบ')}
+                      on:click={() => loadPreviewById(h.before?.attachmentId ?? 0, 'ไฟล์แนบ')}
                       disabled={previewLoading}
                     >
                       ดูไฟล์
