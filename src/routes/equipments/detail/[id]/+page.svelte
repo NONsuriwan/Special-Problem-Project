@@ -3,6 +3,9 @@
   import { page } from '$app/stores';
   import { goto } from '$app/navigation';
   import ThaiDatePicker from '$lib/components/ui/ThaiDatePicker.svelte';
+  import Icon from '$lib/components/ui/Icon.svelte';
+  import '../../../../styles/detail.css';
+  import '../../../../styles/timeline.css';
   import SearchableDropdown from '$lib/components/ui/SearchableDropdown.svelte';
   import Dropdown from '$lib/components/ui/Dropdown.svelte';
   import { apiFetch, apiFetchBlob } from '$lib/api/client';
@@ -161,7 +164,7 @@
   let projects: any[] = [];
 
   // Get asset ID from URL
-  $: assetId = $page.params.id;
+  $: assetId = $page.params.id ?? '';
 
   // Fetch master data
   async function fetchMasterData() {
@@ -710,14 +713,14 @@
 
         <div class="detail-grid">
           <div class="detail-item">
-            <div class="detail-icon">📦</div>
+            <div class="detail-icon"><Icon name="building" size={24} /></div>
             <div>
               <div class="detail-label">หน่วยงาน</div>
               <div class="detail-value">{getMasterName(departments, asset.departmentId)}</div>
             </div>
           </div>
           <div class="detail-item">
-            <div class="detail-icon">🏢</div>
+            <div class="detail-icon"><Icon name="flag" size={24} /></div>
             <div>
               <div class="detail-label">กิจกรรม</div>
               <div class="detail-value">{asset.activity || '-'}</div>
@@ -725,14 +728,14 @@
           </div>
 
           <div class="detail-item">
-            <div class="detail-icon">💰</div>
+            <div class="detail-icon"><Icon name="library" size={24} /></div>
             <div>
               <div class="detail-label">กองทุน</div>
               <div class="detail-value">{getMasterName(funds, asset.fundId)}</div>
             </div>
           </div>
           <div class="detail-item">
-            <div class="detail-icon">📅</div>
+            <div class="detail-icon"><Icon name="calendar" size={24} /></div>
             <div>
               <div class="detail-label">ปีงบประมาณ</div>
               <div class="detail-value">{asset.fiscalYear || '-'}</div>
@@ -740,14 +743,14 @@
           </div>
 
           <div class="detail-item">
-            <div class="detail-icon">📋</div>
+            <div class="detail-icon"><Icon name="clipboard-list" size={24} /></div>
             <div>
               <div class="detail-label">รหัสสินทรัพย์</div>
               <div class="detail-value">{asset.equipmentCode || '-'}</div>
             </div>
           </div>
           <div class="detail-item">
-            <div class="detail-icon">🏷️</div>
+            <div class="detail-icon"><Icon name="tag" size={24} /></div>
             <div>
               <div class="detail-label">ชื่อสินทรัพย์</div>
               <div class="detail-value">{asset.equipmentName || '-'}</div>
@@ -755,14 +758,14 @@
           </div>
 
           <div class="detail-item">
-            <div class="detail-icon">🔖</div>
+            <div class="detail-icon"><Icon name="hashtag" size={24} /></div>
             <div>
               <div class="detail-label">หมายเลขสินทรัพย์</div>
               <div class="detail-value">{asset.equipmentNumber || '-'}</div>
             </div>
           </div>
           <div class="detail-item">
-            <div class="detail-icon">💵</div>
+            <div class="detail-icon"><Icon name="currency" size={24} /></div>
             <div>
               <div class="detail-label">ราคา</div>
               <div class="detail-value">{formatPrice(asset.price)} บาท</div>
@@ -770,14 +773,14 @@
           </div>
 
           <div class="detail-item">
-            <div class="detail-icon">📝</div>
+            <div class="detail-icon"><Icon name="document-text" size={24} /></div>
             <div>
               <div class="detail-label">หน่วยนับ</div>
               <div class="detail-value">{asset.unit || '-'}</div>
             </div>
           </div>
           <div class="detail-item">
-            <div class="detail-icon">📍</div>
+            <div class="detail-icon"><Icon name="location" size={24} /></div>
             <div>
               <div class="detail-label">บริษัท</div>
               <div class="detail-value">{asset.company || '-'}</div>
@@ -785,14 +788,14 @@
           </div>
 
           <div class="detail-item">
-            <div class="detail-icon">📊</div>
+            <div class="detail-icon"><Icon name="collection" size={24} /></div>
             <div>
               <div class="detail-label">ประเภท</div>
               <div class="detail-value">{getMasterName(assetTypes, asset.equipmentTypeId)}</div>
             </div>
           </div>
           <div class="detail-item">
-            <div class="detail-icon">👤</div>
+            <div class="detail-icon"><Icon name="user" size={24} /></div>
             <div>
               <div class="detail-label">ทรัพย์สินได้มาโดย</div>
               <div class="detail-value">{getMasterName(acquisitionSources, asset.acquisitionSourceId)}</div>
@@ -800,14 +803,14 @@
           </div>
 
           <div class="detail-item">
-            <div class="detail-icon">📅</div>
+            <div class="detail-icon"><Icon name="calendar" size={24} /></div>
             <div>
               <div class="detail-label">วันที่ได้มา</div>
               <div class="detail-value">{formatDate(asset.acquisitionDate)}</div>
             </div>
           </div>
           <div class="detail-item">
-            <div class="detail-icon">📏</div>
+            <div class="detail-icon"><Icon name="scale" size={24} /></div>
             <div>
               <div class="detail-label">ขนาดและลักษณะ</div>
               <div class="detail-value">{asset.sizeDetail || '-'}</div>
@@ -815,14 +818,14 @@
           </div>
 
           <div class="detail-item">
-            <div class="detail-icon">📌</div>
+            <div class="detail-icon"><Icon name="bookmark" size={24} /></div>
             <div>
               <div class="detail-label">วิธีการได้มา</div>
               <div class="detail-value">{getMasterName(acquisitionMethods, asset.acquisitionMethodId)}</div>
             </div>
           </div>
           <div class="detail-item">
-            <div class="detail-icon">🏗️</div>
+            <div class="detail-icon"><Icon name="folder" size={24} /></div>
             <div>
               <div class="detail-label">โครงการ</div>
               <div class="detail-value">{getProjectName(asset.projectId)}</div>
@@ -830,14 +833,14 @@
           </div>
 
           <div class="detail-item">
-            <div class="detail-icon">🏢</div>
+            <div class="detail-icon"><Icon name="building" size={24} /></div>
             <div>
               <div class="detail-label">อาคาร</div>
               <div class="detail-value">{getMasterName(buildings, asset.buildingId)}</div>
             </div>
           </div>
           <div class="detail-item">
-            <div class="detail-icon">🚪</div>
+            <div class="detail-icon"><Icon name="template" size={24} /></div>
             <div>
               <div class="detail-label">ห้อง</div>
               <div class="detail-value">{getMasterName(rooms, asset.roomId)}</div>
@@ -845,7 +848,7 @@
           </div>
 
           <div class="detail-item full-width">
-            <div class="detail-icon">📝</div>
+            <div class="detail-icon"><Icon name="pencil" size={24} /></div>
             <div>
               <div class="detail-label">หมายเหตุ</div>
               <div class="detail-value">{asset.note || '-'}</div>
@@ -1008,7 +1011,7 @@
                     <span class="tl-attachment-name">{h.detail.fileName ?? 'ไฟล์แนบ'}</span>
                     <button
                       class="tl-attachment-btn"
-                      on:click={() => loadPreviewById(h.detail.attachmentId, h.detail.fileName ?? 'ไฟล์แนบ')}
+                      on:click={() => loadPreviewById(h.detail?.attachmentId ?? 0, h.detail?.fileName ?? 'ไฟล์แนบ')}
                       disabled={previewLoading}
                     >
                       ดูไฟล์
@@ -1039,10 +1042,10 @@
                     <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/>
                     </svg>
-                    <span class="tl-attachment-name">{h.after.fileName}</span>
+                    <span class="tl-attachment-name">{h.after?.fileName}</span>
                     <button
                       class="tl-attachment-btn"
-                      on:click={() => loadPreviewById(h.after.attachmentId, h.after.fileName)}
+                      on:click={() => loadPreviewById(h.after?.attachmentId ?? 0, h.after?.fileName ?? '')}
                       disabled={previewLoading}
                     >
                       ดูไฟล์
@@ -1692,45 +1695,6 @@
     color: #4b5563;
   }
 
-  /* Detail Grid */
-  .detail-grid {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 1.25rem;
-  }
-
-  .detail-item {
-    display: flex;
-    gap: 0.75rem;
-  }
-
-  .detail-item.full-width {
-    grid-column: 1 / -1;
-  }
-
-  .detail-icon {
-    font-size: 1.25rem;
-    flex-shrink: 0;
-  }
-
-  .detail-label {
-    font-size: 0.8125rem;
-    color: #6b7280;
-    margin-bottom: 0.2rem;
-    font-family: var(--font-thai, 'Noto Serif Thai', serif);
-  }
-
-  .detail-item .detail-label::after {
-    content: ':';
-  }
-
-  .detail-value {
-    font-size: 1rem;
-    color: #1f2937;
-    font-weight: 500;
-    font-family: var(--font-thai, 'Noto Serif Thai', serif);
-  }
-
   /* Attachments */
   .attach-upload-row {
     display: flex;
@@ -1937,225 +1901,6 @@
     text-align: center;
     color: #6b7280;
     font-size: 0.875rem;
-  }
-
-  /* ── Timeline ── */
-  .timeline { padding: 0.25rem 0; }
-
-  .tl-item {
-    display: flex;
-    gap: 1rem;
-  }
-
-  .tl-line-wrap {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    flex-shrink: 0;
-    width: 20px;
-    padding-top: 0.3rem;
-  }
-
-  .tl-dot {
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-    background: #ffa200;
-    border: 2px solid #fff7e6;
-    box-shadow: 0 0 0 2px #ffa200;
-    flex-shrink: 0;
-  }
-
-  .tl-dot-edit {
-    background: #3b82f6;
-    border-color: #eff6ff;
-    box-shadow: 0 0 0 2px #3b82f6;
-  }
-
-  .tl-line {
-    flex: 1;
-    width: 2px;
-    background: #f3f4f6;
-    margin: 4px 0;
-    min-height: 24px;
-  }
-
-  .tl-body {
-    flex: 1;
-    padding-bottom: 1.5rem;
-  }
-
-  .tl-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 0.5rem;
-    flex-wrap: wrap;
-    gap: 0.25rem;
-  }
-
-  .tl-header-left {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    flex-wrap: wrap;
-  }
-
-  .tl-badge {
-    font-size: 0.7rem;
-    font-weight: 600;
-    letter-spacing: 0.04em;
-    border-radius: 99px;
-    padding: 0.15rem 0.6rem;
-    border: 1px solid;
-  }
-
-  .tl-badge-status {
-    color: #92400e;
-    background: #fef3c7;
-    border-color: #fde68a;
-  }
-
-  .tl-badge-edit {
-    color: #1d4ed8;
-    background: #eff6ff;
-    border-color: #bfdbfe;
-  }
-
-  .tl-user {
-    font-size: 0.875rem;
-    font-weight: 600;
-    color: #111827;
-  }
-
-  .tl-time {
-    font-size: 0.78rem;
-    color: #9ca3af;
-    white-space: nowrap;
-  }
-
-  .tl-detail-grid {
-    display: grid;
-    grid-template-columns: auto 1fr;
-    gap: 0.3rem 0.75rem;
-    background: #fafafa;
-    border: 1px solid #f0f0f0;
-    border-radius: 0.5rem;
-    padding: 0.6rem 0.875rem;
-    margin-bottom: 0.375rem;
-    font-size: 0.8125rem;
-    align-items: center;
-  }
-
-  .tl-detail-label {
-    color: #9ca3af;
-    font-weight: 500;
-    white-space: nowrap;
-  }
-
-  .tl-detail-val {
-    color: #111827;
-    font-weight: 500;
-  }
-
-  .tl-remark {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.375rem;
-    font-size: 0.8125rem;
-    color: #6b7280;
-    background: #f9fafb;
-    border: 1px solid #f0f0f0;
-    border-radius: 0.375rem;
-    padding: 0.35rem 0.75rem;
-  }
-
-  .tl-attachment {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    margin-top: 0.5rem;
-    background: #f9fafb;
-    border: 1px solid #f0f0f0;
-    border-radius: 0.375rem;
-    padding: 0.4rem 0.75rem;
-  }
-
-  .tl-attachment-name {
-    flex: 1;
-    font-size: 0.8125rem;
-    color: #374151;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .tl-attachment-btn {
-    background: #f3f4f6;
-    color: #374151;
-    border: 1px solid #e5e7eb;
-    padding: 0.25rem 0.625rem;
-    border-radius: 0.3rem;
-    font-size: 0.75rem;
-    font-weight: 500;
-    cursor: pointer;
-    flex-shrink: 0;
-    transition: background 0.15s;
-  }
-
-  .tl-attachment-btn:hover:not(:disabled) { background: #e5e7eb; }
-  .tl-attachment-btn:disabled { opacity: 0.6; cursor: not-allowed; }
-
-  .tl-changes {
-    background: #fafafa;
-    border: 1px solid #f0f0f0;
-    border-radius: 0.5rem;
-    overflow: hidden;
-  }
-
-  .tl-change-row {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    padding: 0.5rem 0.875rem;
-    border-bottom: 1px solid #f3f4f6;
-  }
-
-  .tl-change-row:last-child { border-bottom: none; }
-
-  .tl-field {
-    min-width: 100px;
-    font-size: 0.78rem;
-    font-weight: 500;
-    color: #6b7280;
-    flex-shrink: 0;
-  }
-
-  .tl-diff {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    flex-wrap: wrap;
-  }
-
-  .tl-old {
-    font-size: 0.8125rem;
-    color: #b91c1c;
-    background: #fef2f2;
-    border-radius: 0.25rem;
-    padding: 0.1rem 0.45rem;
-    text-decoration: line-through;
-  }
-
-  .tl-arrow { color: #9ca3af; flex-shrink: 0; }
-
-  .tl-new {
-    font-size: 0.8125rem;
-    font-weight: 500;
-    color: #15803d;
-    background: #f0fdf4;
-    border-radius: 0.25rem;
-    padding: 0.1rem 0.45rem;
   }
 
   /* Loading & Error */
