@@ -53,7 +53,10 @@
 
   function handleClickOutside(e: MouseEvent) {
     if (isOpen && wrapperEl && !wrapperEl.contains(e.target as Node)) {
-      isOpen = false;
+      // The portalled menu is outside wrapperEl — don't close if clicking inside it
+      if (!(e.target as Element).closest?.('.dd-menu')) {
+        isOpen = false;
+      }
     }
   }
 

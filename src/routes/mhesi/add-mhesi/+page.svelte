@@ -6,8 +6,16 @@
   import { apiFetch } from '$lib/api/client';
   import { API_ENDPOINTS } from '$lib/api/endpoints';
 
-  type Project = { id: number; projectName: string };
+  type Project = { id: number; projectName: string; projectNumber?: string; budget?: number | string | null };
   type MhesiOption = { mhesiNumber: string; activityName?: string; taken: boolean };
+
+  const roleOptions = [
+    { value: 'planning',     label: 'การวางแผน (Planning)' },
+    { value: 'procurement',  label: 'การจัดซื้อจัดจ้าง (Procurement)' },
+    { value: 'contract',     label: 'การทำสัญญา (Contract)' },
+    { value: 'receiving',    label: 'การรับสินค้า (Receiving)' },
+    { value: 'other',        label: 'อื่นๆ (Other)' },
+  ];
 
   // Master data lists
   let allVirtualOptions: MhesiOption[] = [];
@@ -16,8 +24,8 @@
   // Form data
   let formData = {
     mhesiNumber: '',
-    facultyName: 'วิทยาศาสตร์',
     projectId: null as number | null,
+    role: null as string | null,
     activityName: '',
     date: '',
     amount: '',
@@ -34,6 +42,12 @@
   // Combobox state
   let mhesiOpen = false;
   let mhesiInputEl: HTMLInputElement;
+
+  // Auto-fill amount from selected project's budget
+  $: {
+    const proj = projects.find(p => p.id === formData.projectId);
+    if (proj?.budget != null) formData.amount = String(proj.budget);
+  }
 
   $: mhesiFiltered = (() => {
     const query = formData.mhesiNumber.toLowerCase();
@@ -93,8 +107,9 @@
     errorMessage = '';
     errors = {};
 
-    if (!formData.mhesiNumber.trim()) errors.mhesiNumber = true;
     if (!formData.projectId) errors.projectId = true;
+    if (!formData.mhesiNumber.trim()) errors.mhesiNumber = true;
+    if (!formData.role) errors.role = true;
     if (!formData.activityName.trim()) errors.activityName = true;
     if (!formData.date) errors.date = true;
     if (!formData.amount || isNaN(parseFloat(formData.amount)) || parseFloat(formData.amount) < 0) errors.amount = true;
@@ -120,6 +135,7 @@
         departmentId: 1,
         planId: 3,
         projectId: formData.projectId,
+        role: formData.role || null,
         activityName: formData.activityName || null,
         date: formData.date || null,
         amount: formData.amount ? parseFloat(formData.amount) : null,
@@ -177,8 +193,19 @@
       <form on:submit|preventDefault={handleSubmit}>
         <div class="form-grid">
 
+          <!-- โครงการ -->
+          <div class="form-group" class:error-wrapper={errors.projectId}>
+            <label class="label">โครงการ <span class="required">*</span></label>
+            <Dropdown
+              fullWidth
+              options={projects.map(p => ({ value: p.id, label: p.projectNumber ? `${p.projectNumber} - ${p.projectName}` : p.projectName }))}
+              bind:value={formData.projectId}
+              placeholder="กรุณาเลือก"
+            />
+          </div>
+
           <!-- เลข อว. -->
-          <div class="form-group full-width">
+          <div class="form-group" class:error-wrapper={errors.mhesiNumber}>
             <label class="label">เลข อว. <span class="required">*</span></label>
             <div class="combobox-wrapper">
               <input
@@ -227,43 +254,20 @@
             </div>
           </div>
 
-          <!-- คณะ -->
-          <div class="form-group">
-            <label class="label">คณะ</label>
-            <input
-              type="text"
-              class="input input-readonly"
-              value={formData.facultyName}
-              readonly
-            />
-          </div>
-
-          <!-- ส่วนสนับสนุน -->
-          <div class="form-group">
-            <label class="label">ส่วนสนับสนุน</label>
-            <input type="text" class="input input-readonly" value="ส่วนสนับสนุนวิชาการ" readonly />
-          </div>
-
-          <!-- แผนงาน -->
-          <div class="form-group">
-            <label class="label">แผนงาน</label>
-            <input type="text" class="input input-readonly" value="งานพัสดุ" readonly />
-          </div>
-
-          <!-- โครงการ -->
-          <div class="form-group" class:error-wrapper={errors.projectId}>
-            <label class="label">โครงการ <span class="required">*</span></label>
+          <!-- ประเภทเอกสาร -->
+          <div class="form-group" class:error-wrapper={errors.role}>
+            <label class="label">ประเภทเอกสาร <span class="required">*</span></label>
             <Dropdown
               fullWidth
-              options={projects.map(p => ({ value: p.id, label: p.projectName }))}
-              bind:value={formData.projectId}
+              options={roleOptions}
+              bind:value={formData.role}
               placeholder="กรุณาเลือก"
             />
           </div>
 
-          <!-- กิจกรรม -->
+          <!-- ชื่อกิจกรรม -->
           <div class="form-group">
-            <label class="label">กิจกรรม <span class="required">*</span></label>
+            <label class="label">ชื่อกิจกรรม <span class="required">*</span></label>
             <input
               type="text"
               bind:value={formData.activityName}

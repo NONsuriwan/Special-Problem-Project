@@ -8,27 +8,29 @@
 
   type MasterData = { id: number; name: string };
 
-  let projectTypes: MasterData[] = [];
-  $: projectTypeOptions = projectTypes.map(t => ({ value: t.id, label: t.name }));
-
-  const statusOptions = [
-    { value: 'active', label: 'ดำเนินการ' },
-    { value: 'completed', label: 'เสร็จสิ้น' },
-    { value: 'pending', label: 'รอดำเนินการ' },
-    { value: 'cancelled', label: 'ยกเลิก' },
-  ];
-
+  let assetTypes: MasterData[] = [];
   let acquisitionSources: MasterData[] = [];
+  let acquisitionMethods: MasterData[] = [];
+  let years: number[] = [];
 
   let formData = {
     projectName: '',
     projectTypeId: null as number | null,
     projectDate: '',
+    fiscalYear: null as number | null,
     budget: '',
-    status: null as string | null,
+    qtyOrdered: '',
     acquisitionSourceId: null as number | null,
+    acquisitionMethodId: null as number | null,
     note: '',
   };
+
+  // Auto-fill fiscal year from date: ≤ 30 Sep → same BE year, > 30 Sep → next BE year
+  $: if (formData.projectDate) {
+    const [y, m, d] = formData.projectDate.split('-').map(Number);
+    const beYear = y + 543;
+    formData.fiscalYear = (m < 10 || (m === 10 && d === 1)) ? beYear : beYear + 1;
+  }
 
   let loading = false;
   let showSuccessModal = false;
@@ -38,12 +40,17 @@
 
   async function fetchMasterData() {
     try {
-      const [typesData, sourcesData] = await Promise.all([
-        apiFetch<{ data: MasterData[] }>(API_ENDPOINTS.MASTERS.PROJECT_TYPES),
+      const [typesData, sourcesData, methodsData] = await Promise.all([
+        apiFetch<{ data: MasterData[] }>(API_ENDPOINTS.MASTERS.ASSET_TYPES),
         apiFetch<{ data: MasterData[] }>(API_ENDPOINTS.MASTERS.ACQUISITION_SOURCES),
+        apiFetch<{ data: MasterData[] }>(API_ENDPOINTS.MASTERS.ACQUISITION_METHODS),
       ]);
-      projectTypes = typesData.data || [];
+      assetTypes = typesData.data || [];
       acquisitionSources = sourcesData.data || [];
+      acquisitionMethods = methodsData.data || [];
+
+      const currentYearBE = new Date().getFullYear() + 543;
+      years = Array.from({ length: currentYearBE - 2540 + 1 }, (_, i) => currentYearBE - i);
     } catch (err) {
       console.error('Error fetching master data:', err);
     }
@@ -56,9 +63,10 @@
     if (!formData.projectName.trim()) errors.projectName = true;
     if (!formData.projectTypeId) errors.projectTypeId = true;
     if (!formData.projectDate) errors.projectDate = true;
+    if (!formData.fiscalYear) errors.fiscalYear = true;
     if (!formData.budget.trim()) errors.budget = true;
-    if (!formData.status) errors.status = true;
     if (!formData.acquisitionSourceId) errors.acquisitionSourceId = true;
+    if (!formData.acquisitionMethodId) errors.acquisitionMethodId = true;
 
     if (Object.keys(errors).length > 0) {
       errorMessage = 'กรุณากรอกข้อมูลที่จำเป็นให้ครบทุกช่อง';
@@ -71,9 +79,11 @@
         projectName: formData.projectName,
         projectTypeId: formData.projectTypeId,
         projectDate: formData.projectDate || null,
+        fiscalYear: formData.fiscalYear,
         budget: formData.budget ? parseFloat(formData.budget) : null,
-        status: formData.status,
+        qtyOrdered: formData.qtyOrdered ? parseInt(formData.qtyOrdered) : null,
         acquisitionSourceId: formData.acquisitionSourceId || null,
+        acquisitionMethodId: formData.acquisitionMethodId || null,
         note: formData.note || null,
       };
 
@@ -139,12 +149,12 @@
             />
           </div>
 
-          <!-- ประเภท -->
+          <!-- ประเภทโครงการ -->
           <div class="form-group" class:error-wrapper={errors.projectTypeId}>
-            <label class="label">ประเภท <span class="required">*</span></label>
+            <label class="label">ประเภทโครงการ <span class="required">*</span></label>
             <Dropdown
               fullWidth
-              options={projectTypeOptions}
+              options={assetTypes.map(t => ({ value: t.id, label: t.name }))}
               bind:value={formData.projectTypeId}
               placeholder="กรุณาเลือก"
             />
@@ -160,9 +170,20 @@
             />
           </div>
 
-          <!-- งบประมาณ -->
+          <!-- ปีงบประมาณ -->
+          <div class="form-group" class:error-wrapper={errors.fiscalYear}>
+            <label class="label">ปีงบประมาณ <span class="required">*</span></label>
+            <Dropdown
+              fullWidth
+              options={years.map(y => ({ value: y, label: String(y) }))}
+              bind:value={formData.fiscalYear}
+              placeholder="กรุณาเลือก"
+            />
+          </div>
+
+          <!-- จำนวนเงิน -->
           <div class="form-group">
-            <label class="label">งบประมาณ <span class="required">*</span></label>
+            <label class="label">จำนวนเงิน <span class="required">*</span></label>
             <input
               type="text"
               inputmode="decimal"
@@ -173,24 +194,36 @@
             />
           </div>
 
-          <!-- สถานะ -->
-          <div class="form-group" class:error-wrapper={errors.status}>
-            <label class="label">สถานะ <span class="required">*</span></label>
-            <Dropdown
-              fullWidth
-              options={statusOptions}
-              bind:value={formData.status}
-              placeholder="กรุณาเลือก"
+          <!-- จำนวนครุภัณฑ์ -->
+          <div class="form-group">
+            <label class="label">จำนวนครุภัณฑ์</label>
+            <input
+              type="text"
+              inputmode="numeric"
+              bind:value={formData.qtyOrdered}
+              on:input={(e) => { formData.qtyOrdered = e.currentTarget.value.replace(/[^0-9]/g, ''); }}
+              class="input"
             />
           </div>
 
-          <!-- แหล่งเงินทุน -->
+          <!-- ทรัพย์สินได้มาโดย -->
           <div class="form-group" class:error-wrapper={errors.acquisitionSourceId}>
-            <label class="label">แหล่งเงินทุน <span class="required">*</span></label>
+            <label class="label">ทรัพย์สินได้มาโดย <span class="required">*</span></label>
             <Dropdown
               fullWidth
               options={acquisitionSources.map(s => ({ value: s.id, label: s.name }))}
               bind:value={formData.acquisitionSourceId}
+              placeholder="กรุณาเลือก"
+            />
+          </div>
+
+          <!-- วิธีการได้มา -->
+          <div class="form-group" class:error-wrapper={errors.acquisitionMethodId}>
+            <label class="label">วิธีการได้มา <span class="required">*</span></label>
+            <Dropdown
+              fullWidth
+              options={acquisitionMethods.map(m => ({ value: m.id, label: m.name }))}
+              bind:value={formData.acquisitionMethodId}
               placeholder="กรุณาเลือก"
             />
           </div>

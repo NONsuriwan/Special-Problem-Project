@@ -11,50 +11,87 @@
     name: string;
   };
 
-  type Room = MasterData & {
-    buildingId: number;
+  type Project = {
+    id: number;
+    projectName: string;
+    projectNumber?: string;
+    projectTypeId?: number | null;
+    budget?: number | string | null;
+    qtyOrdered?: number | null;
+    acquisitionSourceId?: number | null;
+    acquisitionMethodId?: number | null;
+    fiscalYear?: number | null;
   };
 
-  type Project = { id: number; projectName: string };
+  type MhesiRecord = { uuid: string; mhesiNumber: string; activityName?: string | null };
 
   // Master data lists
-  let departments: MasterData[] = [];
-  let activities: MasterData[] = [];
   let funds: MasterData[] = [];
   let assetTypes: MasterData[] = [];
   let acquisitionSources: MasterData[] = [];
   let acquisitionMethods: MasterData[] = [];
-  let buildings: MasterData[] = [];
-  let rooms: Room[] = [];
   let projects: Project[] = [];
   let years: number[] = [];
 
+  // ใบตรวจรับ options (loaded per project)
+  let mhesiOptions: MhesiRecord[] = [];
+  let mhesiLoading = false;
+
   // Form data
   let formData = {
+    projectId: null as number | null,
+    mhesiId: null as string | null,
+    assetName: '',
     assetCode: '',
+    assetNumber: '',
     assetCodeFrom: '',
     assetCodeTo: '',
     padLength: '',
-    activity: '',
-    assetName: '',
-    assetNumber: '',
-    unit: '',
-    departmentId: null as number | null,
     assetTypeId: null as number | null,
-    fundId: null as number | null,
-    fiscalYearId: null as number | null,
     price: '',
+    acquisitionDate: '',
+    fiscalYearId: null as number | null,
+    activity: '',
+    fundId: null as number | null,
     acquisitionSourceId: null as number | null,
     acquisitionMethodId: null as number | null,
-    acquisitionDate: '',
+    unit: '',
     company: '',
     sizeDetail: '',
     buildingId: null as number | null,
     roomId: null as number | null,
-    projectId: null as number | null,
+    departmentId: null as number | null,
     note: '',
     status: 'available'
   };
+
+  function onProjectChange(pid: number | null) {
+    mhesiOptions = [];
+    formData.mhesiId = null;
+    if (!pid) return;
+    const proj = projects.find(p => p.id === pid);
+    if (proj) {
+      if (proj.projectTypeId != null) formData.assetTypeId = proj.projectTypeId;
+      if (proj.fiscalYear != null) formData.fiscalYearId = proj.fiscalYear;
+      if (proj.acquisitionSourceId != null) formData.acquisitionSourceId = proj.acquisitionSourceId;
+      if (proj.acquisitionMethodId != null) formData.acquisitionMethodId = proj.acquisitionMethodId;
+      const budget = proj.budget != null ? parseFloat(String(proj.budget)) : null;
+      const qty = proj.qtyOrdered ?? null;
+      if (budget !== null && qty && qty > 0) {
+        formData.price = String(Math.round((budget / qty) * 100) / 100);
+      }
+    }
+    fetchMhesiOptions(pid);
+  }
+
+  async function fetchMhesiOptions(projectId: number) {
+    mhesiLoading = true;
+    try {
+      const res = await apiFetch<{ data: MhesiRecord[] }>(`${API_ENDPOINTS.MHESI}?role=receiving&projectId=${projectId}`);
+      mhesiOptions = res.data || [];
+    } catch (e) { console.error(e); }
+    mhesiLoading = false;
+  }
 
   let loading = false;
   let showSuccessModal = false;
@@ -75,50 +112,27 @@
   // Fetch all master data
   async function fetchMasterData() {
     try {
-      const [
-        deptData, actData, fundData, typeData, srcData, methodData,
-        buildData, roomData, projData
-      ] = await Promise.all([
-        apiFetch<{ data: MasterData[] }>(API_ENDPOINTS.MASTERS.DEPARTMENTS),
-        apiFetch<{ data: MasterData[] }>(API_ENDPOINTS.MASTERS.ACTIVITIES),
+      const [fundData, typeData, srcData, methodData, projData] = await Promise.all([
         apiFetch<{ data: MasterData[] }>(API_ENDPOINTS.MASTERS.FUNDS),
         apiFetch<{ data: MasterData[] }>(API_ENDPOINTS.MASTERS.ASSET_TYPES),
         apiFetch<{ data: MasterData[] }>(API_ENDPOINTS.MASTERS.ACQUISITION_SOURCES),
         apiFetch<{ data: MasterData[] }>(API_ENDPOINTS.MASTERS.ACQUISITION_METHODS),
-        apiFetch<{ data: MasterData[] }>(API_ENDPOINTS.MASTERS.BUILDINGS),
-        apiFetch<{ data: MasterData[] }>(API_ENDPOINTS.MASTERS.ROOMS),
         apiFetch<{ data: Project[] }>(API_ENDPOINTS.PROJECTS),
       ]);
 
-      departments = deptData.data || [];
-      activities = actData.data || [];
       funds = fundData.data || [];
       assetTypes = typeData.data || [];
       acquisitionSources = srcData.data || [];
       acquisitionMethods = methodData.data || [];
-      buildings = buildData.data || [];
-      rooms = roomData.data || [];
       projects = projData.data || [];
 
       const currentYearBE = new Date().getFullYear() + 543;
-      const startYearBE = 2540;
-
-      years = Array.from(
-        { length: currentYearBE - startYearBE + 1 },
-        (_, i) => currentYearBE - i
-      );
-
-
-        } catch (err) {
-          console.error('Error fetching master data:', err);
-          errorMessage = 'เกิดข้อผิดพลาดในการโหลดข้อมูล';
-        }
-      }
-
-  // Filter rooms by selected building
-  $: filteredRooms = formData.buildingId
-    ? rooms.filter(r => r.buildingId === formData.buildingId)
-    : rooms;
+      years = Array.from({ length: currentYearBE - 2540 + 1 }, (_, i) => currentYearBE - i);
+    } catch (err) {
+      console.error('Error fetching master data:', err);
+      errorMessage = 'เกิดข้อผิดพลาดในการโหลดข้อมูล';
+    }
+  }
 
   // Handle file upload
   function handleFileChange(e: Event) {
@@ -137,24 +151,21 @@
     errorMessage = '';
     errors = {};
 
-    if (!formData.departmentId) errors.departmentId = true;
-    if (!formData.activity.trim()) errors.activity = true;
-    if (!formData.fundId) errors.fundId = true;
-    if (!formData.fiscalYearId) errors.fiscalYearId = true;
-    if (!formData.assetCode.trim()) errors.assetCode = true;
+    if (!formData.projectId) errors.projectId = true;
     if (!formData.assetName.trim()) errors.assetName = true;
+    if (!formData.assetCode.trim()) errors.assetCode = true;
     if (!formData.assetNumber.trim()) errors.assetNumber = true;
     if (!formData.assetTypeId) errors.assetTypeId = true;
     if (!formData.price.trim()) errors.price = true;
-    if (!formData.unit.trim()) errors.unit = true;
     if (!formData.acquisitionDate) errors.acquisitionDate = true;
+    if (!formData.fiscalYearId) errors.fiscalYearId = true;
+    if (!formData.activity.trim()) errors.activity = true;
+    if (!formData.fundId) errors.fundId = true;
     if (!formData.acquisitionSourceId) errors.acquisitionSourceId = true;
     if (!formData.acquisitionMethodId) errors.acquisitionMethodId = true;
+    if (!formData.unit.trim()) errors.unit = true;
     if (!formData.company.trim()) errors.company = true;
     if (!formData.sizeDetail.trim()) errors.sizeDetail = true;
-    if (!formData.buildingId) errors.buildingId = true;
-    if (!formData.roomId) errors.roomId = true;
-    if (!formData.projectId) errors.projectId = true;
 
     if (Object.keys(errors).length > 0) {
       errorMessage = 'กรุณากรอกข้อมูลที่จำเป็นให้ครบทุกช่อง';
@@ -187,6 +198,7 @@
         buildingId: formData.buildingId || null,
         roomId: formData.roomId || null,
         projectId: formData.projectId || null,
+        receivingMhesiId: formData.mhesiId || null,
         note: formData.note || null,
         status: 'normal',
       };
@@ -261,60 +273,42 @@
     <div class="form-card">
       <form on:submit|preventDefault={handleSubmit}>
         <div class="form-grid">
-          <!-- หน่วยงาน -->
-          <div class="form-group" class:error-wrapper={errors.departmentId}>
-            <label class="label">
-              หน่วยงาน <span class="required">*</span>
-            </label>
+          <!-- โครงการ -->
+          <div class="form-group" class:error-wrapper={errors.projectId}>
+            <label class="label">โครงการ <span class="required">*</span></label>
             <Dropdown
               fullWidth
-              options={departments.map(d => ({ value: d.id, label: d.name }))}
-              bind:value={formData.departmentId}
+              options={projects.map(p => ({ value: p.id, label: p.projectNumber ? `${p.projectNumber} - ${p.projectName}` : p.projectName }))}
+              bind:value={formData.projectId}
+              on:change={(e) => onProjectChange(e.detail)}
             />
           </div>
 
-          <!-- กิจกรรม -->
+          <!-- ใบตรวจรับ -->
           <div class="form-group">
-            <label class="label">
-              กิจกรรม <span class="required">*</span>
-            </label>
+            <label class="label">ใบตรวจรับ</label>
+            <Dropdown
+              fullWidth
+              options={mhesiOptions.map(m => ({ value: m.uuid, label: m.mhesiNumber + (m.activityName ? ` — ${m.activityName}` : '') }))}
+              bind:value={formData.mhesiId}
+              placeholder={mhesiLoading ? 'กำลังโหลด...' : 'กรุณาเลือก'}
+            />
+          </div>
+
+          <!-- ชื่อสินทรัพย์ -->
+          <div class="form-group">
+            <label class="label">ชื่อสินทรัพย์ <span class="required">*</span></label>
             <input
               type="text"
-              bind:value={formData.activity}
+              bind:value={formData.assetName}
               class="input"
-              class:input-error={errors.activity}
-            />
-          </div>
-
-          <!-- กองทุน -->
-          <div class="form-group" class:error-wrapper={errors.fundId}>
-            <label class="label">
-              กองทุน <span class="required">*</span>
-            </label>
-            <Dropdown
-              fullWidth
-              options={funds.map(f => ({ value: f.id, label: f.name }))}
-              bind:value={formData.fundId}
-            />
-          </div>
-
-          <!-- ปีงบประมาณ -->
-          <div class="form-group" class:error-wrapper={errors.fiscalYearId}>
-            <label class="label">
-              ปีงบประมาณ <span class="required">*</span>
-            </label>
-            <Dropdown
-              fullWidth
-              options={years.map(y => ({ value: y, label: String(y) }))}
-              bind:value={formData.fiscalYearId}
+              class:input-error={errors.assetName}
             />
           </div>
 
           <!-- รหัสสินทรัพย์ -->
           <div class="form-group">
-            <label class="label">
-              รหัสสินทรัพย์ <span class="required">*</span>
-            </label>
+            <label class="label">รหัสสินทรัพย์ <span class="required">*</span></label>
             <input
               type="text"
               inputmode="numeric"
@@ -326,33 +320,16 @@
             />
           </div>
 
-          <!-- ชื่อสินทรัพย์ -->
-          <div class="form-group">
-            <label class="label">
-              ชื่อสินทรัพย์ <span class="required">*</span>
-            </label>
-            <input
-              type="text"
-              bind:value={formData.assetName}
-              class="input"
-              class:input-error={errors.assetName}
-            />
-          </div>
-
           <!-- หมายเลขสินทรัพย์ -->
           <div class="form-group">
-            <label class="label">
-              หมายเลขสินทรัพย์ <span class="required">* </span>
-            </label>
+            <label class="label">หมายเลขสินทรัพย์ <span class="required">*</span></label>
             <input
               type="text"
               bind:value={formData.assetNumber}
               class="input"
               class:input-error={errors.assetNumber}
             />
-            <p class="number-preview">
-              ตัวอย่าง: วท65-343-33-355
-            </p>
+            <p class="number-preview">ตัวอย่าง: วท65-343-33-355</p>
           </div>
 
           <!-- ถึง -->
@@ -367,7 +344,6 @@
                 on:input={(e) => { formData.assetCodeFrom = e.currentTarget.value.replace(/[^0-9]/g, ''); }}
                 class="input"
               />
-              
               <span class="range-separator">-</span>
               <input
                 type="text"
@@ -378,18 +354,12 @@
                 class="input"
               />
             </div>
-             <p class="number-preview">
-              ตัวอย่าง: ตัวเดียว 0001 หลายตัว 0001-0005
-            </p> 
-        
-            
+            <p class="number-preview">ตัวอย่าง: ตัวเดียว 0001 หลายตัว 0001-0005</p>
           </div>
 
           <!-- ประเภท -->
           <div class="form-group" class:error-wrapper={errors.assetTypeId}>
-            <label class="label">
-              ประเภท <span class="required">*</span>
-            </label>
+            <label class="label">ประเภท <span class="required">*</span></label>
             <Dropdown
               fullWidth
               options={assetTypes.map(t => ({ value: t.id, label: t.name }))}
@@ -399,9 +369,7 @@
 
           <!-- ราคา -->
           <div class="form-group">
-            <label class="label">
-              ราคา <span class="required">*</span>
-            </label>
+            <label class="label">ราคา <span class="required">*</span></label>
             <input
               type="text"
               inputmode="decimal"
@@ -412,24 +380,9 @@
             />
           </div>
 
-          <!-- หน่วยนับ -->
-          <div class="form-group">
-            <label class="label">
-              หน่วยนับ <span class="required">*</span>
-            </label>
-            <input
-              type="text"
-              bind:value={formData.unit}
-              class="input"
-              class:input-error={errors.unit}
-            />
-          </div>
-
           <!-- วันที่ได้มา -->
           <div class="form-group">
-            <label class="label">
-              วันที่ได้มา <span class="required">*</span>
-            </label>
+            <label class="label">วันที่ได้มา <span class="required">*</span></label>
             <ThaiDatePicker
               bind:value={formData.acquisitionDate}
               error={errors.acquisitionDate}
@@ -437,11 +390,40 @@
             />
           </div>
 
-          <!-- ทรัพย์สินเดิมก่อน -->
+          <!-- ปีงบประมาณ -->
+          <div class="form-group" class:error-wrapper={errors.fiscalYearId}>
+            <label class="label">ปีงบประมาณ <span class="required">*</span></label>
+            <Dropdown
+              fullWidth
+              options={years.map(y => ({ value: y, label: String(y) }))}
+              bind:value={formData.fiscalYearId}
+            />
+          </div>
+
+          <!-- กิจกรรม -->
+          <div class="form-group">
+            <label class="label">กิจกรรม <span class="required">*</span></label>
+            <input
+              type="text"
+              bind:value={formData.activity}
+              class="input"
+              class:input-error={errors.activity}
+            />
+          </div>
+
+          <!-- กองทุน -->
+          <div class="form-group" class:error-wrapper={errors.fundId}>
+            <label class="label">กองทุน <span class="required">*</span></label>
+            <Dropdown
+              fullWidth
+              options={funds.map(f => ({ value: f.id, label: f.name }))}
+              bind:value={formData.fundId}
+            />
+          </div>
+
+          <!-- ทรัพย์สินได้มาโดย -->
           <div class="form-group" class:error-wrapper={errors.acquisitionSourceId}>
-            <label class="label">
-              ทรัพย์สินได้มาโดย <span class="required">*</span>
-            </label>
+            <label class="label">ทรัพย์สินได้มาโดย <span class="required">*</span></label>
             <Dropdown
               fullWidth
               options={acquisitionSources.map(s => ({ value: s.id, label: s.name }))}
@@ -451,9 +433,7 @@
 
           <!-- วิธีการได้มา -->
           <div class="form-group" class:error-wrapper={errors.acquisitionMethodId}>
-            <label class="label">
-              วิธีการได้มา <span class="required">*</span>
-            </label>
+            <label class="label">วิธีการได้มา <span class="required">*</span></label>
             <Dropdown
               fullWidth
               options={acquisitionMethods.map(m => ({ value: m.id, label: m.name }))}
@@ -461,11 +441,20 @@
             />
           </div>
 
+          <!-- หน่วยนับ -->
+          <div class="form-group">
+            <label class="label">หน่วยนับ <span class="required">*</span></label>
+            <input
+              type="text"
+              bind:value={formData.unit}
+              class="input"
+              class:input-error={errors.unit}
+            />
+          </div>
+
           <!-- บริษัท -->
           <div class="form-group">
-            <label class="label">
-              บริษัท <span class="required">*</span>
-            </label>
+            <label class="label">บริษัท <span class="required">*</span></label>
             <input
               type="text"
               bind:value={formData.company}
@@ -476,50 +465,12 @@
 
           <!-- ขนาดและลักษณะ -->
           <div class="form-group">
-            <label class="label">
-              ขนาดและลักษณะ <span class="required">*</span>
-            </label>
+            <label class="label">ขนาดและลักษณะ <span class="required">*</span></label>
             <input
               type="text"
               bind:value={formData.sizeDetail}
               class="input"
               class:input-error={errors.sizeDetail}
-            />
-          </div>
-
-          <!-- อาคารที่ตั้ง -->
-          <div class="form-group" class:error-wrapper={errors.buildingId}>
-            <label class="label">
-              อาคารที่ตั้ง <span class="required">*</span>
-            </label>
-            <Dropdown
-              fullWidth
-              options={buildings.map(b => ({ value: b.id, label: b.name }))}
-              bind:value={formData.buildingId}
-            />
-          </div>
-
-          <!-- ห้องที่ตั้ง -->
-          <div class="form-group" class:error-wrapper={errors.roomId}>
-            <label class="label">
-              ห้องที่ตั้ง <span class="required">*</span>
-            </label>
-            <Dropdown
-              fullWidth
-              options={filteredRooms.map(r => ({ value: r.id, label: r.name }))}
-              bind:value={formData.roomId}
-            />
-          </div>
-
-          <!-- โครงการ -->
-          <div class="form-group" class:error-wrapper={errors.projectId}>
-            <label class="label">
-              โครงการ <span class="required">*</span>
-            </label>
-            <Dropdown
-              fullWidth
-              options={projects.map(p => ({ value: p.id, label: p.projectName }))}
-              bind:value={formData.projectId}
             />
           </div>
 
