@@ -223,6 +223,13 @@
     }
   }
 
+  let jumpPage = '';
+  function handleJump() {
+    const p = parseInt(jumpPage);
+    if (!isNaN(p) && p >= 1 && p <= totalPages) goToPage(p);
+    jumpPage = '';
+  }
+
   function goToPage(p: number) {
     if (p < 1 || p > totalPages) return;
     currentPage = p;
@@ -374,7 +381,7 @@
       </svg>
       <input
         bind:value={q}
-        placeholder="ค้นหาชื่อ รหัส หรือหมายเลขสินทรัพย์..."
+        placeholder="ค้นหา ชื่อครุภัณฑ์ หรือหมายเลขครุภัณฑ์..."
         class="search-input"
         on:keydown={e => { if (e.key === 'Enter') { currentPage = 1; fetchAssets(); } }}
       />
@@ -443,7 +450,7 @@
         <thead>
           <tr>
             {#each [
-              { col: 'equipmentNumber', label: 'หมายเลขสินทรัพย์' },
+              { col: 'equipmentNumber', label: 'หมายเลขครุภัณฑ์' },
               { col: 'equipmentName',   label: 'ชื่อครุภัณฑ์' },
               { col: 'equipmentType',   label: 'ประเภท' },
               { col: 'status',          label: 'สถานะ' },
@@ -542,6 +549,12 @@
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
           </svg>
         </button>
+        <div class="pagination-jump">
+          <span>ไปหน้า</span>
+          <input class="pagination-jump-input" type="number" min="1" max={totalPages}
+            bind:value={jumpPage} on:keydown={e => e.key === 'Enter' && handleJump()} />
+          <button class="pagination-jump-btn" on:click={handleJump}>ไป</button>
+        </div>
       </div>
     </div>
     </div>
@@ -575,9 +588,9 @@
         />
       </div>
 
-      <!-- ประเภทสินทรัพย์ -->
+      <!-- ประเภทครุภัณฑ์ -->
       <div class="filter-field">
-        <label class="filter-label">ประเภทสินทรัพย์</label>
+        <label class="filter-label">ประเภทครุภัณฑ์</label>
         <Dropdown
           options={[{ value: 0, label: 'ทั้งหมด' }, ...assetTypes.map(t => ({ value: t.id, label: t.name }))]}
           bind:value={draftTypeId}
@@ -731,6 +744,7 @@
   .clickable-row:hover {
     background: #fffbf5;
     transform: translateX(4px);
+    box-shadow: -4px 0 0 #fffbf5;
   }
 
   .clickable-row:active {

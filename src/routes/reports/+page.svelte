@@ -24,8 +24,6 @@
   }
 </script>
 
-<h1 class="text-h2">รายงาน</h1>
-
 <div class="rounded-xl border bg-white p-6 max-w-4xl">
   <div class="mb-4 flex gap-2">
     {#each ['ครุภัณฑ์','เลข อว.','โครงการ'] as t}

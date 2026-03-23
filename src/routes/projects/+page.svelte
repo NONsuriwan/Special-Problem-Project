@@ -10,6 +10,7 @@
   interface Project {
     id: number;
     uuid: string;
+    projectNumber: string;
     projectName: string;
     projectTypeId: number | null;
     projectDate: string | null;
@@ -224,6 +225,13 @@
     return pages;
   })();
 
+  let jumpPage = '';
+  function handleJump() {
+    const p = parseInt(jumpPage);
+    if (!isNaN(p) && p >= 1 && p <= totalPages) goToPage(p);
+    jumpPage = '';
+  }
+
   function goToPage(p: number) {
     if (p < 1 || p > totalPages) return;
     currentPage = p;
@@ -245,18 +253,6 @@
   }
 
 
-  // Generate Project ID format (ใช้ id จริงหรือ format ตามต้องการ)
-  function formatProjectId(id: number, date: string | null): string {
-    if (date) {
-      const d = new Date(date);
-      const year = d.getFullYear();
-      const month = String(d.getMonth() + 1).padStart(2, '0');
-      const day = String(d.getDate()).padStart(2, '0');
-      return `${year}${month}${day}${String(id).padStart(4, '0')}`;
-    }
-    return String(id).padStart(10, '0');
-  }
-
   function handleSearch() {
     searchQuery = q; // อัพเดทค่าค้นหาจริงเมื่อกดปุ่ม
     currentPage = 1;
@@ -275,21 +271,6 @@
 </script>
 
 <div class="page-container">
-  <!-- Header -->
-  <div class="header">
-    <div>
-      <h1 class="title text-h3">สืบค้นโครงการ</h1>
-    </div>
-    <div class="header-actions">
-      <button class="btn-primary" on:click={handleAddProject}>
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="flex-shrink:0">
-          <path d="M12 5v14M5 12h14"/>
-        </svg>
-        เพิ่มโครงการ
-      </button>
-    </div>
-  </div>
-
   <!-- Search Bar -->
   <div class="search-container">
     <div class="search-input-wrapper">
@@ -299,7 +280,7 @@
       <input
         bind:value={q}
         on:keydown={(e) => e.key === 'Enter' && handleSearch()}
-        placeholder="ค้นหาชื่อโครงการ..."
+        placeholder="ค้นหา หมายเลขโครงการ / ชื่อโครงการ"
         class="search-input"
       />
       {#if q}
@@ -311,6 +292,12 @@
       {/if}
       <button class="search-submit-btn" on:click={handleSearch}>ค้นหา</button>
     </div>
+    <button class="btn-primary" style="margin-left:auto" on:click={handleAddProject}>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="flex-shrink:0">
+        <path d="M12 5v14M5 12h14"/>
+      </svg>
+      เพิ่มโครงการ
+    </button>
   </div>
 
   <!-- Tabs -->
@@ -389,7 +376,7 @@
           <tbody>
             {#each items as r (r.uuid ?? r.id)}
               <tr class="clickable-row" on:click={() => goto(`/projects/detail/${r.uuid}`)}>
-                <td>{formatProjectId(r.id, r.projectDate)}</td>
+                <td>{r.projectNumber || '-'}</td>
                 <td>{r.projectName}</td>
                 <td>{getProjectTypeName(r.projectTypeId)}</td>
                 <td>{getAcquisitionSourceName(r.acquisitionSourceId)}</td>
@@ -451,6 +438,12 @@
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
             </svg>
           </button>
+          <div class="pagination-jump">
+            <span>ไปหน้า</span>
+            <input class="pagination-jump-input" type="number" min="1" max={totalPages}
+              bind:value={jumpPage} on:keydown={e => e.key === 'Enter' && handleJump()} />
+            <button class="pagination-jump-btn" on:click={handleJump}>ไป</button>
+          </div>
         </div>
       </div>
     </div>
@@ -580,6 +573,7 @@
   .table tbody tr:hover {
     background: #fffbf5;
     transform: translateX(4px);
+    box-shadow: -4px 0 0 #fffbf5;
   }
 
   .project-id {

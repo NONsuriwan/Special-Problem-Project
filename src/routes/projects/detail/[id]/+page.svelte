@@ -349,6 +349,7 @@
       <div>
         <h1 class="title">รายละเอียดโครงการ</h1>
         <p class="subtitle">ชื่อโครงการ: {project.projectName}</p>
+        <p class="subtitle">หมายเลขโครงการ: {project.projectNumber ?? '-'}</p>
       </div>
       <div class="header-actions">
         <button class="btn-primary" on:click={openEditModal}>
@@ -490,7 +491,7 @@
           <table class="detail-table">
             <thead>
               <tr>
-                <th>รหัสสินทรัพย์</th>
+                <th>รหัสครุภัณฑ์</th>
                 <th>ชื่อครุภัณฑ์</th>
                 <th>ประเภท</th>
                 <th>สถานะ</th>
@@ -695,16 +696,16 @@
   }
 
   .title {
-    font-size: 1.75rem;
+    font-size: 2rem;
     font-weight: 700;
     color: #1f2937;
     margin: 0 0 0.25rem;
   }
 
   .subtitle {
-    font-size: 0.875rem;
+    font-size: 1rem;
     color: #6b7280;
-    margin: 0;
+    margin: 0.25rem 0;
   }
 
   .header-actions {

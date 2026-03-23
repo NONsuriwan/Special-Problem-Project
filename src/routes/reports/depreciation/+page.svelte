@@ -197,10 +197,6 @@
 </script>
 
 <div class="page-container">
-  <div class="header">
-    <h1 class="text-h2">ข้อมูลรายการสินทรัพย์</h1>
-  </div>
-
   <!-- Filter Form -->
   <div class="card">
     <div class="form-grid">

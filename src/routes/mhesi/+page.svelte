@@ -230,6 +230,13 @@
     return pages;
   })();
 
+  let jumpPage = '';
+  function handleJump() {
+    const p = parseInt(jumpPage);
+    if (!isNaN(p) && p >= 1 && p <= totalPages) goToPage(p);
+    jumpPage = '';
+  }
+
   function goToPage(p: number) {
     if (p < 1 || p > totalPages) return;
     currentPage = p;
@@ -276,21 +283,6 @@
 </script>
 
 <div class="page-container">
-  <!-- Header -->
-  <div class="header">
-    <div>
-      <h1 class="title text-h3">สืบค้นเลข อว.</h1>
-    </div>
-    <div class="header-actions">
-      <button class="btn-primary" on:click={handleAddMhesi}>
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="flex-shrink:0">
-          <path d="M12 5v14M5 12h14"/>
-        </svg>
-        เพิ่มเลข อว.
-      </button>
-    </div>
-  </div>
-
   <!-- Search Bar -->
   <div class="search-container">
     <div class="search-input-wrapper">
@@ -300,7 +292,7 @@
       <input
         bind:value={q}
         on:keydown={(e) => e.key === 'Enter' && handleSearch()}
-        placeholder="ค้นหาเลข อว., กิจกรรม หรือโครงการ..."
+        placeholder="ค้นหาเลข อว. / กิจกรรม"
         class="search-input"
       />
       {#if q}
@@ -312,6 +304,12 @@
       {/if}
       <button class="search-submit-btn" on:click={handleSearch}>ค้นหา</button>
     </div>
+    <button class="btn-primary" style="margin-left:auto" on:click={handleAddMhesi}>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="flex-shrink:0">
+        <path d="M12 5v14M5 12h14"/>
+      </svg>
+      เพิ่มเลข อว.
+    </button>
   </div>
 
   <!-- Tabs -->
@@ -473,6 +471,12 @@
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
             </svg>
           </button>
+          <div class="pagination-jump">
+            <span>ไปหน้า</span>
+            <input class="pagination-jump-input" type="number" min="1" max={totalPages}
+              bind:value={jumpPage} on:keydown={e => e.key === 'Enter' && handleJump()} />
+            <button class="pagination-jump-btn" on:click={handleJump}>ไป</button>
+          </div>
         </div>
       </div>
     </div>
@@ -612,6 +616,7 @@
   .table tbody tr:hover {
     background: #fffbf5;
     transform: translateX(4px);
+    box-shadow: -4px 0 0 #fffbf5;
   }
 
   .mhesi-number {

@@ -162,6 +162,13 @@
     color: #ffa200;
     font-weight: 500;
   }
+
+  :global(.dd-empty) {
+    padding: 8px 12px;
+    font-size: 14px;
+    color: #9ca3af;
+    text-align: center;
+  }
 </style>
 
 <div class="dropdown-wrapper" class:full-width={fullWidth} bind:this={wrapperEl}>
@@ -173,15 +180,19 @@
   </button>
   {#if isOpen}
     <div use:portal class="dd-menu" style={menuStyle} on:wheel|nonpassive={handleWheel}>
-      {#each options as option, i (option.value ?? i)}
-        <button
-          class="dd-item {value === option.value ? 'active' : ''}"
-          on:click={() => select(option)}
-          type="button"
-        >
-          {option.label}
-        </button>
-      {/each}
+      {#if options.length === 0}
+        <div class="dd-empty">- - - ไม่มีข้อมูล - - -</div>
+      {:else}
+        {#each options as option, i (option.value ?? i)}
+          <button
+            class="dd-item {value === option.value ? 'active' : ''}"
+            on:click={() => select(option)}
+            type="button"
+          >
+            {option.label}
+          </button>
+        {/each}
+      {/if}
     </div>
   {/if}
 </div>

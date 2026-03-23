@@ -263,11 +263,7 @@
 <div class="page-container">
   <div class="content-wrapper">
     <!-- Header -->
-    <div class="header">
-      <div>
-        <h1 class="text-h2">การเพิ่มครุภัณฑ์</h1>
-      </div>
-    </div>
+
 
     <!-- Form Card -->
     <div class="form-card">
@@ -295,9 +291,9 @@
             />
           </div>
 
-          <!-- ชื่อสินทรัพย์ -->
+          <!-- ชื่อครุภัณฑ์ -->
           <div class="form-group">
-            <label class="label">ชื่อสินทรัพย์ <span class="required">*</span></label>
+            <label class="label">ชื่อครุภัณฑ์ <span class="required">*</span></label>
             <input
               type="text"
               bind:value={formData.assetName}
@@ -306,9 +302,9 @@
             />
           </div>
 
-          <!-- รหัสสินทรัพย์ -->
+          <!-- รหัสครุภัณฑ์ -->
           <div class="form-group">
-            <label class="label">รหัสสินทรัพย์ <span class="required">*</span></label>
+            <label class="label">รหัสครุภัณฑ์ <span class="required">*</span></label>
             <input
               type="text"
               inputmode="numeric"
@@ -320,9 +316,9 @@
             />
           </div>
 
-          <!-- หมายเลขสินทรัพย์ -->
+          <!-- หมายเลขครุภัณฑ์ -->
           <div class="form-group">
-            <label class="label">หมายเลขสินทรัพย์ <span class="required">*</span></label>
+            <label class="label">หมายเลขครุภัณฑ์ <span class="required">*</span></label>
             <input
               type="text"
               bind:value={formData.assetNumber}

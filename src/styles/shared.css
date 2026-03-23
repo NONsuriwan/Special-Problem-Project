@@ -1,4 +1,13 @@
 /* ======================
+   STATUS BADGES (global)
+====================== */
+
+.status-pending {
+  background: #ede9fe;
+  color: #5b21b6;
+}
+
+/* ======================
    PAGE LAYOUT
 ====================== */
 
@@ -46,11 +55,15 @@
 }
 
 .search-container {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
   margin-bottom: 1rem;
 }
 
 .search-input-wrapper {
   position: relative;
+  flex: 1;
   max-width: 700px;
   display: flex;
   align-items: center;

@@ -128,11 +128,6 @@
 
 <div class="page-container">
   <div class="content-wrapper">
-    <!-- Header -->
-    <div class="header">
-      <h1 class="text-h2">การเพิ่มโครงการ</h1>
-    </div>
-
     <!-- Form Card -->
     <div class="form-card">
       <form on:submit|preventDefault={handleSubmit}>

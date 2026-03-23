@@ -91,18 +91,6 @@
 </script>
 
 <div class="page-container">
-  <div class="header">
-    <div><h1 class="title text-h3">จัดการผู้ใช้</h1></div>
-    <div class="header-actions">
-      <button class="btn-primary" on:click={() => goto('/admin/users/add-user')}>
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="flex-shrink:0">
-          <path d="M12 5v14M5 12h14"/>
-        </svg>
-        เพิ่มผู้ใช้
-      </button>
-    </div>
-  </div>
-
   <div class="search-container">
     <div class="search-input-wrapper">
       <svg class="search-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -129,6 +117,12 @@
         placeholder="ทุก Role"
       />
     </div>
+    <button class="btn-primary" style="margin-left:auto" on:click={() => goto('/admin/users/add-user')}>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="flex-shrink:0">
+        <path d="M12 5v14M5 12h14"/>
+      </svg>
+      เพิ่มผู้ใช้
+    </button>
   </div>
 
   {#if loading}

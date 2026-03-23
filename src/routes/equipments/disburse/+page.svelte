@@ -175,13 +175,10 @@
 
 <div class="page-container">
   <div class="content-wrapper">
-    <div class="header">
-      <h1 class="text-h2">เบิกจ่ายครุภัณฑ์</h1>
-    </div>
 
     <!-- Disbursement Form -->
     <div class="form-card">
-      <h2 class="section-title">ข้อมูลการเบิกจ่าย</h2>
+      <h2 class="section-title text-b6">ข้อมูลการเบิกจ่าย</h2>
       <div class="form-grid">
 
         <!-- โครงการ -->
@@ -269,17 +266,17 @@
     <!-- Equipment Selection -->
     <div class="form-card">
       <div class="list-header">
-        <h2 class="section-title">
+        <h2 class="section-title text-b6">
           เลือกครุภัณฑ์ที่รอเบิกจ่าย
           {#if selectedUuids.size > 0}
-            <span class="badge">{selectedUuids.size} รายการ</span>
+            <span class="badge text-b8">{selectedUuids.size} รายการ</span>
           {/if}
         </h2>
         <input
-          class="search-input"
+          class="search-input text-b7"
           type="text"
           bind:value={searchQ}
-          placeholder="ค้นหาชื่อ / รหัส / หมายเลข..."
+          placeholder="ค้นหา หมายเลขครุภัณฑ์ / ชื่อ"
         />
       </div>
 
@@ -288,19 +285,19 @@
       {/if}
 
       {#if loadingList}
-        <div class="loading-row">กำลังโหลด...</div>
+        <div class="loading-row text-b7">กำลังโหลด...</div>
       {:else if listError}
-        <div class="error-row">{listError}</div>
+        <div class="error-row text-b7">{listError}</div>
       {:else if filteredItems.length === 0}
-        <div class="empty-row">
+        <div class="empty-row text-b7">
           {searchQ || selectedProjectId ? 'ไม่พบครุภัณฑ์ที่ตรงกับเงื่อนไข' : 'ไม่มีครุภัณฑ์ที่รอเบิกจ่าย'}
         </div>
       {:else}
         <div class="table-wrapper">
-          <table class="table">
+          <table class="table text-b7">
             <thead>
               <tr>
-                <th class="col-check">
+                <th class="col-check text-b8">
                   <input
                     type="checkbox"
                     checked={allSelected}
@@ -308,10 +305,10 @@
                     class="checkbox"
                   />
                 </th>
-                <th>หมายเลขครุภัณฑ์</th>
-                <th>ชื่อครุภัณฑ์</th>
-                <th>ประเภท</th>
-                <th>สถานะ</th>
+                <th class="text-b8">หมายเลขครุภัณฑ์</th>
+                <th class="text-b8">ชื่อครุภัณฑ์</th>
+                <th class="text-b8">ประเภท</th>
+                <th class="text-b8">สถานะ</th>
               </tr>
             </thead>
             <tbody>
@@ -335,7 +332,7 @@
                     {assetTypes.find(t => t.id === item.equipmentTypeId)?.name ?? '-'}
                   </td>
                   <td>
-                    <span class="status-badge status-{item.status}">
+                    <span class="status-badge text-b8 status-{item.status}">
                       {statusLabel[item.status] ?? item.status}
                     </span>
                   </td>
@@ -345,26 +342,26 @@
           </table>
         </div>
       {/if}
-    </div>
 
-    <!-- Error -->
-    {#if saveError}
-      <div class="error-banner">
-        <svg class="error-icon" fill="currentColor" viewBox="0 0 20 20">
-          <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
-        </svg>
-        <span>{saveError}</span>
+      <!-- Error -->
+      {#if saveError}
+        <div class="error-banner">
+          <svg class="error-icon" fill="currentColor" viewBox="0 0 20 20">
+            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
+          </svg>
+          <span>{saveError}</span>
+        </div>
+      {/if}
+
+      <!-- Actions -->
+      <div class="form-actions">
+        <button class="btn-submit" on:click={handleSubmit} disabled={saving}>
+          {saving ? 'กำลังบันทึก...' : 'ยืนยันเบิกจ่าย'}
+        </button>
+        <button class="btn-cancel" on:click={() => goto('/equipments')} disabled={saving}>
+          ยกเลิก
+        </button>
       </div>
-    {/if}
-
-    <!-- Actions -->
-    <div class="form-actions">
-      <button class="btn-submit" on:click={handleSubmit} disabled={saving}>
-        {saving ? 'กำลังบันทึก...' : 'ยืนยันเบิกจ่าย'}
-      </button>
-      <button class="btn-cancel" on:click={() => goto('/equipments')} disabled={saving}>
-        ยกเลิก
-      </button>
     </div>
   </div>
 </div>
@@ -386,7 +383,6 @@
 
 <style>
   .section-title {
-    font-size: 1rem;
     font-weight: 700;
     color: #111827;
     margin: 0 0 1rem;
@@ -404,7 +400,6 @@
     align-items: center;
     background: #ffa200;
     color: white;
-    font-size: 0.75rem;
     font-weight: 600;
     border-radius: 9999px;
     padding: 0.125rem 0.625rem;
@@ -427,7 +422,6 @@
     border: 1px solid #d1d5db;
     border-radius: 8px;
     padding: 0.5rem 0.75rem;
-    font-size: 0.875rem;
     color: #374151;
     outline: none;
     width: 260px;
@@ -445,7 +439,7 @@
   }
 
   .table-wrapper {
-    overflow-x: auto;
+    overflow: hidden;
     border-radius: 8px;
     border: 1px solid #e5e7eb;
   }
@@ -453,7 +447,6 @@
   .table {
     width: 100%;
     border-collapse: collapse;
-    font-size: 0.875rem;
   }
 
   .table thead tr {
@@ -463,7 +456,6 @@
   .table th {
     padding: 0.75rem 1rem;
     text-align: left;
-    font-size: 0.75rem;
     font-weight: 600;
     color: #6b7280;
     text-transform: uppercase;
@@ -505,14 +497,11 @@
   }
 
   .number-cell {
-    font-family: 'Courier New', monospace;
-    font-size: 0.8125rem;
     color: #6b7280;
     white-space: nowrap;
   }
 
   .type-cell {
-    font-size: 0.8125rem;
     color: #6b7280;
   }
 
@@ -520,14 +509,13 @@
     display: inline-block;
     padding: 0.2rem 0.625rem;
     border-radius: 9999px;
-    font-size: 0.75rem;
     font-weight: 500;
     white-space: nowrap;
   }
 
   .status-pending {
-    background: #fef9ee;
-    color: #b45309;
+    background: #ede9fe;
+    color: #5b21b6;
   }
 
   .loading-row,
@@ -536,10 +524,25 @@
     padding: 2rem;
     text-align: center;
     color: #9ca3af;
-    font-size: 0.875rem;
   }
 
   .error-row {
     color: #ef4444;
+  }
+
+  /* Layout fixes */
+  .content-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+
+  .form-actions {
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+    margin-top: 1.5rem;
+    padding-top: 1.25rem;
+    border-top: 1px solid #f3f4f6;
   }
 </style>

@@ -15,9 +15,10 @@
       icon: "box",
       children: [
         { href: "/equipments/add-equipments", label: "ลงทะเบียนครุภัณฑ์", subtitle: "เพิ่มครุภัณฑ์ใหม่เข้าสู่ระบบ" },
-        { href: "/equipments/disburse", label: "เบิกจ่ายครุภัณฑ์", subtitle: "เบิกจ่ายครุภัณฑ์ที่รอดำเนินการ" },
-        { href: "/equipments", label: "สืบค้นครุภัณฑ์", subtitle: "ค้นหา จัดการ และเพิ่มครุภัณฑ์" },
-        { href: "/reports/depreciation", label: "รายงานค่าเสื่อม", subtitle: "รายงานค่าเสื่อมราคาของครุภัณฑ์" },
+        { href: "/equipments/disburse",  label: "เบิกจ่ายครุภัณฑ์",          subtitle: "เบิกจ่ายครุภัณฑ์ที่รอดำเนินการ" },
+        { href: "/equipments/pending",   label: "สืบค้นครุภัณฑ์รอเบิกจ่าย",    subtitle: "รายการครุภัณฑ์ที่รอดำเนินการเบิกจ่าย" },
+        { href: "/equipments/disbursed", label: "สืบค้นครุภัณฑ์เบิกจ่ายสำเร็จ", subtitle: "รายการครุภัณฑ์ที่เบิกจ่ายเสร็จสิ้นแล้ว" },
+        { href: "/reports/depreciation", label: "รายงานค่าเสื่อม",            subtitle: "รายงานค่าเสื่อมราคาของครุภัณฑ์" },
       ]
     },
     {
@@ -54,6 +55,15 @@
   $: currentPath = $page.url.pathname;
   const isActive = (p: string, href: string, exact = false) =>
     p === href || (!exact && href !== "/" && p.startsWith(href + '/'));
+
+  // Auto-open dropdown เมื่อ child active
+  $: {
+    for (const l of links) {
+      if (l.children && l.children.some(c => c.href && isActive(currentPath, c.href))) {
+        openMenus[l.label] = true;
+      }
+    }
+  }
 
   // ติดตาม child ที่ถูกเลือกด้วย label
   let selectedChildLabel: string | null = null;
@@ -93,6 +103,10 @@
         }
       }
       if (found) break;
+    }
+    if (!found && isActive(currentPath, '/admin')) {
+      pageTitle.set('จัดการผู้ใช้');
+      pageSubtitle.set('จัดการและกำหนดสิทธิ์ผู้ใช้งานระบบ');
     }
   }
 
@@ -167,14 +181,13 @@
 
   <hr class="border-white/20 mx-6 mb-4"/>
 
-  <nav class="flex-1 px-3 space-y-1 overflow-y-auto">
+  <nav class="flex-1 px-3 space-y-1 overflow-y-auto pb-4">
     {#each links as l}
       <div>
         {#if l.children}
           <button
             on:click={() => toggleMenu(l.label)}
-            class="w-full flex items-center justify-between px-4 py-3 rounded-lg hover:bg-black/5 transition-colors
-                  {l.children.some(child => isActive(currentPath, child.href)) ? 'bg-white/20' : ''}"
+            class="w-full flex items-center justify-between px-4 py-3 rounded-lg hover:bg-black/5 transition-colors"
           >
             <div class="flex items-center gap-4">
               <span class="sidebar-icon"><Icon name={l.icon} size={24} strokeWidth={1.8} /></span>
@@ -191,11 +204,11 @@
                 <a
                   href={child.href}
                   on:click={() => selectChild(child.label, child.subtitle ?? '')}
-                  class="child-link flex items-center gap-2 pl-14 py-2 text-b6 transition-all
-                        {selectedChildLabel === child.label ? 'child-active' : 'opacity-70 hover:opacity-100'}"
+                  class="child-link flex items-start gap-2 ml-2 pl-2 pr-3 py-3 text-b6 transition-all rounded-lg
+                        {isActive(currentPath, child.href, true) ? 'child-active bg-white/20' : 'opacity-70 hover:opacity-100'}"
                 >
-                  <span class="text-white/60 text-base">›</span>
-                  <span class={selectedChildLabel === child.label ? 'child-label-active' : ''}>{child.label}</span>
+                  <span class="text-white/50 leading-5 shrink-0">›</span>
+                  <span class="leading-5 {isActive(currentPath, child.href, true) ? 'font-medium' : ''}">{child.label}</span>
                 </a>
               {/each}
             </div>

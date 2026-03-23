@@ -84,7 +84,7 @@
 
   const FIELD_LABELS: Record<string, string> = {
     equipmentName:       'ชื่อครุภัณฑ์',
-    equipmentNumber:     'หมายเลขสินทรัพย์',
+    equipmentNumber:     'หมายเลขครุภัณฑ์',
     equipmentTypeId:     'ประเภท',
     departmentId:        'หน่วยงาน',
     activity:            'กิจกรรม',
@@ -677,8 +677,8 @@
     <div class="header">
       <div>
         <h1 class="title">รายละเอียดครุภัณฑ์</h1>
-        <p class="subtitle"><span class="meta-label">ชื่อสินทรัพย์:</span> {asset.equipmentName}</p>
-        <p class="code"><span class="meta-label">หมายเลขสินทรัพย์:</span> {asset.equipmentNumber ?? asset.equipmentCode}</p>
+        <p class="subtitle"><span class="meta-label">ชื่อครุภัณฑ์:</span> {asset.equipmentName}</p>
+        <p class="code"><span class="meta-label">หมายเลขครุภัณฑ์:</span> {asset.equipmentNumber ?? asset.equipmentCode}</p>
       </div>
       <div class="header-actions">
         {#if asset.status !== 'disposed'}
@@ -745,14 +745,14 @@
           <div class="detail-item">
             <div class="detail-icon"><Icon name="clipboard-list" size={24} /></div>
             <div>
-              <div class="detail-label">รหัสสินทรัพย์</div>
+              <div class="detail-label">รหัสครุภัณฑ์</div>
               <div class="detail-value">{asset.equipmentCode || '-'}</div>
             </div>
           </div>
           <div class="detail-item">
             <div class="detail-icon"><Icon name="tag" size={24} /></div>
             <div>
-              <div class="detail-label">ชื่อสินทรัพย์</div>
+              <div class="detail-label">ชื่อครุภัณฑ์</div>
               <div class="detail-value">{asset.equipmentName || '-'}</div>
             </div>
           </div>
@@ -760,7 +760,7 @@
           <div class="detail-item">
             <div class="detail-icon"><Icon name="hashtag" size={24} /></div>
             <div>
-              <div class="detail-label">หมายเลขสินทรัพย์</div>
+              <div class="detail-label">หมายเลขครุภัณฑ์</div>
               <div class="detail-value">{asset.equipmentNumber || '-'}</div>
             </div>
           </div>
@@ -1396,16 +1396,16 @@
           />
         </div>
         <div class="form-group">
-          <label class="form-label">รหัสสินทรัพย์</label>
-          <input class="form-input" type="text" bind:value={editForm.equipmentCode} placeholder="รหัสสินทรัพย์"/>
+          <label class="form-label">รหัสครุภัณฑ์</label>
+          <input class="form-input" type="text" bind:value={editForm.equipmentCode} placeholder="รหัสครุภัณฑ์"/>
         </div>
         <div class="form-group">
-          <label class="form-label">ชื่อสินทรัพย์</label>
-          <input class="form-input" type="text" bind:value={editForm.equipmentName} placeholder="ชื่อสินทรัพย์"/>
+          <label class="form-label">ชื่อครุภัณฑ์</label>
+          <input class="form-input" type="text" bind:value={editForm.equipmentName} placeholder="ชื่อครุภัณฑ์"/>
         </div>
         <div class="form-group">
-          <label class="form-label">หมายเลขสินทรัพย์</label>
-          <input class="form-input" type="text" bind:value={editForm.equipmentNumber} placeholder="หมายเลขสินทรัพย์"/>
+          <label class="form-label">หมายเลขครุภัณฑ์</label>
+          <input class="form-input" type="text" bind:value={editForm.equipmentNumber} placeholder="หมายเลขครุภัณฑ์"/>
         </div>
         <div class="form-group">
           <label class="form-label">ราคา (บาท)</label>
