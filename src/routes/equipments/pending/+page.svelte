@@ -47,7 +47,7 @@
 
   let sortBy = '';
   let sortDir: 'asc' | 'desc' = 'asc';
-  const clientSortCols = ['equipmentType', 'building', 'room'];
+  const clientSortCols = ['equipmentType'];
 
   function toggleSort(col: string) {
     if (sortBy === col) { sortDir = sortDir === 'asc' ? 'desc' : 'asc'; }
@@ -56,26 +56,17 @@
   }
 
   let assetTypes: MasterData[] = [];
-  let buildings: MasterData[] = [];
-  let rooms: MasterData[] = [];
-  let supportUnits: MasterData[] = [];
   let acquisitionSources: MasterData[] = [];
 
   let showFilter = false;
 
   let draftTypeId = 0;
-  let draftBuildingId = 0;
-  let draftRoomId = 0;
-  let draftUnitId = 0;
   let draftSourceId = 0;
   let draftBudgetYear = 0;
   let draftPriceMin = '';
   let draftPriceMax = '';
 
   let activeTypeId = 0;
-  let activeBuildingId = 0;
-  let activeRoomId = 0;
-  let activeUnitId = 0;
   let activeSourceId = 0;
   let activeBudgetYear = 0;
   let activePriceMin = '';
@@ -84,42 +75,34 @@
   const currentBEYear = new Date().getFullYear() + 543;
   const budgetYears = Array.from({ length: 10 }, (_, i) => currentBEYear - i);
 
-  $: hasActiveFilter = !!(activeTypeId || activeBuildingId || activeRoomId ||
-    activeUnitId || activeSourceId || activeBudgetYear || activePriceMin || activePriceMax);
+  $: hasActiveFilter = !!(activeTypeId || activeSourceId || activeBudgetYear || activePriceMin || activePriceMax);
 
   function openFilter() {
-    draftTypeId = activeTypeId; draftBuildingId = activeBuildingId;
-    draftRoomId = activeRoomId; draftUnitId = activeUnitId;
+    draftTypeId = activeTypeId;
     draftSourceId = activeSourceId; draftBudgetYear = activeBudgetYear;
     draftPriceMin = activePriceMin; draftPriceMax = activePriceMax;
     showFilter = true;
   }
 
   function applyFilter() {
-    activeTypeId = draftTypeId; activeBuildingId = draftBuildingId;
-    activeRoomId = draftRoomId; activeUnitId = draftUnitId;
+    activeTypeId = draftTypeId;
     activeSourceId = draftSourceId; activeBudgetYear = draftBudgetYear;
     activePriceMin = draftPriceMin; activePriceMax = draftPriceMax;
     showFilter = false; currentPage = 1; fetchAssets();
   }
 
   function clearDraftFilter() {
-    draftTypeId = 0; draftBuildingId = 0; draftRoomId = 0;
-    draftUnitId = 0; draftSourceId = 0; draftBudgetYear = 0;
+    draftTypeId = 0; draftSourceId = 0; draftBudgetYear = 0;
     draftPriceMin = ''; draftPriceMax = '';
   }
 
   async function fetchMasterData() {
     try {
-      const [typesData, buildingsData, roomsData, unitsData, sourcesData] = await Promise.all([
+      const [typesData, sourcesData] = await Promise.all([
         apiFetch<{ data: MasterData[] }>(API_ENDPOINTS.MASTERS.ASSET_TYPES),
-        apiFetch<{ data: MasterData[] }>(API_ENDPOINTS.MASTERS.BUILDINGS),
-        apiFetch<{ data: MasterData[] }>(API_ENDPOINTS.MASTERS.ROOMS),
-        apiFetch<{ data: MasterData[] }>(API_ENDPOINTS.MASTERS.SUPPORT_UNITS),
         apiFetch<{ data: MasterData[] }>(API_ENDPOINTS.MASTERS.ACQUISITION_SOURCES),
       ]);
-      assetTypes = typesData.data || []; buildings = buildingsData.data || [];
-      rooms = roomsData.data || []; supportUnits = unitsData.data || [];
+      assetTypes = typesData.data || [];
       acquisitionSources = sourcesData.data || [];
     } catch (err) { console.error('Error fetching master data:', err); }
   }
@@ -133,11 +116,8 @@
       params.set('status', LOCKED_STATUS);
       if (q.trim()) params.set('search', q.trim());
       if (sortBy) { params.set('sortBy', sortBy); params.set('sortDir', sortDir); }
-      if (activeTypeId)     params.set('equipmentTypeId',     String(activeTypeId));
-      if (activeBuildingId) params.set('buildingId',          String(activeBuildingId));
-      if (activeRoomId)     params.set('roomId',              String(activeRoomId));
-      if (activeUnitId)     params.set('supportUnitId',       String(activeUnitId));
-      if (activeSourceId)   params.set('acquisitionSourceId', String(activeSourceId));
+      if (activeTypeId)   params.set('equipmentTypeId',     String(activeTypeId));
+      if (activeSourceId) params.set('acquisitionSourceId', String(activeSourceId));
       if (activeBudgetYear) params.set('budgetYear',          String(activeBudgetYear));
       if (activePriceMin)   params.set('priceMin',            activePriceMin);
       if (activePriceMax)   params.set('priceMax',            activePriceMax);
@@ -174,16 +154,12 @@
   })();
 
   function getEquipmentTypeName(id: number | null) { if (!id) return '-'; return assetTypes.find(t => t.id === id)?.name || `ID: ${id}`; }
-  function getBuildingName(id: number | null) { if (!id) return '-'; return buildings.find(b => b.id === id)?.name || `ID: ${id}`; }
-  function getRoomName(id: number | null) { if (!id) return '-'; return rooms.find(r => r.id === id)?.name || `ID: ${id}`; }
 
   $: rows = items.sort((a, b) => {
     if (!clientSortCols.includes(sortBy)) return 0;
     const mul = sortDir === 'asc' ? 1 : -1;
     let va = '', vb = '';
     if (sortBy === 'equipmentType') { va = assetTypes.find(t => t.id === a.equipmentTypeId)?.name ?? ''; vb = assetTypes.find(t => t.id === b.equipmentTypeId)?.name ?? ''; }
-    else if (sortBy === 'building') { va = buildings.find(x => x.id === a.buildingId)?.name ?? ''; vb = buildings.find(x => x.id === b.buildingId)?.name ?? ''; }
-    else if (sortBy === 'room') { va = rooms.find(x => x.id === a.roomId)?.name ?? ''; vb = rooms.find(x => x.id === b.roomId)?.name ?? ''; }
     const cmp = va.localeCompare(vb, 'th') * mul;
     if (cmp !== 0) return cmp;
     return (a.equipmentNumber ?? '').localeCompare(b.equipmentNumber ?? '', 'th', { numeric: true });
@@ -219,6 +195,12 @@
       {/if}
       <button class="search-submit-btn" on:click={() => { currentPage = 1; fetchAssets(); }}>ค้นหา</button>
     </div>
+    <button class="btn-primary" style="margin-left:auto" on:click={() => goto('/equipments/disburse')}>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="flex-shrink:0">
+        <path d="M12 5v14M5 12h14"/>
+      </svg>
+      เบิกจ่าย
+    </button>
   </div>
 
   <div class="tabs-container">
@@ -327,15 +309,11 @@
     <h2 class="filter-title">ตัวกรองขั้นสูง</h2>
     <div class="filter-grid">
       <div class="filter-field">
-        <label class="filter-label">หน่วยงาน</label>
-        <Dropdown options={[{ value: 0, label: 'ทั้งหมด' }, ...supportUnits.map(u => ({ value: u.id, label: u.name }))]} bind:value={draftUnitId} placeholder="ทั้งหมด" />
-      </div>
-      <div class="filter-field">
         <label class="filter-label">ประเภทครุภัณฑ์</label>
         <Dropdown options={[{ value: 0, label: 'ทั้งหมด' }, ...assetTypes.map(t => ({ value: t.id, label: t.name }))]} bind:value={draftTypeId} placeholder="ทั้งหมด" />
       </div>
       <div class="filter-field">
-        <label class="filter-label">ทรัพย์สินได้มาโดย</label>
+        <label class="filter-label">ครุภัณฑ์ได้มาโดย</label>
         <Dropdown options={[{ value: 0, label: 'ทั้งหมด' }, ...acquisitionSources.map(s => ({ value: s.id, label: s.name }))]} bind:value={draftSourceId} placeholder="ทั้งหมด" />
       </div>
       <div class="filter-field">
@@ -348,14 +326,6 @@
           <input class="filter-input" type="number" placeholder="มูลค่าขั้นต่ำ" bind:value={draftPriceMin} />
           <input class="filter-input" type="number" placeholder="มูลค่าสูงสุด" bind:value={draftPriceMax} />
         </div>
-      </div>
-      <div class="filter-field">
-        <label class="filter-label">อาคาร</label>
-        <Dropdown options={[{ value: 0, label: 'ทั้งหมด' }, ...buildings.map(b => ({ value: b.id, label: b.name }))]} bind:value={draftBuildingId} placeholder="ทั้งหมด" />
-      </div>
-      <div class="filter-field">
-        <label class="filter-label">ห้อง</label>
-        <Dropdown options={[{ value: 0, label: 'ทั้งหมด' }, ...rooms.map(r => ({ value: r.id, label: r.name }))]} bind:value={draftRoomId} placeholder="ทั้งหมด" />
       </div>
     </div>
     <div class="filter-footer">
