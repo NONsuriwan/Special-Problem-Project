@@ -361,6 +361,7 @@
   gap: 0.75rem;
   margin-bottom: 1.5rem;
   align-items: center;
+  position: relative;
 }
 
 .filter-btn {
@@ -390,8 +391,29 @@
   display: flex;
   gap: 0.5rem;
   overflow-x: auto;
-  padding: 0.25rem 0;
+  padding: 0.25rem 0 0.625rem;
+  scrollbar-width: thin;
+  scrollbar-color: #9ca3af #f3f4f6;
 }
+
+.tabs::-webkit-scrollbar {
+  height: 6px;
+}
+
+.tabs::-webkit-scrollbar-track {
+  background: #f3f4f6;
+  border-radius: 6px;
+}
+
+.tabs::-webkit-scrollbar-thumb {
+  background: #9ca3af;
+  border-radius: 6px;
+}
+
+.tabs::-webkit-scrollbar-thumb:hover {
+  background: #6b7280;
+}
+
 
 .tab {
   background: white;
