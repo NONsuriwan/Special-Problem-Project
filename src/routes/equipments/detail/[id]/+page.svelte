@@ -10,6 +10,17 @@
   import Dropdown from '$lib/components/ui/Dropdown.svelte';
   import { apiFetch, apiFetchBlob } from '$lib/api/client';
   import { API_ENDPOINTS } from '$lib/api/endpoints';
+  import { base } from '$app/paths';
+
+  type MhesiEntry = {
+    uuid: string;
+    mhesiNumber: string;
+    role: string;
+    date: string | null;
+    amount: string | null;
+    activityName: string | null;
+    attachmentId: number | null;
+  };
 
   type Asset = {
     id: number;
@@ -32,10 +43,21 @@
     buildingId: number | null;
     roomId: number | null;
     projectId: number | null;
+    receivingMhesiId: number | null;
     status: string;
     note: string | null;
     createdAt: string;
     updatedAt: string;
+    mhesiList?: MhesiEntry[];
+    receivingMhesi?: MhesiEntry | null;
+    disbursement?: {
+      id: number;
+      disbursedTo: string;
+      disbursedDate: string;
+      roomId: number | null;
+      reason: string | null;
+      createdAt: string;
+    } | null;
   };
 
   type MasterData = {
@@ -284,6 +306,35 @@
     });
   }
 
+  const MHESI_ROLE_ORDER = ['receiving', 'contract', 'procurement', 'planning', 'other'];
+  const MHESI_ROLE_LABEL: Record<string, string> = {
+    planning:    'แผนการจัดซื้อ',
+    procurement: 'ประกาศจัดซื้อ',
+    contract:    'สัญญา',
+    receiving:   'ใบตรวจรับ',
+    other:       'อื่นๆ',
+  };
+
+  function groupMhesiByRole(list: MhesiEntry[]): { role: string; label: string; items: MhesiEntry[] }[] {
+    const map: Record<string, MhesiEntry[]> = {};
+    for (const m of list) {
+      const r = m.role || 'other';
+      if (!map[r]) map[r] = [];
+      map[r].push(m);
+    }
+    return MHESI_ROLE_ORDER
+      .filter(r => map[r]?.length)
+      .map(r => ({
+        role: r,
+        label: MHESI_ROLE_LABEL[r] ?? r,
+        items: map[r].slice().sort((a, b) => {
+          const da = a.date ? new Date(a.date).getTime() : 0;
+          const db = b.date ? new Date(b.date).getTime() : 0;
+          return db - da;
+        }),
+      }));
+  }
+
   function getStatusText(status: string): string {
     const statusMap: Record<string, string> = {
       'normal': 'ปกติ',
@@ -334,6 +385,10 @@
 
   function handleBack() {
     goto('/equipments');
+  }
+
+  function goToMhesi(uuid: string) {
+    goto(base + '/mhesi/detail/' + uuid);
   }
 
   // --- Status Modal ---
@@ -924,6 +979,75 @@
 
       </div>
     </div>
+
+    <!-- เอกสารที่เกี่ยวข้อง -->
+    {#if asset.mhesiList && asset.mhesiList.length > 0}
+      <div class="mhesi-card">
+        <h2 class="card-title">เอกสารที่เกี่ยวข้อง</h2>
+        <div class="mhesi-groups">
+          {#each groupMhesiByRole(asset.mhesiList) as group}
+            <div class="mhesi-group">
+              <div class="mhesi-group-header">
+                <span class="mhesi-role-badge role-{group.role}">{group.label}</span>
+                <span class="mhesi-group-count">{group.items.length} รายการ</span>
+              </div>
+              <div class="mhesi-list">
+                {#each group.items as m (m.uuid)}
+                  <a
+                    href="/mhesi/detail/{m.uuid}"
+                    class="mhesi-item"
+                    class:mhesi-item-receiving={asset.receivingMhesi?.uuid === m.uuid}
+                  >
+                    <!-- Left: text info -->
+                    <div class="mhesi-info">
+                      <div class="mhesi-top-row">
+                        <span class="mhesi-number">{m.mhesiNumber}</span>
+                        {#if asset.receivingMhesi?.uuid === m.uuid}
+                          <span class="mhesi-receiving-tag">ใบตรวจรับของครุภัณฑ์นี้</span>
+                        {/if}
+                      </div>
+                      <div class="mhesi-meta">
+                        {#if m.activityName}
+                          <span class="mhesi-activity">{m.activityName}</span>
+                        {/if}
+                        {#if m.date}
+                          <span class="mhesi-dot-sep">·</span>
+                          <span class="mhesi-date">{formatDate(m.date)}</span>
+                        {/if}
+                        {#if m.amount}
+                          <span class="mhesi-dot-sep">·</span>
+                          <span class="mhesi-amount">{parseFloat(m.amount).toLocaleString('th-TH', { minimumFractionDigits: 2 })} บาท</span>
+                        {/if}
+                      </div>
+                    </div>
+
+                    <!-- Right: actions -->
+                    <div class="mhesi-actions">
+                      {#if m.attachmentId}
+                        <button
+                          type="button"
+                          class="mhesi-file-btn"
+                          disabled={previewLoading}
+                          on:click|preventDefault|stopPropagation={() => loadPreviewById(m.attachmentId!, m.mhesiNumber)}
+                        >
+                          <svg viewBox="0 0 20 20" fill="currentColor" width="14" height="14">
+                            <path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clip-rule="evenodd" />
+                          </svg>
+                          ดูไฟล์
+                        </button>
+                      {/if}
+                      <svg class="mhesi-arrow" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" />
+                      </svg>
+                    </div>
+                  </a>
+                {/each}
+              </div>
+            </div>
+          {/each}
+        </div>
+      </div>
+    {/if}
 
     <!-- History — full width -->
     <div class="history-card">
@@ -1619,6 +1743,188 @@
     border-radius: 0.75rem;
     padding: 1.5rem;
     box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+  }
+
+  /* เอกสารที่เกี่ยวข้อง block */
+  .mhesi-card {
+    background: #fff;
+    border-radius: 12px;
+    border: 1px solid #e5e7eb;
+    padding: 1.5rem;
+  }
+
+  .mhesi-groups {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .mhesi-group {
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    overflow: hidden;
+  }
+
+  .mhesi-group-header {
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+    padding: 0.5rem 1rem;
+    background: #f9fafb;
+    border-bottom: 1px solid #e5e7eb;
+  }
+
+  .mhesi-group-count {
+    font-size: 0.75rem;
+    color: #9ca3af;
+    margin-left: auto;
+  }
+
+  .mhesi-role-badge {
+    display: inline-block;
+    padding: 0.2rem 0.75rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+  }
+
+  .role-planning    { background: #eff6ff; color: #1d4ed8; }
+  .role-procurement { background: #f0fdf4; color: #15803d; }
+  .role-contract    { background: #fefce8; color: #a16207; }
+  .role-receiving   { background: #fdf4ff; color: #7e22ce; }
+  .role-other       { background: #f3f4f6; color: #6b7280; }
+
+  .mhesi-list {
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* each row */
+  .mhesi-item {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.875rem 1rem;
+    border-bottom: 1px solid #f3f4f6;
+    text-decoration: none;
+    color: inherit;
+    transition: background 0.12s;
+    cursor: pointer;
+  }
+
+  .mhesi-item:last-child {
+    border-bottom: none;
+  }
+
+  .mhesi-item:hover {
+    background: #fafafa;
+  }
+
+  .mhesi-item-receiving {
+    background: #fdf9ff;
+  }
+
+  .mhesi-item-receiving:hover {
+    background: #f8f0ff;
+  }
+
+  /* left text block */
+  .mhesi-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    flex: 1;
+    min-width: 0;
+  }
+
+  .mhesi-top-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+  }
+
+  .mhesi-number {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #111827;
+  }
+
+  .mhesi-receiving-tag {
+    display: inline-flex;
+    align-items: center;
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: #7e22ce;
+    background: #f3e8ff;
+    border-radius: 9999px;
+    padding: 0.1rem 0.5rem;
+    white-space: nowrap;
+  }
+
+  .mhesi-meta {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.25rem 0;
+    font-size: 0.78rem;
+    color: #6b7280;
+  }
+
+  .mhesi-dot-sep {
+    margin: 0 0.375rem;
+    color: #d1d5db;
+  }
+
+  .mhesi-activity {
+    color: #374151;
+    font-weight: 500;
+  }
+
+  /* right action area */
+  .mhesi-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-shrink: 0;
+  }
+
+  .mhesi-file-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.3rem 0.75rem;
+    background: #fff;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 0.78rem;
+    font-weight: 500;
+    color: #374151;
+    cursor: pointer;
+    transition: background 0.1s, border-color 0.1s;
+    white-space: nowrap;
+  }
+
+  .mhesi-file-btn:hover:not(:disabled) {
+    background: #f3f4f6;
+    border-color: #9ca3af;
+  }
+
+  .mhesi-file-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .mhesi-arrow {
+    width: 16px;
+    height: 16px;
+    color: #d1d5db;
+    flex-shrink: 0;
+    transition: color 0.12s;
+  }
+
+  .mhesi-item:hover .mhesi-arrow {
+    color: #9ca3af;
   }
 
   .card-title {

@@ -6,6 +6,7 @@
   import Dropdown from '$lib/components/ui/Dropdown.svelte';
   import Icon from '$lib/components/ui/Icon.svelte';
   import '../../../../styles/timeline.css';
+  import { apiFetchBlob } from '$lib/api/client';
 
   type Project = {
     id: number;
@@ -26,9 +27,11 @@
   type MhesiRecord = {
     uuid: string;
     mhesiNumber: string;
+    role: string | null;
     activityName: string | null;
     date: string | null;
     amount: string | number | null;
+    attachmentId: number | null;
     note: string | null;
     projectId: number | null;
   };
@@ -126,6 +129,7 @@
 
   const EQUIPMENT_STATUS_LABELS: Record<string, string> = {
     normal: 'ปกติ',
+    pending: 'รอเบิกจ่าย',
     borrowed: 'ถูกยืม',
     repair: 'ซ่อมบำรุง',
     unavailable: 'ไม่พร้อมใช้งาน',
@@ -134,11 +138,52 @@
 
   const EQUIPMENT_STATUS_COLORS: Record<string, string> = {
     normal: '#16a34a',
+    pending: '#d97706',
     borrowed: '#2563eb',
-    repair: '#d97706',
+    repair: '#f59e0b',
     unavailable: '#dc2626',
     disposed: '#6b7280',
   };
+
+  const MHESI_ROLE_ORDER = ['receiving', 'contract', 'procurement', 'planning', 'other'];
+  const MHESI_ROLE_LABEL: Record<string, string> = {
+    planning:    'แผนการจัดซื้อ',
+    procurement: 'ประกาศจัดซื้อ',
+    contract:    'สัญญา',
+    receiving:   'ใบตรวจรับ',
+    other:       'อื่นๆ',
+  };
+  const MHESI_ROLE_BADGE_CLASS: Record<string, string> = {
+    planning:    'role-planning',
+    procurement: 'role-procurement',
+    contract:    'role-contract',
+    receiving:   'role-receiving',
+    other:       'role-other',
+  };
+
+  $: mhesiGrouped = (() => {
+    const map: Record<string, MhesiRecord[]> = {};
+    for (const m of mhesiList) {
+      const r = m.role || 'other';
+      if (!map[r]) map[r] = [];
+      map[r].push(m);
+    }
+    return MHESI_ROLE_ORDER
+      .filter(r => map[r]?.length)
+      .map(r => ({
+        role: r,
+        label: MHESI_ROLE_LABEL[r] ?? r,
+        badgeClass: MHESI_ROLE_BADGE_CLASS[r] ?? 'role-other',
+        items: map[r].slice().sort((a, b) => {
+          const da = a.date ? new Date(a.date).getTime() : 0;
+          const db = b.date ? new Date(b.date).getTime() : 0;
+          return db - da;
+        }),
+      }));
+  })();
+
+  $: pendingEquipment   = equipmentList.filter(e => e.status === 'pending');
+  $: disbursedEquipment = equipmentList.filter(e => e.status !== 'pending');
 
   $: uuid = $page.params.id ?? '';
 
@@ -329,6 +374,29 @@
     }
   }
 
+  // File preview
+  let showPreviewModal = false;
+  let previewUrl: string | null = null;
+  let previewLoading = false;
+  let previewFileName = '';
+  let previewMimeType = '';
+
+  async function loadPreviewById(id: number, fileName: string) {
+    previewLoading = true;
+    previewFileName = fileName;
+    try {
+      const blob = await apiFetchBlob(`/api/attachments/${id}/file`);
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+      previewUrl = URL.createObjectURL(blob);
+      previewMimeType = blob.type;
+      showPreviewModal = true;
+    } catch (_) {
+      alert('ไม่สามารถโหลดไฟล์ได้');
+    } finally {
+      previewLoading = false;
+    }
+  }
+
   onMount(fetchAll);
 </script>
 
@@ -438,41 +506,56 @@
       {#if mhesiList.length === 0}
         <p class="empty-text">ยังไม่มีเลข อว. ในโครงการนี้</p>
       {:else}
-        <div class="table-scroll">
-          <table class="detail-table">
-            <thead>
-              <tr>
-                <th>เลข อว.</th>
-                <th>รายการ</th>
-                <th>โครงการ</th>
-                <th>วันที่</th>
-                <th>หมายเหตุ</th>
-              </tr>
-            </thead>
-            <tbody>
-              {#each mhesiDisplay as m (m.uuid ?? m.mhesiNumber)}
-                <tr on:click={() => goto(`/mhesi/detail/${m.uuid}`)} class="clickable-row">
-                  <td class="font-medium">{m.mhesiNumber}</td>
-                  <td>{m.activityName || '-'}</td>
-                  <td>{project.projectName}</td>
-                  <td>{formatDate(m.date)}</td>
-                  <td>{m.note || '-'}</td>
-                </tr>
-              {/each}
-            </tbody>
-          </table>
+        <div class="mhesi-groups">
+          {#each mhesiGrouped as group}
+            <div class="mhesi-group">
+              <div class="mhesi-group-header">
+                <span class="mhesi-role-badge {group.badgeClass}">{group.label}</span>
+                <span class="mhesi-group-count">{group.items.length} รายการ</span>
+              </div>
+              <div class="mhesi-list">
+                {#each group.items as m (m.uuid ?? m.mhesiNumber)}
+                  <a href="/mhesi/detail/{m.uuid}" class="mhesi-item">
+                    <div class="mhesi-info">
+                      <div class="mhesi-number">{m.mhesiNumber}</div>
+                      <div class="mhesi-meta">
+                        {#if m.activityName}
+                          <span class="mhesi-activity">{m.activityName}</span>
+                        {/if}
+                        {#if m.date}
+                          <span class="mhesi-dot-sep">·</span>
+                          <span class="mhesi-date">{formatDate(m.date)}</span>
+                        {/if}
+                        {#if m.amount}
+                          <span class="mhesi-dot-sep">·</span>
+                          <span class="mhesi-amount">{formatCurrency(m.amount)} บาท</span>
+                        {/if}
+                      </div>
+                    </div>
+                    <div class="mhesi-actions">
+                      {#if m.attachmentId}
+                        <button
+                          type="button"
+                          class="mhesi-file-btn"
+                          disabled={previewLoading}
+                          on:click|preventDefault|stopPropagation={() => loadPreviewById(m.attachmentId!, m.mhesiNumber)}
+                        >
+                          <svg viewBox="0 0 20 20" fill="currentColor" width="14" height="14">
+                            <path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clip-rule="evenodd" />
+                          </svg>
+                          ดูไฟล์
+                        </button>
+                      {/if}
+                      <svg class="mhesi-arrow" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" />
+                      </svg>
+                    </div>
+                  </a>
+                {/each}
+              </div>
+            </div>
+          {/each}
         </div>
-        {#if mhesiList.length > TABLE_LIMIT}
-          <div class="show-more">
-            <button class="show-more-btn" on:click={() => showAllMhesi = !showAllMhesi}>
-              {#if showAllMhesi}
-                แสดงน้อยลง ▲
-              {:else}
-                ดูทั้งหมด ({mhesiList.length} รายการ) ▼
-              {/if}
-            </button>
-          </div>
-        {/if}
       {/if}
     </div>
 
@@ -487,48 +570,78 @@
       {#if equipmentList.length === 0}
         <p class="empty-text">ยังไม่มีครุภัณฑ์ในโครงการนี้</p>
       {:else}
-        <div class="table-scroll">
-          <table class="detail-table">
-            <thead>
-              <tr>
-                <th>รหัสครุภัณฑ์</th>
-                <th>ชื่อครุภัณฑ์</th>
-                <th>ประเภท</th>
-                <th>สถานะ</th>
-                <th>วันที่ซื้อ</th>
-                <th class="text-right">ราคา</th>
-                <th>อาคาร</th>
-                <th>ห้อง</th>
-              </tr>
-            </thead>
-            <tbody>
-              {#each equipmentDisplay as e (e.uuid ?? e.equipmentNumber)}
-                <tr on:click={() => goto(`/equipments/detail/${e.uuid}`)} class="clickable-row">
-                  <td class="font-medium">{e.equipmentNumber}</td>
-                  <td>{e.equipmentName}</td>
-                  <td>{getEquipmentTypeName(e.equipmentTypeId)}</td>
-                  <td>
-                    <span class="status-dot" style="background:{EQUIPMENT_STATUS_COLORS[e.status ?? ''] ?? '#9ca3af'}"></span>
-                    {EQUIPMENT_STATUS_LABELS[e.status ?? ''] || e.status || '-'}
-                  </td>
-                  <td>{formatDate(e.acquisitionDate)}</td>
-                  <td class="text-right">{formatCurrency(e.price)}</td>
-                  <td>{getBuildingName(e.buildingId)}</td>
-                  <td>{getRoomName(e.roomId)}</td>
-                </tr>
-              {/each}
-            </tbody>
-          </table>
-        </div>
-        {#if equipmentList.length > TABLE_LIMIT}
-          <div class="show-more">
-            <button class="show-more-btn" on:click={() => showAllEquipment = !showAllEquipment}>
-              {#if showAllEquipment}
-                แสดงน้อยลง ▲
-              {:else}
-                ดูทั้งหมด ({equipmentList.length} รายการ) ▼
-              {/if}
+        <!-- รอเบิกจ่าย -->
+        {#if pendingEquipment.length > 0}
+          <div class="equip-sub-header">
+            <span class="equip-sub-badge pending">รอเบิกจ่าย</span>
+            <span class="equip-sub-count">{pendingEquipment.length} รายการ</span>
+            <button
+              class="btn-disburse"
+              on:click={() => goto(`/equipments/disburse?projectId=${project.id}`)}
+            >
+              เบิกจ่าย
             </button>
+          </div>
+          <div class="table-scroll">
+            <table class="detail-table">
+              <thead>
+                <tr>
+                  <th>หมายเลขครุภัณฑ์</th>
+                  <th>ชื่อครุภัณฑ์</th>
+                  <th>ประเภท</th>
+                  <th>วันที่ซื้อ</th>
+                  <th class="text-right">ราคา</th>
+                </tr>
+              </thead>
+              <tbody>
+                {#each pendingEquipment as e (e.uuid ?? e.equipmentNumber)}
+                  <tr on:click={() => goto(`/equipments/detail/${e.uuid}`)} class="clickable-row">
+                    <td class="font-medium">{e.equipmentNumber || e.equipmentCode}</td>
+                    <td>{e.equipmentName}</td>
+                    <td>{getEquipmentTypeName(e.equipmentTypeId)}</td>
+                    <td>{formatDate(e.acquisitionDate)}</td>
+                    <td class="text-right">{formatCurrency(e.price)}</td>
+                  </tr>
+                {/each}
+              </tbody>
+            </table>
+          </div>
+        {/if}
+
+        <!-- เบิกจ่ายแล้ว -->
+        {#if disbursedEquipment.length > 0}
+          <div class="equip-sub-header" class:equip-sub-mt={pendingEquipment.length > 0}>
+            <span class="equip-sub-badge disbursed">เบิกจ่ายแล้ว</span>
+            <span class="equip-sub-count">{disbursedEquipment.length} รายการ</span>
+          </div>
+          <div class="table-scroll">
+            <table class="detail-table">
+              <thead>
+                <tr>
+                  <th>หมายเลขครุภัณฑ์</th>
+                  <th>ชื่อครุภัณฑ์</th>
+                  <th>ประเภท</th>
+                  <th>สถานะ</th>
+                  <th>วันที่ซื้อ</th>
+                  <th class="text-right">ราคา</th>
+                </tr>
+              </thead>
+              <tbody>
+                {#each disbursedEquipment as e (e.uuid ?? e.equipmentNumber)}
+                  <tr on:click={() => goto(`/equipments/detail/${e.uuid}`)} class="clickable-row">
+                    <td class="font-medium">{e.equipmentNumber || e.equipmentCode}</td>
+                    <td>{e.equipmentName}</td>
+                    <td>{getEquipmentTypeName(e.equipmentTypeId)}</td>
+                    <td>
+                      <span class="status-dot" style="background:{EQUIPMENT_STATUS_COLORS[e.status ?? ''] ?? '#9ca3af'}"></span>
+                      {EQUIPMENT_STATUS_LABELS[e.status ?? ''] || e.status || '-'}
+                    </td>
+                    <td>{formatDate(e.acquisitionDate)}</td>
+                    <td class="text-right">{formatCurrency(e.price)}</td>
+                  </tr>
+                {/each}
+              </tbody>
+            </table>
           </div>
         {/if}
       {/if}
@@ -582,6 +695,30 @@
     </div>
   {/if}
 </div>
+
+<!-- Preview Modal -->
+{#if showPreviewModal && previewUrl}
+  <div class="modal-backdrop" on:click|self={() => { showPreviewModal = false; }} role="presentation">
+    <div class="modal-box modal-preview" on:click|stopPropagation role="dialog" aria-modal="true">
+      <div class="modal-header">
+        <span class="modal-title">{previewFileName}</span>
+        <button class="modal-close" on:click={() => { showPreviewModal = false; }}>✕</button>
+      </div>
+      <div class="preview-body">
+        {#if previewMimeType.startsWith('image/')}
+          <img src={previewUrl} alt={previewFileName} class="preview-image" />
+        {:else if previewMimeType === 'application/pdf'}
+          <iframe src={previewUrl} title={previewFileName} class="preview-iframe"></iframe>
+        {:else}
+          <div class="preview-unsupported">
+            <p>ไม่สามารถแสดง preview ได้</p>
+            <a href={previewUrl} download={previewFileName} class="btn-primary">ดาวน์โหลดไฟล์</a>
+          </div>
+        {/if}
+      </div>
+    </div>
+  </div>
+{/if}
 
 <!-- Edit Modal -->
 {#if showEditModal}
@@ -772,6 +909,207 @@
     color: #1f2937;
     font-weight: 500;
   }
+
+  /* Mhesi grouped */
+  .mhesi-groups {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .mhesi-group {
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    overflow: hidden;
+  }
+
+  .mhesi-group-header {
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+    padding: 0.5rem 1rem;
+    background: #f9fafb;
+    border-bottom: 1px solid #e5e7eb;
+  }
+
+  .mhesi-group-count {
+    font-size: 0.75rem;
+    color: #9ca3af;
+    margin-left: auto;
+  }
+
+  .mhesi-role-badge {
+    display: inline-block;
+    padding: 0.2rem 0.75rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+  }
+
+  .role-planning    { background: #eff6ff; color: #1d4ed8; }
+  .role-procurement { background: #f0fdf4; color: #15803d; }
+  .role-contract    { background: #fefce8; color: #a16207; }
+  .role-receiving   { background: #fdf4ff; color: #7e22ce; }
+  .role-other       { background: #f3f4f6; color: #6b7280; }
+
+  .mhesi-list { display: flex; flex-direction: column; }
+
+  .mhesi-item {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.875rem 1rem;
+    border-bottom: 1px solid #f3f4f6;
+    text-decoration: none;
+    color: inherit;
+    transition: background 0.12s;
+    cursor: pointer;
+  }
+
+  .mhesi-item:last-child { border-bottom: none; }
+  .mhesi-item:hover { background: #fafafa; }
+
+  .mhesi-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    flex: 1;
+    min-width: 0;
+  }
+
+  .mhesi-number {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #111827;
+  }
+
+  .mhesi-meta {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    font-size: 0.78rem;
+    color: #6b7280;
+  }
+
+  .mhesi-dot-sep { margin: 0 0.375rem; color: #d1d5db; }
+  .mhesi-activity { color: #374151; font-weight: 500; }
+
+  .mhesi-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-shrink: 0;
+  }
+
+  .mhesi-file-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.3rem 0.75rem;
+    background: #fff;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 0.78rem;
+    font-weight: 500;
+    color: #374151;
+    cursor: pointer;
+    transition: background 0.1s, border-color 0.1s;
+    white-space: nowrap;
+  }
+
+  .mhesi-file-btn:hover:not(:disabled) { background: #f3f4f6; border-color: #9ca3af; }
+  .mhesi-file-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .mhesi-arrow {
+    width: 16px;
+    height: 16px;
+    color: #d1d5db;
+    flex-shrink: 0;
+    transition: color 0.12s;
+  }
+
+  .mhesi-item:hover .mhesi-arrow { color: #9ca3af; }
+
+  /* Preview modal */
+  .modal-preview {
+    width: 90vw;
+    max-width: 960px;
+    height: 85vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .preview-body {
+    flex: 1;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #f3f4f6;
+  }
+
+  .preview-image {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+  }
+
+  .preview-iframe {
+    width: 100%;
+    height: 100%;
+    border: none;
+  }
+
+  .preview-unsupported {
+    text-align: center;
+    color: #6b7280;
+  }
+
+  /* Equipment sub-sections */
+  .equip-sub-header {
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+    margin-bottom: 0.625rem;
+  }
+
+  .equip-sub-mt {
+    margin-top: 1.25rem;
+  }
+
+  .equip-sub-count {
+    font-size: 0.75rem;
+    color: #9ca3af;
+  }
+
+  .equip-sub-badge {
+    display: inline-block;
+    padding: 0.2rem 0.75rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+  }
+
+  .equip-sub-badge.pending   { background: #fef9ee; color: #b45309; }
+  .equip-sub-badge.disbursed { background: #f0fdf4; color: #15803d; }
+
+  .btn-disburse {
+    margin-left: auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.3rem 0.875rem;
+    background: #ffa200;
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+
+  .btn-disburse:hover { background: #e69100; }
 
   /* Section Cards */
   .section-card {

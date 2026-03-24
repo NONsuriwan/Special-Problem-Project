@@ -13,8 +13,9 @@
   type MhesiRecord = {
     uuid: string;
     mhesiNumber: string;
+    role: string | null;
     departmentId: number | null;
-    supportUnitId: number | null;
+    faculty: string | null;
     planId: number | null;
     projectId: number | null;
     activityName: string | null;
@@ -64,7 +65,7 @@
         method: 'PUT',
         body: JSON.stringify({
           mhesiNumber: record.mhesiNumber,
-          supportUnitId: record.supportUnitId,
+          role: record.role || null,
           planId: record.planId,
           projectId: record.projectId,
           activityName: record.activityName || null,
@@ -117,8 +118,16 @@
     }
   }
 
+  const ROLE_LABEL: Record<string, string> = {
+    planning:    'แผนการจัดซื้อ',
+    procurement: 'ประกาศจัดซื้อ',
+    contract:    'สัญญา',
+    receiving:   'ใบตรวจรับ',
+    other:       'อื่นๆ',
+  };
+  const ROLE_OPTIONS = Object.entries(ROLE_LABEL).map(([value, label]) => ({ value, label }));
+
   let departments: MasterData[] = [];
-  let supportUnits: MasterData[] = [];
   let plans: MasterData[] = [];
   let projects: Project[] = [];
 
@@ -135,9 +144,9 @@
 
   const FIELD_LABELS: Record<string, string> = {
     mhesiNumber:  'เลข อว.',
-    activityName: 'กิจกรรม',
+    role:         'ประเภทเอกสาร',
+    activityName: 'ชื่อกิจกรรม',
     projectId:    'โครงการ',
-    supportUnitId:'ส่วนสนับสนุน',
     planId:       'แผนงาน',
     date:         'วันที่',
     amount:       'จำนวนเงิน',
@@ -146,11 +155,11 @@
 
   function resolveValue(field: string, val: any): string {
     if (val === null || val === undefined || val === '') return '-';
-    if (field === 'projectId')    return projects.find(p => p.id === val)?.projectName ?? String(val);
-    if (field === 'supportUnitId')return supportUnits.find(s => s.id === val)?.name ?? String(val);
-    if (field === 'planId')       return plans.find(p => p.id === val)?.name ?? String(val);
-    if (field === 'date')         return formatDate(val);
-    if (field === 'amount')       return formatCurrency(val);
+    if (field === 'projectId') return projects.find(p => p.id === val)?.projectName ?? String(val);
+    if (field === 'planId')    return plans.find(p => p.id === val)?.name ?? String(val);
+    if (field === 'role')      return ROLE_LABEL[val] ?? String(val);
+    if (field === 'date')      return formatDate(val);
+    if (field === 'amount')    return formatCurrency(val);
     return String(val);
   }
 
@@ -179,7 +188,7 @@
   let editAttachmentFile: File | null = null;
   let editForm = {
     mhesiNumber: '',
-    supportUnitId: null as number | null,
+    role: null as string | null,
     planId: null as number | null,
     projectId: null as number | null,
     activityName: '',
@@ -194,10 +203,9 @@
     loading = true;
     error = '';
     try {
-      const [recData, deptData, supportData, planData, projectData] = await Promise.all([
+      const [recData, deptData, planData, projectData] = await Promise.all([
         apiFetch<{ data: MhesiRecord }>(API_ENDPOINTS.MHESI_DETAIL(uuid)),
         apiFetch<{ data: MasterData[] }>(API_ENDPOINTS.MASTERS.DEPARTMENTS),
-        apiFetch<{ data: MasterData[] }>(API_ENDPOINTS.MASTERS.SUPPORT_UNITS),
         apiFetch<{ data: MasterData[] }>(API_ENDPOINTS.MASTERS.PLAN_SECTIONS),
         apiFetch<{ data: Project[] }>(API_ENDPOINTS.PROJECTS),
       ]);
@@ -217,7 +225,6 @@
         attachmentInfo = null;
       }
       departments = deptData.data || [];
-      supportUnits = supportData.data || [];
       plans = planData.data || [];
       projects = projectData.data || [];
     } catch (e) {
@@ -231,11 +238,6 @@
   function getDepartmentName(id: number | null) {
     if (!id) return '-';
     return departments.find(d => d.id === id)?.name || '-';
-  }
-
-  function getSupportUnitName(id: number | null) {
-    if (!id) return '-';
-    return supportUnits.find(s => s.id === id)?.name || '-';
   }
 
   function getPlanName(id: number | null) {
@@ -280,7 +282,7 @@
     if (!record) return;
     editForm = {
       mhesiNumber: record.mhesiNumber,
-      supportUnitId: record.supportUnitId,
+      role: record.role || null,
       planId: record.planId,
       projectId: record.projectId,
       activityName: record.activityName || '',
@@ -307,7 +309,7 @@
 
       const payload: Record<string, unknown> = {
         mhesiNumber: editForm.mhesiNumber.trim(),
-        supportUnitId: editForm.supportUnitId,
+        role: editForm.role || null,
         planId: editForm.planId,
         projectId: editForm.projectId,
         activityName: editForm.activityName || null,
@@ -370,7 +372,7 @@
         <h2 class="card-title">ข้อมูลทั่วไป</h2>
 
         <div class="detail-grid">
-          <!-- Row 1: เลข อว. | คณะ -->
+          <!-- เลข อว. | ประเภทเอกสาร -->
           <div class="detail-item">
             <div class="detail-icon"><Icon name="clipboard-list" size={24} /></div>
             <div class="detail-content">
@@ -380,19 +382,25 @@
           </div>
 
           <div class="detail-item">
-            <div class="detail-icon"><Icon name="academic-cap" size={24} /></div>
+            <div class="detail-icon"><Icon name="tag" size={24} /></div>
             <div class="detail-content">
-              <div class="detail-label">คณะ</div>
-              <div class="detail-value">{getDepartmentName(record.departmentId)}</div>
+              <div class="detail-label">ประเภทเอกสาร</div>
+              <div class="detail-value">
+                {#if record.role}
+                  <span class="role-badge role-{record.role}">{ROLE_LABEL[record.role] ?? record.role}</span>
+                {:else}
+                  -
+                {/if}
+              </div>
             </div>
           </div>
 
-          <!-- Row 2: ส่วนสนับสนุน | แผนงาน -->
+          <!-- คณะ | แผนงาน -->
           <div class="detail-item">
-            <div class="detail-icon"><Icon name="building" size={24} /></div>
+            <div class="detail-icon"><Icon name="academic-cap" size={24} /></div>
             <div class="detail-content">
-              <div class="detail-label">ส่วนสนับสนุน</div>
-              <div class="detail-value">{getSupportUnitName(record.supportUnitId)}</div>
+              <div class="detail-label">คณะ/ส่วนงาน</div>
+              <div class="detail-value">{record.faculty || getDepartmentName(record.departmentId)}</div>
             </div>
           </div>
 
@@ -404,7 +412,7 @@
             </div>
           </div>
 
-          <!-- Row 3: โครงการ | กิจกรรม -->
+          <!-- โครงการ | ชื่อกิจกรรม -->
           <div class="detail-item">
             <div class="detail-icon"><Icon name="folder" size={24} /></div>
             <div class="detail-content">
@@ -416,12 +424,12 @@
           <div class="detail-item">
             <div class="detail-icon"><Icon name="flag" size={24} /></div>
             <div class="detail-content">
-              <div class="detail-label">กิจกรรม</div>
+              <div class="detail-label">ชื่อกิจกรรม</div>
               <div class="detail-value detail-value--wrap">{record.activityName || '-'}</div>
             </div>
           </div>
 
-          <!-- Row 4: วันที่ | จำนวนเงิน -->
+          <!-- วันที่ | จำนวนเงิน -->
           <div class="detail-item">
             <div class="detail-icon"><Icon name="calendar" size={24} /></div>
             <div class="detail-content">
@@ -438,7 +446,7 @@
             </div>
           </div>
 
-          <!-- Row 5: หมายเหตุ full width -->
+          <!-- หมายเหตุ full width -->
           <div class="detail-item full-width">
             <div class="detail-icon"><Icon name="pencil" size={24} /></div>
             <div class="detail-content">
@@ -631,8 +639,13 @@
           <input class="form-input" type="text" bind:value={editForm.mhesiNumber} />
         </div>
         <div class="form-group">
-          <label class="form-label">กิจกรรม</label>
-          <input class="form-input" type="text" bind:value={editForm.activityName} />
+          <label class="form-label">ประเภทเอกสาร</label>
+          <Dropdown
+            fullWidth
+            options={ROLE_OPTIONS}
+            bind:value={editForm.role}
+            placeholder="เลือกประเภท"
+          />
         </div>
         <div class="form-group">
           <label class="form-label">โครงการ</label>
@@ -644,15 +657,6 @@
           />
         </div>
         <div class="form-group">
-          <label class="form-label">ส่วนสนับสนุน</label>
-          <Dropdown
-            fullWidth
-            options={supportUnits.map(s => ({ value: s.id, label: s.name }))}
-            bind:value={editForm.supportUnitId}
-            placeholder="เลือกส่วนสนับสนุน"
-          />
-        </div>
-        <div class="form-group">
           <label class="form-label">แผนงาน</label>
           <Dropdown
             fullWidth
@@ -660,6 +664,10 @@
             bind:value={editForm.planId}
             placeholder="เลือกแผนงาน"
           />
+        </div>
+        <div class="form-group">
+          <label class="form-label">ชื่อกิจกรรม</label>
+          <input class="form-input" type="text" bind:value={editForm.activityName} />
         </div>
         <div class="form-group">
           <label class="form-label">วันที่</label>

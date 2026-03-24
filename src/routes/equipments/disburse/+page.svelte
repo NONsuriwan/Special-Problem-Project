@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
+  import { page } from '$app/stores';
   import Dropdown from '$lib/components/ui/Dropdown.svelte';
   import ThaiDatePicker from '$lib/components/ui/ThaiDatePicker.svelte';
   import { apiFetch } from '$lib/api/client';
@@ -170,7 +171,14 @@
     }
   }
 
-  onMount(fetchData);
+  onMount(async () => {
+    await fetchData();
+    const pid = $page.url.searchParams.get('projectId');
+    if (pid) {
+      const n = parseInt(pid);
+      if (!isNaN(n)) selectedProjectId = n;
+    }
+  });
 </script>
 
 <div class="page-container">
