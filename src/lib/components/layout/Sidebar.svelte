@@ -9,6 +9,7 @@
   import Icon from '$lib/components/ui/Icon.svelte';
 
   // ข้อมูลเมนูตามรายการที่คุณระบุ
+  // restricted: true → แสดงเฉพาะ admin หรือ user ที่ departmentId === 1
   const links = [
     { href: "/", label: "แดชบอร์ด", icon: "chart-bar", subtitle: "ภาพรวมครุภัณฑ์คณะวิทยาศาสตร์" },
     {
@@ -18,11 +19,11 @@
       defaultTitle: "สืบค้นครุภัณฑ์รอเบิกจ่าย",
       defaultSubtitle: "รายการครุภัณฑ์ที่รอดำเนินการเบิกจ่าย",
       children: [
-        { href: "/equipments/add-equipments", label: "ลงทะเบียนครุภัณฑ์", subtitle: "เพิ่มครุภัณฑ์ใหม่เข้าสู่ระบบ" },
-        { href: "/equipments/disburse",  label: "เบิกจ่ายครุภัณฑ์",          subtitle: "เบิกจ่ายครุภัณฑ์ที่รอดำเนินการ" },
-        { href: "/equipments/pending",   label: "สืบค้นครุภัณฑ์รอเบิกจ่าย",    subtitle: "รายการครุภัณฑ์ที่รอดำเนินการเบิกจ่าย" },
-        { href: "/equipments/disbursed", label: "สืบค้นครุภัณฑ์เบิกจ่ายสำเร็จ", subtitle: "รายการครุภัณฑ์ที่เบิกจ่ายเสร็จสิ้นแล้ว" },
-        { href: "/equipments/depreciation", label: "รายงานค่าเสื่อม",          subtitle: "รายงานค่าเสื่อมราคาของครุภัณฑ์" },
+        { href: "/equipments/add-equipments", label: "ลงทะเบียนครุภัณฑ์",        subtitle: "เพิ่มครุภัณฑ์ใหม่เข้าสู่ระบบ",             restricted: true },
+        { href: "/equipments/disburse",       label: "เบิกจ่ายครุภัณฑ์",          subtitle: "เบิกจ่ายครุภัณฑ์ที่รอดำเนินการ",            restricted: true },
+        { href: "/equipments/pending",        label: "สืบค้นครุภัณฑ์รอเบิกจ่าย",    subtitle: "รายการครุภัณฑ์ที่รอดำเนินการเบิกจ่าย" },
+        { href: "/equipments/disbursed",      label: "สืบค้นครุภัณฑ์เบิกจ่ายสำเร็จ", subtitle: "รายการครุภัณฑ์ที่เบิกจ่ายเสร็จสิ้นแล้ว" },
+        { href: "/equipments/depreciation",   label: "รายงานค่าเสื่อม",            subtitle: "รายงานค่าเสื่อมราคาของครุภัณฑ์" },
       ]
     },
     {
@@ -30,8 +31,8 @@
       icon: "document-text",
       basePath: "/mhesi",
       children: [
-        { href: "/mhesi/add-mhesi", label: "ลงทะเบียนเลข อว.", subtitle: "เพิ่มเลข อว. ใหม่เข้าสู่ระบบ" },
-        { href: "/mhesi", label: "สืบค้นเลข อว.", subtitle: "ค้นหา จัดการ และเพิ่มกิจกรรม" },
+        { href: "/mhesi/add-mhesi", label: "ลงทะเบียนเลข อว.", subtitle: "เพิ่มเลข อว. ใหม่เข้าสู่ระบบ", restricted: true },
+        { href: "/mhesi",           label: "สืบค้นเลข อว.",    subtitle: "ค้นหา จัดการ และเพิ่มกิจกรรม" },
       ]
     },
     {
@@ -39,12 +40,17 @@
       icon: "folder",
       basePath: "/projects",
       children: [
-        { href: "/projects/add-project", label: "ลงทะเบียนโครงการ", subtitle: "เพิ่มโครงการใหม่เข้าสู่ระบบ" },
-        { href: "/projects", label: "สืบค้นโครงการ", subtitle: "ค้นหา จัดการ และเพิ่มโครงการ" },
+        { href: "/projects/add-project", label: "ลงทะเบียนโครงการ", subtitle: "เพิ่มโครงการใหม่เข้าสู่ระบบ", restricted: true },
+        { href: "/projects",             label: "สืบค้นโครงการ",    subtitle: "ค้นหา จัดการ และเพิ่มโครงการ" },
       ]
     },
     { href: "/reports", label: "รายงาน", icon: "trending-up", subtitle: "จัดการและสรุปข้อมูลของครุภัณฑ์", exact: true },
   ];
+
+  // ตรวจสอบสิทธิ์เข้าถึงเมนูที่ restricted
+  $: canAccessRestricted =
+    $page.data.user?.role === 'admin' ||
+    $page.data.user?.departmentId === 1;
 
   // เก็บสถานะการเปิด/ปิด Dropdown
   let openMenus: Record<string, boolean> = {
@@ -220,7 +226,7 @@
 
           {#if openMenus[l.label]}
             <div class="mt-1 flex flex-col" transition:slide={{duration: 150}}>
-              {#each l.children as child}
+              {#each l.children.filter(c => !c.restricted || canAccessRestricted) as child}
                 <a
                   href={child.href}
                   on:click={() => selectChild(child.label, child.subtitle ?? '')}

@@ -40,6 +40,7 @@ export const handle: Handle = async ({ event, resolve }) => {
         uuid: (payload.uuid ?? payload.sub ?? undefined) as string | undefined,
         email: (payload.email ?? '') as string,
         role: (payload.role ?? 'user') as string,
+        departmentId: payload.departmentId != null ? Number(payload.departmentId) : undefined,
       };
     } else {
       event.locals.user = null;
@@ -90,6 +91,7 @@ export const handle: Handle = async ({ event, resolve }) => {
               uuid: (payload.uuid ?? payload.sub ?? undefined) as string | undefined,
               email: (payload.email ?? '') as string,
               role: (payload.role ?? 'user') as string,
+              departmentId: payload.departmentId != null ? Number(payload.departmentId) : undefined,
             };
           } else {
             event.locals.user = null;
