@@ -577,7 +577,7 @@
             <span class="equip-sub-count">{pendingEquipment.length} รายการ</span>
             <button
               class="btn-disburse"
-              on:click={() => goto(`/equipments/disburse?projectId=${project.id}`)}
+              on:click={() => goto(`/equipments/disburse?projectId=${project?.id}`)}
             >
               เบิกจ่าย
             </button>

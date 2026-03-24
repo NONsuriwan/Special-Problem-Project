@@ -215,7 +215,10 @@
 
   function handleRowClick(uuid: string) { goto(`/equipments/detail/${uuid}`); }
 
-  onMount(async () => { await fetchMasterData(); await fetchAssets(); });
+  onMount(async () => {
+    await fetchMasterData();
+    await fetchAssets();
+  });
 </script>
 
 <div class="page-container">

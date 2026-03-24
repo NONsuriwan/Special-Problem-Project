@@ -155,6 +155,16 @@
   let attachUploadFiles: File[] = [];
   let attachUploading = false;
   let attachUploadError = '';
+  let attachDragOver = false;
+
+  function handleAttachDrop(e: DragEvent) {
+    e.preventDefault();
+    attachDragOver = false;
+    const files = Array.from(e.dataTransfer?.files ?? []).filter(f =>
+      /\.(pdf|jpe?g|png)$/i.test(f.name)
+    );
+    if (files.length > 0) attachUploadFiles = files;
+  }
 
   async function uploadAttachments() {
     if (!attachUploadFiles.length) return;
@@ -168,6 +178,7 @@
       await apiFetch(API_ENDPOINTS.ASSET_ATTACHMENTS(assetId), { method: 'POST', body: fd });
       attachUploadFiles = [];
       await fetchAttachments();
+      await fetchHistory();
     } catch (err: any) {
       attachUploadError = err.message || 'อัปโหลดไม่สำเร็จ';
     } finally {
@@ -292,6 +303,7 @@
       repair: '#f59e0b', repairing: '#f59e0b',
       unavailable: '#ef4444',
       disposed: '#9ca3af',
+      pending: '#5b21b6',
     };
     return colors[status] || '#9ca3af';
   }
@@ -343,7 +355,8 @@
       'repair': 'กำลังซ่อม',
       'repairing': 'กำลังซ่อม',
       'unavailable': 'ไม่พร้อมใช้งาน',
-      'disposed': 'จำหน่ายแล้ว'
+      'disposed': 'จำหน่ายแล้ว',
+      'pending': 'รอเบิกจ่าย',
     };
     return statusMap[status] || status;
   }
@@ -356,7 +369,8 @@
       'repair': 'status-repairing',
       'repairing': 'status-repairing',
       'unavailable': 'status-unavailable',
-      'disposed': 'status-disposed'
+      'disposed': 'status-disposed',
+      'pending': 'status-pending',
     };
     return colorMap[status] || '';
   }
@@ -700,6 +714,7 @@
         body: JSON.stringify(payload),
       });
       if (result.data) asset = result.data;
+      await fetchHistory();
       showEditModal = false;
     } catch (err) {
       editError = 'บันทึกไม่สำเร็จ กรุณาลองใหม่';
@@ -918,42 +933,52 @@
         <div class="attachment-card">
           <h2 class="card-title">เอกสารแนบ</h2>
 
-          <div class="attach-upload-row">
-            <input
-              type="file"
-              id="attach-file-input"
-              accept=".pdf,.jpg,.jpeg,.png"
-              multiple
-              hidden
-              on:change={(e) => { attachUploadFiles = Array.from(e.currentTarget.files ?? []); e.currentTarget.value = ''; }}
-            />
-            <label for="attach-file-input" class="attach-file-label">
-              {attachUploadFiles.length > 0 ? `${attachUploadFiles.length} ไฟล์` : 'เลือกไฟล์'}
-            </label>
-            <button
-              type="button"
-              class="attach-upload-btn"
-              disabled={attachUploadFiles.length === 0 || attachUploading}
-              on:click={uploadAttachments}
+          <input
+            type="file"
+            id="attach-file-input"
+            accept=".pdf,.jpg,.jpeg,.png"
+            multiple
+            hidden
+            on:change={(e) => { attachUploadFiles = Array.from(e.currentTarget.files ?? []); e.currentTarget.value = ''; }}
+          />
+
+          {#if attachUploadFiles.length > 0}
+            <div class="attach-ready">
+              <div class="attach-ready-files">
+                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="flex-shrink:0;color:#6b7280">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                </svg>
+                <span>{attachUploadFiles.length} ไฟล์พร้อมอัปโหลด</span>
+              </div>
+              <div class="attach-ready-actions">
+                <button type="button" class="attach-cancel-btn" on:click={() => attachUploadFiles = []}>ยกเลิก</button>
+                <button type="button" class="attach-upload-btn" disabled={attachUploading} on:click={uploadAttachments}>
+                  {attachUploading ? 'กำลังอัปโหลด...' : 'อัปโหลด'}
+                </button>
+              </div>
+            </div>
+          {:else}
+            <label
+              for="attach-file-input"
+              class="upload-placeholder"
+              class:drag-over={attachDragOver}
+              on:dragover|preventDefault={() => attachDragOver = true}
+              on:dragleave={() => attachDragOver = false}
+              on:drop={handleAttachDrop}
             >
-              {attachUploading ? 'กำลังอัปโหลด...' : 'อัปโหลด'}
-            </button>
-          </div>
+              <svg class="upload-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+              </svg>
+              <p>{attachDragOver ? 'วางไฟล์ที่นี่' : 'คลิกเพื่อเพิ่มไฟล์แนบ'}</p>
+              <p class="hint">PDF, JPG, PNG หรือลากไฟล์มาวาง</p>
+            </label>
+          {/if}
+
           {#if attachUploadError}
             <p class="attach-upload-error">{attachUploadError}</p>
           {/if}
 
-          {#if attachments.length === 0}
-            <div class="empty-state">
-              <div class="upload-placeholder">
-                <svg class="upload-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                </svg>
-                <p>คลิกเพื่อเพิ่มไฟล์แนบ</p>
-                <p class="hint">หรือลากไฟล์มาวางที่นี่</p>
-              </div>
-            </div>
-          {:else}
+          {#if attachments.length > 0}
             <div class="attachment-list">
               {#each attachments as attachment (attachment.id)}
                 <div class="attachment-item">
@@ -1748,9 +1773,10 @@
   /* เอกสารที่เกี่ยวข้อง block */
   .mhesi-card {
     background: #fff;
-    border-radius: 12px;
-    border: 1px solid #e5e7eb;
+    border-radius: 0.75rem;
     padding: 1.5rem;
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+    margin-top: 1.5rem;
   }
 
   .mhesi-groups {
@@ -2001,30 +2027,76 @@
     color: #4b5563;
   }
 
-  /* Attachments */
-  .attach-upload-row {
-    display: flex;
-    gap: 0.5rem;
-    margin-bottom: 0.75rem;
-    align-items: center;
+  .status-pending {
+    background: #ede9fe;
+    color: #5b21b6;
   }
 
-  .attach-file-label {
-    flex: 1;
-    border: 1px solid #d1d5db;
+  /* Attachments */
+  .upload-placeholder {
+    display: block;
+    border: 2px dashed #d1d5db;
     border-radius: 0.5rem;
-    padding: 0.4rem 0.75rem;
+    padding: 2rem 1rem;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-bottom: 0.75rem;
+  }
+
+  .upload-placeholder:hover {
+    border-color: #ffa200;
+    background: #fffbf5;
+  }
+
+  .upload-placeholder.drag-over {
+    border-color: #ffa200;
+    background: #fffbf5;
+    border-style: solid;
+  }
+
+  .upload-icon {
+    width: 2.5rem;
+    height: 2.5rem;
+    color: #9ca3af;
+    margin: 0 auto 0.75rem;
+  }
+
+  .upload-placeholder p {
+    margin: 0.25rem 0;
+    color: #6b7280;
+    font-size: 0.875rem;
+  }
+
+  .hint {
+    font-size: 0.75rem !important;
+    color: #9ca3af !important;
+  }
+
+  .attach-ready {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    border: 1px solid #d1fae5;
+    background: #f0fdf4;
+    border-radius: 0.5rem;
+    padding: 0.625rem 0.875rem;
+    margin-bottom: 0.75rem;
+  }
+
+  .attach-ready-files {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
     font-size: 0.8125rem;
     color: #374151;
-    cursor: pointer;
-    background: #f9fafb;
-    transition: border-color 0.15s;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
   }
 
-  .attach-file-label:hover { border-color: #ffa200; }
+  .attach-ready-actions {
+    display: flex;
+    gap: 0.5rem;
+  }
 
   .attach-upload-btn {
     background: #ffa200;
@@ -2042,46 +2114,23 @@
   .attach-upload-btn:hover:not(:disabled) { background: #e69200; }
   .attach-upload-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
+  .attach-cancel-btn {
+    background: white;
+    color: #374151;
+    border: 1px solid #d1d5db;
+    border-radius: 0.5rem;
+    padding: 0.4rem 0.875rem;
+    font-size: 0.8125rem;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+
+  .attach-cancel-btn:hover { background: #f9fafb; }
+
   .attach-upload-error {
     color: #dc2626;
     font-size: 0.8rem;
     margin: 0 0 0.5rem;
-  }
-
-  .empty-state {
-    padding: 2rem;
-  }
-
-  .upload-placeholder {
-    border: 2px dashed #d1d5db;
-    border-radius: 0.5rem;
-    padding: 3rem 1rem;
-    text-align: center;
-    cursor: pointer;
-    transition: all 0.2s;
-  }
-
-  .upload-placeholder:hover {
-    border-color: #ffa200;
-    background: #fffbf5;
-  }
-
-  .upload-icon {
-    width: 3rem;
-    height: 3rem;
-    color: #9ca3af;
-    margin: 0 auto 1rem;
-  }
-
-  .upload-placeholder p {
-    margin: 0.5rem 0;
-    color: #6b7280;
-    font-size: 0.875rem;
-  }
-
-  .hint {
-    font-size: 0.75rem !important;
-    color: #9ca3af !important;
   }
 
   .attachment-list {

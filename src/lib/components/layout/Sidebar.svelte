@@ -2,6 +2,7 @@
   import { slide } from 'svelte/transition';
   import { page } from "$app/stores";
   import { onMount } from 'svelte';
+  import { afterNavigate } from '$app/navigation';
   import { pageTitle, pageSubtitle } from "$lib/stores/pageTitle";
   import { apiFetch } from '$lib/api/client';
   import { API_ENDPOINTS } from '$lib/api/endpoints';
@@ -13,6 +14,9 @@
     {
       label: "ครุภัณฑ์",
       icon: "box",
+      basePath: "/equipments",
+      defaultTitle: "สืบค้นครุภัณฑ์รอเบิกจ่าย",
+      defaultSubtitle: "รายการครุภัณฑ์ที่รอดำเนินการเบิกจ่าย",
       children: [
         { href: "/equipments/add-equipments", label: "ลงทะเบียนครุภัณฑ์", subtitle: "เพิ่มครุภัณฑ์ใหม่เข้าสู่ระบบ" },
         { href: "/equipments/disburse",  label: "เบิกจ่ายครุภัณฑ์",          subtitle: "เบิกจ่ายครุภัณฑ์ที่รอดำเนินการ" },
@@ -24,6 +28,7 @@
     {
       label: "เลข อว.",
       icon: "document-text",
+      basePath: "/mhesi",
       children: [
         { href: "/mhesi/add-mhesi", label: "ลงทะเบียนเลข อว.", subtitle: "เพิ่มเลข อว. ใหม่เข้าสู่ระบบ" },
         { href: "/mhesi", label: "สืบค้นเลข อว.", subtitle: "ค้นหา จัดการ และเพิ่มกิจกรรม" },
@@ -32,6 +37,7 @@
     {
       label: "โครงการ",
       icon: "folder",
+      basePath: "/projects",
       children: [
         { href: "/projects/add-project", label: "ลงทะเบียนโครงการ", subtitle: "เพิ่มโครงการใหม่เข้าสู่ระบบ" },
         { href: "/projects", label: "สืบค้นโครงการ", subtitle: "ค้นหา จัดการ และเพิ่มโครงการ" },
@@ -56,59 +62,73 @@
   const isActive = (p: string, href: string, exact = false) =>
     p === href || (!exact && href !== "/" && p.startsWith(href + '/'));
 
-  // Auto-open dropdown เมื่อ child active
+  // Auto-open dropdown เมื่อ child active หรืออยู่ใต้ basePath
   $: {
     for (const l of links) {
-      if (l.children && l.children.some(c => c.href && isActive(currentPath, c.href))) {
-        openMenus[l.label] = true;
+      if (l.children) {
+        const childMatch = l.children.some(c => c.href && isActive(currentPath, c.href));
+        const baseMatch = l.basePath && currentPath.startsWith(l.basePath + '/');
+        if (childMatch || baseMatch) openMenus[l.label] = true;
       }
     }
   }
 
-  // ติดตาม child ที่ถูกเลือกด้วย label
-  let selectedChildLabel: string | null = null;
 
   function selectChild(label: string, subtitle: string) {
-    selectedChildLabel = label;
     pageTitle.set(label);
     pageSubtitle.set(subtitle);
+    sessionStorage.setItem('lastPageTitle', label);
+    sessionStorage.setItem('lastPageSubtitle', subtitle);
   }
 
   function selectLink(label: string, subtitle: string) {
-    selectedChildLabel = null;
     pageTitle.set(label);
     pageSubtitle.set(subtitle);
   }
 
-  // อัปเดต title/subtitle จาก URL ทุกครั้งที่ path เปลี่ยน
-  $: {
+  // อัปเดต title/subtitle จาก URL — ใช้ afterNavigate เพื่อให้ทำงานหลัง navigation เสร็จ
+  function updateTitle(path: string) {
     let found = false;
     for (const l of links) {
-      if (!l.children && l.href && isActive(currentPath, l.href)) {
+      if (!l.children && l.href && isActive(path, l.href, l.exact)) {
         pageTitle.set(l.label);
         pageSubtitle.set(l.subtitle ?? '');
         found = true;
         break;
       }
       if (l.children) {
-        const clicked = selectedChildLabel
-          ? l.children.find(c => c.label === selectedChildLabel && c.href && isActive(currentPath, c.href))
-          : null;
-        const matched = clicked ?? l.children.find(c => c.href && isActive(currentPath, c.href));
+        const matched = l.children.find(c => c.href && isActive(path, c.href, true));
         if (matched) {
           pageTitle.set(matched.label);
           pageSubtitle.set(matched.subtitle ?? '');
+          sessionStorage.setItem('lastPageTitle', matched.label);
+          sessionStorage.setItem('lastPageSubtitle', matched.subtitle ?? '');
+          found = true;
+          break;
+        }
+        if (l.basePath && path.startsWith(l.basePath + '/')) {
+          const stored = sessionStorage.getItem('lastPageTitle');
+          const storedSub = sessionStorage.getItem('lastPageSubtitle');
+          pageTitle.set(stored || l.defaultTitle || l.label);
+          pageSubtitle.set(storedSub || l.defaultSubtitle || '');
           found = true;
           break;
         }
       }
-      if (found) break;
     }
-    if (!found && isActive(currentPath, '/admin')) {
+    if (!found && isActive(path, '/admin')) {
       pageTitle.set('จัดการผู้ใช้');
       pageSubtitle.set('จัดการและกำหนดสิทธิ์ผู้ใช้งานระบบ');
     }
   }
+
+  afterNavigate(() => {
+    updateTitle($page.url.pathname);
+  });
+
+  onMount(() => {
+    updateTitle($page.url.pathname);
+  });
 
   // ── User / Auth ──────────────────────────────
   type UserInfo = {

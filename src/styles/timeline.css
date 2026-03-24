@@ -30,9 +30,9 @@
 }
 
 .tl-dot-edit {
-  background: #3b82f6;
-  border-color: #eff6ff;
-  box-shadow: 0 0 0 2px #3b82f6;
+  background: #06b6d4;
+  border-color: #ecfeff;
+  box-shadow: 0 0 0 2px #06b6d4;
 }
 
 .tl-line {
@@ -80,9 +80,21 @@
 }
 
 .tl-badge-edit {
-  color: #1d4ed8;
-  background: #eff6ff;
-  border-color: #bfdbfe;
+  color: #0e7490;
+  background: #ecfeff;
+  border-color: #a5f3fc;
+}
+
+.tl-badge-file {
+  color: #7c3aed;
+  background: #f5f3ff;
+  border-color: #ddd6fe;
+}
+
+.tl-dot-file {
+  background: #7c3aed;
+  border-color: #f5f3ff;
+  box-shadow: 0 0 0 2px #7c3aed;
 }
 
 .tl-user {
@@ -144,6 +156,14 @@
   padding: 0.4rem 0.75rem;
 }
 
+.tl-attachment-diff {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
 .tl-attachment-name {
   flex: 1;
   font-size: 0.8125rem;
@@ -169,6 +189,14 @@
 .tl-attachment-btn:hover:not(:disabled) { background: #e5e7eb; }
 .tl-attachment-btn:disabled { opacity: 0.6; cursor: not-allowed; }
 
+.tl-attachment-btn-green {
+  background: #dcfce7;
+  color: #15803d;
+  border-color: #bbf7d0;
+}
+
+.tl-attachment-btn-green:hover:not(:disabled) { background: #bbf7d0; }
+
 .tl-changes {
   background: #fafafa;
   border: 1px solid #f0f0f0;
@@ -192,6 +220,10 @@
   font-weight: 500;
   color: #6b7280;
   flex-shrink: 0;
+}
+
+.tl-field::after {
+  content: ':';
 }
 
 .tl-diff {

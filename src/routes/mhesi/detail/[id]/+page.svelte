@@ -45,6 +45,17 @@
   let directUploadFile: File | null = null;
   let directUploading = false;
   let directUploadError = '';
+  let directDragOver = false;
+
+  function handleDirectDrop(e: DragEvent) {
+    e.preventDefault();
+    directDragOver = false;
+    const file = e.dataTransfer?.files?.[0];
+    if (file && /\.(pdf|jpe?g|png)$/i.test(file.name)) {
+      directUploadFile = file;
+      directUploadError = '';
+    }
+  }
 
   async function uploadDirectFile() {
     console.log('uploading to:', `${API_ENDPOINTS.ATTACHMENTS_UPLOAD}?folder=mhesi`);
@@ -77,7 +88,12 @@
       });
 
       directUploadFile = null;
-      await fetchAll();
+      if (record) record = { ...record, attachmentId: newAttachmentId };
+      try {
+        const attData = await apiFetch<{ data: AttachmentInfo }>(API_ENDPOINTS.ATTACHMENT_DETAIL(newAttachmentId));
+        attachmentInfo = attData.data ?? null;
+      } catch (_) {}
+      await fetchHistory();
     } catch (e) {
       directUploadError = e instanceof Error ? e.message : 'อัปโหลดไม่สำเร็จ';
     } finally {
@@ -151,15 +167,17 @@
     date:         'วันที่',
     amount:       'จำนวนเงิน',
     note:         'หมายเหตุ',
+    attachmentId: 'ไฟล์แนบ',
   };
 
   function resolveValue(field: string, val: any): string {
     if (val === null || val === undefined || val === '') return '-';
-    if (field === 'projectId') return projects.find(p => p.id === val)?.projectName ?? String(val);
-    if (field === 'planId')    return plans.find(p => p.id === val)?.name ?? String(val);
-    if (field === 'role')      return ROLE_LABEL[val] ?? String(val);
-    if (field === 'date')      return formatDate(val);
-    if (field === 'amount')    return formatCurrency(val);
+    if (field === 'projectId')    return projects.find(p => p.id === val)?.projectName ?? String(val);
+    if (field === 'planId')       return plans.find(p => p.id === val)?.name ?? String(val);
+    if (field === 'role')         return ROLE_LABEL[val] ?? String(val);
+    if (field === 'date')         return formatDate(val);
+    if (field === 'amount')       return formatCurrency(val);
+    if (field === 'attachmentId') return 'มีไฟล์แนบ';
     return String(val);
   }
 
@@ -461,6 +479,14 @@
       <div class="right-column">
         <div class="attachment-card">
           <h2 class="card-title">เอกสารแนบ</h2>
+          <input
+            type="file"
+            id="direct-file-input"
+            accept=".jpg,.jpeg,.png,.pdf"
+            hidden
+            on:change={(e) => { directUploadFile = e.currentTarget.files?.[0] ?? null; directUploadError = ''; e.currentTarget.value = ''; }}
+          />
+
           {#if attachmentInfo}
             <div class="attachment-list">
               <div class="attachment-item">
@@ -475,53 +501,43 @@
                 </button>
               </div>
             </div>
+            <div class="attach-section-label">เปลี่ยนไฟล์</div>
+          {/if}
 
-            <!-- เปลี่ยนไฟล์ -->
-            <div class="direct-upload-row">
-              <label class="direct-upload-label">
-                <input
-                  type="file"
-                  accept=".jpg,.jpeg,.png,.webp,.pdf"
-                  hidden
-                  on:change={(e) => { directUploadFile = e.currentTarget.files?.[0] ?? null; directUploadError = ''; }}
-                />
-                {directUploadFile ? directUploadFile.name : 'เลือกไฟล์ใหม่เพื่อเปลี่ยน'}
-              </label>
-              {#if directUploadFile}
-                <button class="btn-upload" on:click={uploadDirectFile} disabled={directUploading}>
-                  {directUploading ? 'กำลังอัปโหลด...' : 'เปลี่ยนไฟล์'}
-                </button>
-              {/if}
-            </div>
-            {#if directUploadError}
-              <p class="upload-error">{directUploadError}</p>
-            {/if}
-
-          {:else}
-            <!-- ยังไม่มีไฟล์ — อัปโหลดได้เลย -->
-            <div class="direct-upload-empty">
-              <label class="upload-placeholder" style="cursor:pointer; display:block;">
-                <input
-                  type="file"
-                  accept=".jpg,.jpeg,.png,.webp,.pdf"
-                  hidden
-                  on:change={(e) => { directUploadFile = e.currentTarget.files?.[0] ?? null; directUploadError = ''; }}
-                />
-                <svg class="upload-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+          {#if directUploadFile}
+            <div class="attach-ready">
+              <div class="attach-ready-files">
+                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="flex-shrink:0;color:#6b7280">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
                 </svg>
-                <p>{directUploadFile ? directUploadFile.name : 'คลิกเพื่ออัปโหลดไฟล์'}</p>
-                <p class="hint">jpg, png, webp, pdf · สูงสุด 10 MB</p>
-              </label>
-              {#if directUploadFile}
-                <button class="btn-upload-full" on:click={uploadDirectFile} disabled={directUploading}>
-                  {directUploading ? 'กำลังอัปโหลด...' : 'อัปโหลด'}
+                <span>{directUploadFile.name}</span>
+              </div>
+              <div class="attach-ready-actions">
+                <button type="button" class="attach-cancel-btn" on:click={() => directUploadFile = null}>ยกเลิก</button>
+                <button type="button" class="attach-upload-btn" disabled={directUploading} on:click={uploadDirectFile}>
+                  {directUploading ? 'กำลังอัปโหลด...' : (attachmentInfo ? 'เปลี่ยนไฟล์' : 'อัปโหลด')}
                 </button>
-              {/if}
-              {#if directUploadError}
-                <p class="upload-error">{directUploadError}</p>
-              {/if}
+              </div>
             </div>
+          {:else}
+            <label
+              for="direct-file-input"
+              class="upload-placeholder"
+              class:drag-over={directDragOver}
+              on:dragover|preventDefault={() => directDragOver = true}
+              on:dragleave={() => directDragOver = false}
+              on:drop={handleDirectDrop}
+            >
+              <svg class="upload-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+              </svg>
+              <p>{directDragOver ? 'วางไฟล์ที่นี่' : 'คลิกเพื่อเพิ่มไฟล์แนบ'}</p>
+              <p class="hint">PDF, JPG, PNG หรือลากไฟล์มาวาง</p>
+            </label>
+          {/if}
+
+          {#if directUploadError}
+            <p class="upload-error">{directUploadError}</p>
           {/if}
         </div>
       </div>
@@ -538,22 +554,25 @@
         <div class="timeline">
           {#each history as h, idx}
             {@const diffFields = getDiffRows(h.before, h.after)}
+            {@const isFileOnly = diffFields.length > 0 && diffFields.every(f => f === 'attachmentId')}
+            {@const regularFields = diffFields.filter(f => f !== 'attachmentId')}
+            {@const attachmentChanged = diffFields.includes('attachmentId')}
             <div class="tl-item">
               <div class="tl-line-wrap">
-                <div class="tl-dot"></div>
+                <div class="tl-dot {isFileOnly ? 'tl-dot-file' : 'tl-dot-edit'}"></div>
                 {#if idx < history.length - 1}<div class="tl-line"></div>{/if}
               </div>
               <div class="tl-body">
                 <div class="tl-header">
                   <div class="tl-header-left">
-                    <span class="tl-badge">แก้ไขข้อมูล</span>
+                    <span class="tl-badge {isFileOnly ? 'tl-badge-file' : 'tl-badge-edit'}">{isFileOnly ? 'แก้ไขเอกสาร' : 'แก้ไขข้อมูล'}</span>
                     <span class="tl-user">{h.changedBy || 'ไม่ระบุ'}</span>
                   </div>
                   <span class="tl-time">{new Date(h.createdAt).toLocaleString('th-TH', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' })}</span>
                 </div>
-                {#if diffFields.length > 0}
+                {#if regularFields.length > 0}
                   <div class="tl-changes">
-                    {#each diffFields as field}
+                    {#each regularFields as field}
                       <div class="tl-change-row">
                         <span class="tl-field">{FIELD_LABELS[field]}</span>
                         <div class="tl-diff">
@@ -564,22 +583,26 @@
                       </div>
                     {/each}
                   </div>
-                {:else}
+                {:else if !attachmentChanged}
                   <p class="tl-nochange">ไม่มีการเปลี่ยนแปลง</p>
                 {/if}
-                {#if h.before?.attachmentId}
+                {#if attachmentChanged}
                   <div class="tl-attachment">
                     <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/>
                     </svg>
-                    <span class="tl-attachment-name">ไฟล์แนบ</span>
-                    <button
-                      class="tl-attachment-btn"
-                      on:click={() => loadPreviewById(h.before?.attachmentId ?? 0, 'ไฟล์แนบ')}
-                      disabled={previewLoading}
-                    >
-                      ดูไฟล์
-                    </button>
+                    <div class="tl-attachment-diff">
+                      {#if h.before?.attachmentId}
+                        <span class="tl-old">{h.before.attachmentFileName ?? 'ไฟล์เดิม'}</span>
+                        <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" class="tl-arrow"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                      {/if}
+                      <span class="tl-new">{h.after?.attachmentFileName ?? 'ไฟล์ใหม่'}</span>
+                    </div>
+                    {#if h.after?.attachmentId}
+                      <button class="tl-attachment-btn" on:click={() => loadPreviewById(h.after?.attachmentId ?? 0, h.after?.attachmentFileName ?? 'ไฟล์แนบ')} disabled={previewLoading}>
+                        ดูไฟล์
+                      </button>
+                    {/if}
                   </div>
                 {/if}
               </div>
@@ -835,32 +858,50 @@
     gap: 1.5rem;
   }
 
-  /* Attachments */
-  .empty-state { padding: 2rem; }
+  .right-column .attachment-card {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+  }
 
+  .right-column .attachment-card .upload-placeholder {
+    flex: 1;
+    margin-bottom: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+
+
+  /* Attachments */
   .upload-placeholder {
+    display: block;
     border: 2px dashed #d1d5db;
     border-radius: 0.5rem;
-    padding: 3rem 1rem;
+    padding: 2rem 1rem;
     text-align: center;
     cursor: pointer;
     transition: all 0.2s;
+    margin-bottom: 0.75rem;
   }
 
-  .upload-placeholder:hover {
+  .upload-placeholder:hover,
+  .upload-placeholder.drag-over {
     border-color: #ffa200;
     background: #fffbf5;
+    border-style: solid;
   }
 
   .upload-icon {
-    width: 3rem;
-    height: 3rem;
+    width: 2.5rem;
+    height: 2.5rem;
     color: #9ca3af;
-    margin: 0 auto 1rem;
+    margin: 0 auto 0.75rem;
   }
 
   .upload-placeholder p {
-    margin: 0.5rem 0;
+    margin: 0.25rem 0;
     color: #6b7280;
     font-size: 0.875rem;
   }
@@ -869,6 +910,75 @@
     font-size: 0.75rem !important;
     color: #9ca3af !important;
   }
+
+  .attach-section-label {
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: #6b7280;
+    margin: 0.875rem 0 0.5rem;
+  }
+
+  .attach-ready {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    border: 1px solid #d1fae5;
+    background: #f0fdf4;
+    border-radius: 0.5rem;
+    padding: 0.625rem 0.875rem;
+    margin-bottom: 0.75rem;
+  }
+
+  .attach-ready-files {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.8125rem;
+    color: #374151;
+    overflow: hidden;
+  }
+
+  .attach-ready-files span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .attach-ready-actions {
+    display: flex;
+    gap: 0.5rem;
+    flex-shrink: 0;
+  }
+
+  .attach-upload-btn {
+    background: #ffa200;
+    color: white;
+    border: none;
+    border-radius: 0.5rem;
+    padding: 0.4rem 1rem;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.15s;
+  }
+
+  .attach-upload-btn:hover:not(:disabled) { background: #e69200; }
+  .attach-upload-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .attach-cancel-btn {
+    background: white;
+    color: #374151;
+    border: 1px solid #d1d5db;
+    border-radius: 0.5rem;
+    padding: 0.4rem 0.875rem;
+    font-size: 0.8125rem;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+
+  .attach-cancel-btn:hover { background: #f9fafb; }
 
   /* History */
   .history-card {
@@ -1121,66 +1231,6 @@
   }
 
   .btn-preview:hover { background: #e5e7eb; }
-
-  .direct-upload-row {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    margin-top: 0.75rem;
-    padding-top: 0.75rem;
-    border-top: 1px solid #f3f4f6;
-  }
-
-  .direct-upload-label {
-    flex: 1;
-    font-size: 0.8125rem;
-    color: #6b7280;
-    border: 1px dashed #d1d5db;
-    border-radius: 0.375rem;
-    padding: 0.5rem 0.75rem;
-    cursor: pointer;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    transition: border-color 0.15s;
-  }
-
-  .direct-upload-label:hover { border-color: #ffa200; color: #374151; }
-
-  .btn-upload {
-    background: #ffa200;
-    color: white;
-    border: none;
-    padding: 0.5rem 0.875rem;
-    border-radius: 0.375rem;
-    font-size: 0.8125rem;
-    font-weight: 600;
-    cursor: pointer;
-    flex-shrink: 0;
-    transition: background 0.15s;
-  }
-
-  .btn-upload:hover:not(:disabled) { background: #e69200; }
-  .btn-upload:disabled { opacity: 0.6; cursor: not-allowed; }
-
-  .btn-upload-full {
-    width: 100%;
-    background: #ffa200;
-    color: white;
-    border: none;
-    padding: 0.625rem;
-    border-radius: 0.5rem;
-    font-size: 0.875rem;
-    font-weight: 600;
-    cursor: pointer;
-    margin-top: 0.75rem;
-    transition: background 0.15s;
-  }
-
-  .btn-upload-full:hover:not(:disabled) { background: #e69200; }
-  .btn-upload-full:disabled { opacity: 0.6; cursor: not-allowed; }
-
-  .direct-upload-empty { display: flex; flex-direction: column; }
 
   .upload-error {
     color: #dc2626;
