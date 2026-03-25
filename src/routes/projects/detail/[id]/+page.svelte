@@ -2,6 +2,10 @@
   import { onMount } from 'svelte';
   import { page } from '$app/stores';
   import { goto } from '$app/navigation';
+
+  $: canAccessRestricted =
+    $page.data.user?.role === 'admin' ||
+    $page.data.user?.departmentId === 1;
   import ThaiDatePicker from '$lib/components/ui/ThaiDatePicker.svelte';
   import Dropdown from '$lib/components/ui/Dropdown.svelte';
   import Icon from '$lib/components/ui/Icon.svelte';
@@ -16,9 +20,12 @@
     projectTypeId: number | null;
     projectType?: string | null;
     projectDate: string | null;
+    fiscalYear: number | null;
+    qtyOrdered: number | null;
     budget: string | number | null;
     status: string | null;
     acquisitionSourceId: number | null;
+    acquisitionMethodId: number | null;
     note: string | null;
     createdAt: string;
     updatedAt: string;
@@ -77,7 +84,8 @@
   $: equipmentDisplay = showAllEquipment ? equipmentList : equipmentList.slice(0, TABLE_LIMIT);
 
   let acquisitionSources: MasterData[] = [];
-  let projectTypes: MasterData[] = [];
+  let acquisitionMethods: MasterData[] = [];
+
   let equipmentTypes: MasterData[] = [];
   let buildings: MasterData[] = [];
   let rooms: MasterData[] = [];
@@ -91,9 +99,12 @@
     projectType: null as string | null,
     projectTypeId: null as number | null,
     projectDate: '',
+    fiscalYear: null as number | null,
+    qtyOrdered: '',
     budget: '',
     status: null as string | null,
     acquisitionSourceId: null as number | null,
+    acquisitionMethodId: null as number | null,
     note: '',
   };
 
@@ -109,15 +120,12 @@
   const statusOptions = [
     { value: 'active', label: 'กำลังดำเนินโครงการ' },
     { value: 'completed', label: 'เสร็จสิ้น' },
-    { value: 'pending', label: 'รอดำเนินการ' },
-    { value: 'cancelled', label: 'ยกเลิก' },
+
   ];
 
   const STATUS_LABELS: Record<string, string> = {
     active: 'กำลังดำเนินโครงการ',
     completed: 'เสร็จสิ้น',
-    pending: 'รอดำเนินการ',
-    cancelled: 'ยกเลิก',
   };
 
   const STATUS_COLORS: Record<string, string> = {
@@ -194,10 +202,10 @@
       const [projectRes, masterRes1, masterRes2, masterRes3, masterRes4, masterRes5] = await Promise.all([
         fetch(`${API_URL}/api/projects/${uuid}`, { credentials: 'include' }),
         fetch(`${API_URL}/api/masters/acquisition-sources`, { credentials: 'include' }),
-        fetch(`${API_URL}/api/masters/project-types`, { credentials: 'include' }),
         fetch(`${API_URL}/api/masters/equipment-types`, { credentials: 'include' }),
         fetch(`${API_URL}/api/masters/buildings`, { credentials: 'include' }),
         fetch(`${API_URL}/api/masters/rooms`, { credentials: 'include' }),
+        fetch(`${API_URL}/api/masters/acquisition-methods`, { credentials: 'include' }),
       ]);
 
       if (projectRes.status === 401) { window.location.href = '/login'; return; }
@@ -210,10 +218,10 @@
       }
 
       if (masterRes1.ok) acquisitionSources = (await masterRes1.json()).data || [];
-      if (masterRes2.ok) projectTypes = (await masterRes2.json()).data || [];
-      if (masterRes3.ok) equipmentTypes = (await masterRes3.json()).data || [];
-      if (masterRes4.ok) buildings = (await masterRes4.json()).data || [];
-      if (masterRes5.ok) rooms = (await masterRes5.json()).data || [];
+      if (masterRes2.ok) equipmentTypes = (await masterRes2.json()).data || [];
+      if (masterRes3.ok) buildings = (await masterRes3.json()).data || [];
+      if (masterRes4.ok) rooms = (await masterRes4.json()).data || [];
+      if (masterRes5.ok) acquisitionMethods = (await masterRes5.json()).data || [];
 
       // Fetch MHESI and Equipment for this project (use integer id if available)
       const pid = project?.id;
@@ -256,10 +264,15 @@
     return acquisitionSources.find(s => s.id === id)?.name || '-';
   }
 
+  function getAcquisitionMethodName(id: number | null) {
+    if (!id) return '-';
+    return acquisitionMethods.find(m => m.id === id)?.name || '-';
+  }
+
   function getProjectTypeName(p: Project | null) {
     if (!p) return '-';
     if (p.projectType) return p.projectType;
-    if (p.projectTypeId) return projectTypes.find(t => t.id === p.projectTypeId)?.name || '-';
+    if (p.projectTypeId) return equipmentTypes.find(t => t.id === p.projectTypeId)?.name || '-';
     return '-';
   }
 
@@ -285,19 +298,23 @@
   }
 
   const PROJECT_FIELD_LABELS: Record<string, string> = {
-    projectName:         'ชื่อโครงการ',
-    projectTypeId:       'ประเภท',
-    projectDate:         'วันที่',
-    budget:              'งบประมาณ',
-    status:              'สถานะ',
-    acquisitionSourceId: 'แหล่งเงินทุน',
-    note:                'หมายเหตุ',
+    projectName:          'ชื่อโครงการ',
+    projectTypeId:        'ประเภท',
+    projectDate:          'วันที่',
+    fiscalYear:           'ปีงบประมาณ',
+    qtyOrdered:           'จำนวนที่จัดซื้อ',
+    budget:               'งบประมาณ',
+    status:               'สถานะ',
+    acquisitionSourceId:  'แหล่งเงินทุน',
+    acquisitionMethodId:  'วิธีการได้มา',
+    note:                 'หมายเหตุ',
   };
 
   function resolveProjectValue(field: string, val: any): string {
     if (val === null || val === undefined || val === '') return '-';
-    if (field === 'projectTypeId')       return projectTypes.find(t => t.id === val)?.name ?? String(val);
+    if (field === 'projectTypeId')       return equipmentTypes.find(t => t.id === val)?.name ?? String(val);
     if (field === 'acquisitionSourceId') return acquisitionSources.find(s => s.id === val)?.name ?? String(val);
+    if (field === 'acquisitionMethodId') return acquisitionMethods.find(m => m.id === val)?.name ?? String(val);
     if (field === 'status')              return STATUS_LABELS[val] ?? String(val);
     if (field === 'projectDate')         return formatDate(val);
     if (field === 'budget')              return formatCurrency(val) + ' บาท';
@@ -334,9 +351,12 @@
       projectType: project.projectType || null,
       projectTypeId: project.projectTypeId,
       projectDate: project.projectDate ? project.projectDate.slice(0, 10) : '',
+      fiscalYear: project.fiscalYear,
+      qtyOrdered: project.qtyOrdered != null ? String(project.qtyOrdered) : '',
       budget: project.budget ? String(project.budget) : '',
       status: project.status,
       acquisitionSourceId: project.acquisitionSourceId,
+      acquisitionMethodId: project.acquisitionMethodId,
       note: project.note || '',
     };
     editError = '';
@@ -356,9 +376,12 @@
           projectName: editForm.projectName.trim(),
           projectTypeId: editForm.projectTypeId || null,
           projectDate: editForm.projectDate || null,
+          fiscalYear: editForm.fiscalYear || null,
+          qtyOrdered: editForm.qtyOrdered ? parseInt(editForm.qtyOrdered) : null,
           budget: editForm.budget ? parseFloat(editForm.budget) : null,
           status: editForm.status,
           acquisitionSourceId: editForm.acquisitionSourceId,
+          acquisitionMethodId: editForm.acquisitionMethodId || null,
           note: editForm.note || null,
         }),
       });
@@ -419,14 +442,16 @@
         <p class="subtitle">ชื่อโครงการ: {project.projectName}</p>
         <p class="subtitle">หมายเลขโครงการ: {project.projectNumber ?? '-'}</p>
       </div>
-      <div class="header-actions">
-        <button class="btn-primary" on:click={openEditModal}>
-          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="16" height="16" style="flex-shrink:0">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
-          </svg>
-          แก้ไขข้อมูล
-        </button>
-      </div>
+      {#if canAccessRestricted}
+        <div class="header-actions">
+          <button class="btn-primary" on:click={openEditModal}>
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="16" height="16" style="flex-shrink:0">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+            </svg>
+            แก้ไขข้อมูล
+          </button>
+        </div>
+      {/if}
     </div>
 
     <!-- Project Info Card -->
@@ -483,6 +508,33 @@
             <div class="info-value">: {STATUS_LABELS[project.status ?? ''] || project.status || '-'}</div>
           </div>
         </div>
+        {#if project.fiscalYear}
+          <div class="info-item">
+            <span class="info-icon"><Icon name="calendar" size={24} /></span>
+            <div>
+              <div class="info-label">ปีงบประมาณ</div>
+              <div class="info-value">: {project.fiscalYear}</div>
+            </div>
+          </div>
+        {/if}
+        {#if project.qtyOrdered != null}
+          <div class="info-item">
+            <span class="info-icon"><Icon name="collection" size={24} /></span>
+            <div>
+              <div class="info-label">จำนวนที่จัดซื้อ</div>
+              <div class="info-value">: {project.qtyOrdered} รายการ</div>
+            </div>
+          </div>
+        {/if}
+        {#if project.acquisitionMethodId}
+          <div class="info-item">
+            <span class="info-icon"><Icon name="library" size={24} /></span>
+            <div>
+              <div class="info-label">วิธีการได้มา</div>
+              <div class="info-value">: {getAcquisitionMethodName(project.acquisitionMethodId)}</div>
+            </div>
+          </div>
+        {/if}
         {#if project.note}
           <div class="info-item info-item-full">
             <span class="info-icon"><Icon name="pencil" size={24} /></span>
@@ -754,7 +806,7 @@
           <label class="modal-label">ประเภทโครงการ</label>
           <Dropdown
             fullWidth
-            options={projectTypes.map(t => ({ value: t.id, label: t.name }))}
+            options={equipmentTypes.map(t => ({ value: t.id, label: t.name }))}
             bind:value={editForm.projectTypeId}
             placeholder="เลือกประเภท"
           />
@@ -764,6 +816,30 @@
         <div class="modal-field">
           <label class="modal-label">วันที่</label>
           <ThaiDatePicker bind:value={editForm.projectDate} inputClass="modal-input" />
+        </div>
+
+        <!-- ปีงบประมาณ -->
+        <div class="modal-field">
+          <label class="modal-label">ปีงบประมาณ</label>
+          <input
+            type="number"
+            bind:value={editForm.fiscalYear}
+            class="modal-input"
+            placeholder="เช่น 2567"
+          />
+        </div>
+
+        <!-- จำนวนที่จัดซื้อ -->
+        <div class="modal-field">
+          <label class="modal-label">จำนวนที่จัดซื้อ</label>
+          <input
+            type="text"
+            inputmode="numeric"
+            bind:value={editForm.qtyOrdered}
+            on:input={(e) => { editForm.qtyOrdered = e.currentTarget.value.replace(/[^0-9]/g, ''); }}
+            class="modal-input"
+            placeholder="0"
+          />
         </div>
 
         <!-- งบประมาณ -->
@@ -786,6 +862,17 @@
             options={acquisitionSources.map(s => ({ value: s.id, label: s.name }))}
             bind:value={editForm.acquisitionSourceId}
             placeholder="เลือกแหล่งเงินทุน"
+          />
+        </div>
+
+        <!-- วิธีการได้มา -->
+        <div class="modal-field">
+          <label class="modal-label">วิธีการได้มา</label>
+          <Dropdown
+            fullWidth
+            options={[{ value: null, label: '-' }, ...acquisitionMethods.map(m => ({ value: m.id, label: m.name }))]}
+            bind:value={editForm.acquisitionMethodId}
+            placeholder="เลือกวิธีการได้มา"
           />
         </div>
 

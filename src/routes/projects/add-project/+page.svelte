@@ -81,6 +81,7 @@
         projectDate: formData.projectDate || null,
         fiscalYear: formData.fiscalYear,
         budget: formData.budget ? parseFloat(formData.budget) : null,
+        status: 'active',
         qtyOrdered: formData.qtyOrdered ? parseInt(formData.qtyOrdered) : null,
         acquisitionSourceId: formData.acquisitionSourceId || null,
         acquisitionMethodId: formData.acquisitionMethodId || null,

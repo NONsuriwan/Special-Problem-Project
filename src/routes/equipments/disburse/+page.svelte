@@ -45,7 +45,7 @@
   let buildingId: number | null = null;
   let roomId: number | null = null;
   let departmentId: number | null = null;
-  let remark = '';
+  let reason = '';
 
   // Submission state
   let saving = false;
@@ -157,7 +157,7 @@
             buildingId:   buildingId   ?? undefined,
             roomId:       roomId       ?? undefined,
             departmentId: departmentId ?? undefined,
-            remark:       remark.trim() || undefined,
+            reason:       reason.trim() || undefined,
           },
         }),
       });
@@ -262,7 +262,7 @@
           <label class="label">หมายเหตุ</label>
           <input
             type="text"
-            bind:value={remark}
+            bind:value={reason}
             class="input"
             placeholder="หมายเหตุ (ถ้ามี)"
           />

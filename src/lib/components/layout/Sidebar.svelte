@@ -21,7 +21,7 @@
       children: [
         { href: "/equipments/add-equipments", label: "ลงทะเบียนครุภัณฑ์",        subtitle: "เพิ่มครุภัณฑ์ใหม่เข้าสู่ระบบ",             restricted: true },
         { href: "/equipments/disburse",       label: "เบิกจ่ายครุภัณฑ์",          subtitle: "เบิกจ่ายครุภัณฑ์ที่รอดำเนินการ",            restricted: true },
-        { href: "/equipments/pending",        label: "สืบค้นครุภัณฑ์รอเบิกจ่าย",    subtitle: "รายการครุภัณฑ์ที่รอดำเนินการเบิกจ่าย" },
+        { href: "/equipments/pending",        label: "สืบค้นครุภัณฑ์รอเบิกจ่าย",    subtitle: "รายการครุภัณฑ์ที่รอดำเนินการเบิกจ่าย", restricted: true },
         { href: "/equipments/disbursed",      label: "สืบค้นครุภัณฑ์เบิกจ่ายสำเร็จ", subtitle: "รายการครุภัณฑ์ที่เบิกจ่ายเสร็จสิ้นแล้ว" },
         { href: "/equipments/depreciation",   label: "รายงานค่าเสื่อม",            subtitle: "รายงานค่าเสื่อมราคาของครุภัณฑ์" },
       ]

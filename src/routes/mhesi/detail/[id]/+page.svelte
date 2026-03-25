@@ -1,6 +1,10 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { page } from '$app/stores';
+
+  $: canAccessRestricted =
+    $page.data.user?.role === 'admin' ||
+    $page.data.user?.departmentId === 1;
   import { goto } from '$app/navigation';
   import ThaiDatePicker from '$lib/components/ui/ThaiDatePicker.svelte';
   import Dropdown from '$lib/components/ui/Dropdown.svelte';
@@ -374,14 +378,16 @@
         <p class="subtitle" style="color:#6b7280;font-weight:400"><span class="meta-label" style="color:#9ca3af">กิจกรรม:</span> {record.activityName || '-'}</p>
         <p class="code" style="color:#6b7280;font-weight:400"><span class="meta-label" style="color:#9ca3af">เลข อว.:</span> {record.mhesiNumber}</p>
       </div>
-      <div class="header-actions">
-        <button class="btn-primary" on:click={openEditModal}>
-          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="16" height="16" style="flex-shrink:0">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
-          </svg>
-          แก้ไขข้อมูล
-        </button>
-      </div>
+      {#if canAccessRestricted}
+        <div class="header-actions">
+          <button class="btn-primary" on:click={openEditModal}>
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="16" height="16" style="flex-shrink:0">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+            </svg>
+            แก้ไขข้อมูล
+          </button>
+        </div>
+      {/if}
     </div>
 
     <div class="content-grid">
@@ -479,13 +485,15 @@
       <div class="right-column">
         <div class="attachment-card">
           <h2 class="card-title">เอกสารแนบ</h2>
-          <input
-            type="file"
-            id="direct-file-input"
-            accept=".jpg,.jpeg,.png,.pdf"
-            hidden
-            on:change={(e) => { directUploadFile = e.currentTarget.files?.[0] ?? null; directUploadError = ''; e.currentTarget.value = ''; }}
-          />
+          {#if canAccessRestricted}
+            <input
+              type="file"
+              id="direct-file-input"
+              accept=".jpg,.jpeg,.png,.pdf"
+              hidden
+              on:change={(e) => { directUploadFile = e.currentTarget.files?.[0] ?? null; directUploadError = ''; e.currentTarget.value = ''; }}
+            />
+          {/if}
 
           {#if attachmentInfo}
             <div class="attachment-list">
@@ -501,43 +509,46 @@
                 </button>
               </div>
             </div>
-            <div class="attach-section-label">เปลี่ยนไฟล์</div>
+            {#if canAccessRestricted}
+              <div class="attach-section-label">เปลี่ยนไฟล์</div>
+            {/if}
           {/if}
 
-          {#if directUploadFile}
-            <div class="attach-ready">
-              <div class="attach-ready-files">
-                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="flex-shrink:0;color:#6b7280">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+          {#if canAccessRestricted}
+            {#if directUploadFile}
+              <div class="attach-ready">
+                <div class="attach-ready-files">
+                  <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="flex-shrink:0;color:#6b7280">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                  </svg>
+                  <span>{directUploadFile.name}</span>
+                </div>
+                <div class="attach-ready-actions">
+                  <button type="button" class="attach-cancel-btn" on:click={() => directUploadFile = null}>ยกเลิก</button>
+                  <button type="button" class="attach-upload-btn" disabled={directUploading} on:click={uploadDirectFile}>
+                    {directUploading ? 'กำลังอัปโหลด...' : (attachmentInfo ? 'เปลี่ยนไฟล์' : 'อัปโหลด')}
+                  </button>
+                </div>
+              </div>
+            {:else}
+              <label
+                for="direct-file-input"
+                class="upload-placeholder"
+                class:drag-over={directDragOver}
+                on:dragover|preventDefault={() => directDragOver = true}
+                on:dragleave={() => directDragOver = false}
+                on:drop={handleDirectDrop}
+              >
+                <svg class="upload-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                 </svg>
-                <span>{directUploadFile.name}</span>
-              </div>
-              <div class="attach-ready-actions">
-                <button type="button" class="attach-cancel-btn" on:click={() => directUploadFile = null}>ยกเลิก</button>
-                <button type="button" class="attach-upload-btn" disabled={directUploading} on:click={uploadDirectFile}>
-                  {directUploading ? 'กำลังอัปโหลด...' : (attachmentInfo ? 'เปลี่ยนไฟล์' : 'อัปโหลด')}
-                </button>
-              </div>
-            </div>
-          {:else}
-            <label
-              for="direct-file-input"
-              class="upload-placeholder"
-              class:drag-over={directDragOver}
-              on:dragover|preventDefault={() => directDragOver = true}
-              on:dragleave={() => directDragOver = false}
-              on:drop={handleDirectDrop}
-            >
-              <svg class="upload-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-              </svg>
-              <p>{directDragOver ? 'วางไฟล์ที่นี่' : 'คลิกเพื่อเพิ่มไฟล์แนบ'}</p>
-              <p class="hint">PDF, JPG, PNG หรือลากไฟล์มาวาง</p>
-            </label>
-          {/if}
-
-          {#if directUploadError}
-            <p class="upload-error">{directUploadError}</p>
+                <p>{directDragOver ? 'วางไฟล์ที่นี่' : 'คลิกเพื่อเพิ่มไฟล์แนบ'}</p>
+                <p class="hint">PDF, JPG, PNG หรือลากไฟล์มาวาง</p>
+              </label>
+            {/if}
+            {#if directUploadError}
+              <p class="upload-error">{directUploadError}</p>
+            {/if}
           {/if}
         </div>
       </div>

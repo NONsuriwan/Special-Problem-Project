@@ -97,6 +97,18 @@
   box-shadow: 0 0 0 2px #7c3aed;
 }
 
+.tl-dot-disburse {
+  background: #16a34a;
+  border-color: #f0fdf4;
+  box-shadow: 0 0 0 2px #16a34a;
+}
+
+.tl-badge-disburse {
+  color: #166534;
+  background: #f0fdf4;
+  border-color: #bbf7d0;
+}
+
 .tl-user {
   font-size: 0.875rem;
   font-weight: 600;

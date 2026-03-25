@@ -5,6 +5,11 @@
   import ThaiDatePicker from '$lib/components/ui/ThaiDatePicker.svelte';
   import '../../styles/pagination.css';
   import '../../styles/filter.css';
+  import { page } from '$app/stores';
+
+   $: canAccessRestricted =
+    $page.data.user?.role === 'admin' ||
+    $page.data.user?.departmentId === 1;
 
   // กำหนด Interface
   interface Project {
@@ -119,7 +124,7 @@
 
   // Master data
   let acquisitionSources: MasterData[] = [];
-  let projectTypes: MasterData[] = [];
+  let equipmentTypes: MasterData[] = [];
 
   const API_URL = 'http://localhost:3000';
 
@@ -128,10 +133,10 @@
     try {
       const [sourcesRes, typesRes] = await Promise.all([
         fetch(`${API_URL}/api/masters/acquisition-sources`, { credentials: 'include' }),
-        fetch(`${API_URL}/api/masters/project-types`, { credentials: 'include' }),
+        fetch(`${API_URL}/api/masters/equipment-types`, { credentials: 'include' }),
       ]);
       if (sourcesRes.ok) acquisitionSources = (await sourcesRes.json()).data || [];
-      if (typesRes.ok) projectTypes = (await typesRes.json()).data || [];
+      if (typesRes.ok) equipmentTypes = (await typesRes.json()).data || [];
     } catch (err) {
       console.error('Error fetching master data:', err);
     }
@@ -194,7 +199,7 @@
 
   function getProjectTypeName(id: number | null): string {
     if (!id) return '-';
-    return projectTypes.find(t => t.id === id)?.name || '-';
+    return equipmentTypes.find(t => t.id === id)?.name || '-';
   }
 
   const STATUS_LABELS: Record<string, string> = {
@@ -292,12 +297,14 @@
       {/if}
       <button class="search-submit-btn" on:click={handleSearch}>ค้นหา</button>
     </div>
+    {#if canAccessRestricted}
     <button class="btn-primary" style="margin-left:auto" on:click={handleAddProject}>
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="flex-shrink:0">
         <path d="M12 5v14M5 12h14"/>
       </svg>
       เพิ่มโครงการ
     </button>
+    {/if}
   </div>
 
   <!-- Tabs -->
@@ -309,7 +316,7 @@
       {#if hasActiveFilter}<span class="filter-dot"></span>{/if}
     </button>
     <div class="tabs">
-      {#each [{ id: null, name: 'ทั้งหมด' }, ...projectTypes] as type}
+      {#each [{ id: null, name: 'ทั้งหมด' }, ...equipmentTypes] as type}
         <button
           class="tab {activeProjectTypeId === type.id ? 'active' : ''}"
           on:click={() => { activeProjectTypeId = type.id; currentPage = 1; fetchProjects(); }}
@@ -461,7 +468,7 @@
         <label class="filter-label">ประเภท</label>
         <Dropdown
           fullWidth
-          options={[{ value: null, label: 'ทั้งหมด' }, ...projectTypes.map(t => ({ value: t.id, label: t.name }))]}
+          options={[{ value: null, label: 'ทั้งหมด' }, ...equipmentTypes.map(t => ({ value: t.id, label: t.name }))]}
           bind:value={draftProjectTypeId}
           placeholder="ทั้งหมด"
         />

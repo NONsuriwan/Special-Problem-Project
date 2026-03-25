@@ -1,10 +1,15 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
+  import { page } from '$app/stores';
   import Dropdown from '$lib/components/ui/Dropdown.svelte';
   import ThaiDatePicker from '$lib/components/ui/ThaiDatePicker.svelte';
   import '../../styles/pagination.css';
   import '../../styles/filter.css';
+
+   $: canAccessRestricted =
+    $page.data.user?.role === 'admin' ||
+    $page.data.user?.departmentId === 1;
 
   // กำหนด Interface
   interface MhesiRecord {
@@ -304,12 +309,14 @@
       {/if}
       <button class="search-submit-btn" on:click={handleSearch}>ค้นหา</button>
     </div>
-    <button class="btn-primary" style="margin-left:auto" on:click={handleAddMhesi}>
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="flex-shrink:0">
-        <path d="M12 5v14M5 12h14"/>
-      </svg>
-      เพิ่มเลข อว.
-    </button>
+    {#if canAccessRestricted}
+      <button class="btn-primary" style="margin-left:auto" on:click={handleAddMhesi}>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="flex-shrink:0">
+          <path d="M12 5v14M5 12h14"/>
+        </svg>
+        เพิ่มเลข อว.
+      </button>
+    {/if}
   </div>
 
   <!-- Tabs -->

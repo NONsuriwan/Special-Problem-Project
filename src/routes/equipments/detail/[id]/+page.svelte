@@ -75,7 +75,7 @@
   };
 
   type HistoryEntry = {
-    type: 'status_change' | 'edit';
+    type: 'status_change' | 'edit' | 'disbursement';
     status?: string;
     remark?: string;
     detail?: {
@@ -84,7 +84,7 @@
       expectedReturnDate?: string;
       borrowingBuildingId?: number;
       borrowingRoomId?: number;
-      reason?: string;
+      reason?: string | null;
       repairReason?: string;
       startDate?: string;
       repairCompany?: string;
@@ -97,6 +97,12 @@
       attachmentId?: number;
       fileName?: string;
       fileUrl?: string;
+      // disbursement fields
+      disbursedTo?: string;
+      disbursedDate?: string;
+      roomId?: number;
+      departmentId?: number;
+      buildingId?: number;
     };
     before?: Record<string, any>;
     after?: Record<string, any>;
@@ -1085,7 +1091,7 @@
             {@const diffFields = h.type === 'edit' ? getDiffFields(h.before, h.after) : []}
             <div class="tl-item">
               <div class="tl-line-wrap">
-                <div class="tl-dot" class:tl-dot-edit={h.type === 'edit'}></div>
+                <div class="tl-dot" class:tl-dot-edit={h.type === 'edit'} class:tl-dot-disburse={h.type === 'disbursement'}></div>
                 {#if idx < history.length - 1}<div class="tl-line"></div>{/if}
               </div>
               <div class="tl-body">
@@ -1095,6 +1101,8 @@
                       <span class="tl-badge tl-badge-status" style="color:{getStatusDotColor(h.status ?? '')}; background:{getStatusDotColor(h.status ?? '')}18; border-color:{getStatusDotColor(h.status ?? '')}40">
                         เปลี่ยนสถานะ → {getStatusText(h.status ?? '')}
                       </span>
+                    {:else if h.type === 'disbursement'}
+                      <span class="tl-badge tl-badge-disburse">เบิกจ่าย</span>
                     {:else}
                       <span class="tl-badge tl-badge-edit">แก้ไขข้อมูล</span>
                     {/if}
@@ -1167,6 +1175,29 @@
                     </button>
                   </div>
                 {/if}
+                {#if h.type === 'disbursement' && h.detail}
+                  <div class="tl-detail-grid">
+                    {#if h.detail.disbursedTo}
+                      <span class="tl-detail-label">เบิกจ่ายให้:</span><span class="tl-detail-val">{h.detail.disbursedTo}</span>
+                    {/if}
+                    {#if h.detail.disbursedDate}
+                      <span class="tl-detail-label">วันที่เบิกจ่าย:</span><span class="tl-detail-val">{formatDate(h.detail.disbursedDate)}</span>
+                    {/if}
+                    {#if h.detail.departmentId}
+                      <span class="tl-detail-label">หน่วยงาน:</span><span class="tl-detail-val">{getMasterName(departments, h.detail.departmentId)}</span>
+                    {/if}
+                    {#if h.detail.buildingId}
+                      <span class="tl-detail-label">อาคาร:</span><span class="tl-detail-val">{getMasterName(buildings, h.detail.buildingId)}</span>
+                    {/if}
+                    {#if h.detail.roomId}
+                      <span class="tl-detail-label">ห้อง:</span><span class="tl-detail-val">{getMasterName(rooms, h.detail.roomId)}</span>
+                    {/if}
+                    {#if h.detail.reason}
+                      <span class="tl-detail-label">เหตุผล:</span><span class="tl-detail-val">{h.detail.reason}</span>
+                    {/if}
+                  </div>
+                {/if}
+
                 {#if h.type === 'status_change' && h.remark}
                   <div class="tl-remark">
                     <svg width="13" height="13" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10M7 12h6"/></svg>

@@ -23,7 +23,7 @@
     fiscalYear?: number | null;
   };
 
-  type MhesiRecord = { uuid: string; mhesiNumber: string; activityName?: string | null };
+  type MhesiRecord = { uuid: string; mhesiNumber: string; activityName?: string | null; date?: string | null };
 
   // Master data lists
   let funds: MasterData[] = [];
@@ -91,6 +91,16 @@
       mhesiOptions = res.data || [];
     } catch (e) { console.error(e); }
     mhesiLoading = false;
+  }
+
+  // Auto-fill acquisitionDate when ใบตรวจรับ changes
+  let prevAutoFillMhesiId: string | null = null;
+  $: {
+    if (formData.mhesiId !== prevAutoFillMhesiId) {
+      prevAutoFillMhesiId = formData.mhesiId;
+      const mhesi = mhesiOptions.find(m => m.uuid === formData.mhesiId);
+      if (mhesi?.date) formData.acquisitionDate = mhesi.date.slice(0, 10);
+    }
   }
 
   let loading = false;

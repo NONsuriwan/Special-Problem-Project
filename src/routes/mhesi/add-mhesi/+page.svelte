@@ -43,10 +43,30 @@
   let mhesiOpen = false;
   let mhesiInputEl: HTMLInputElement;
 
-  // Auto-fill amount from selected project's budget
+  // Auto-fill amount from selected project's budget (only when projectId changes)
+  let prevAutoFillProjectId: number | null = null;
   $: {
+    if (formData.projectId !== prevAutoFillProjectId) {
+      prevAutoFillProjectId = formData.projectId;
+      const proj = projects.find(p => p.id === formData.projectId);
+      if (proj?.budget != null) formData.amount = String(proj.budget);
+    }
+  }
+
+  $: selectedProjectBudget = (() => {
+    if (!formData.projectId) return null;
     const proj = projects.find(p => p.id === formData.projectId);
-    if (proj?.budget != null) formData.amount = String(proj.budget);
+    return proj?.budget != null ? parseFloat(String(proj.budget)) : null;
+  })();
+
+  $: budgetExceeded =
+    selectedProjectBudget != null &&
+    !!formData.amount &&
+    parseFloat(formData.amount) > selectedProjectBudget;
+
+  function formatBudget(n: number | null) {
+    if (n == null) return '';
+    return n.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   }
 
   $: mhesiFiltered = (() => {
@@ -292,6 +312,9 @@
               class="input"
               class:input-error={errors.amount}
             />
+            {#if budgetExceeded}
+              <p class="budget-warning">⚠ ค่าใช้จ่ายเกินงบประมาณโครงการ ({formatBudget(selectedProjectBudget)} บาท)</p>
+            {/if}
           </div>
 
           <!-- หมายเหตุ -->
@@ -357,6 +380,13 @@
 {/if}
 
 <style>
+  .budget-warning {
+    margin-top: 0.375rem;
+    font-size: 0.8125rem;
+    color: #d97706;
+    font-weight: 500;
+  }
+
   .textarea {
     resize: vertical;
     min-height: 80px;
