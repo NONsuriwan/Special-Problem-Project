@@ -456,6 +456,7 @@
 
     <!-- Project Info Card -->
     <div class="info-card">
+      <h2 class="section-title" style="margin-bottom:1.25rem;">ข้อมูลทั่วไป</h2>
       <div class="info-grid">
         {#if project.projectNumber}
           <div class="info-item">
@@ -487,6 +488,15 @@
             <div class="info-value">: {formatDate(project.projectDate)}</div>
           </div>
         </div>
+        {#if project.fiscalYear}
+          <div class="info-item">
+            <span class="info-icon"><Icon name="calendar" size={24} /></span>
+            <div>
+              <div class="info-label">ปีงบประมาณ</div>
+              <div class="info-value">: {project.fiscalYear}</div>
+            </div>
+          </div>
+        {/if}
         <div class="info-item">
           <span class="info-icon"><Icon name="currency" size={24} /></span>
           <div>
@@ -501,19 +511,12 @@
             <div class="info-value">: {getAcquisitionSourceName(project.acquisitionSourceId)}</div>
           </div>
         </div>
-        <div class="info-item">
-          <span class="info-icon"><Icon name="check-circle" size={24} /></span>
-          <div>
-            <div class="info-label">สถานะ</div>
-            <div class="info-value">: {STATUS_LABELS[project.status ?? ''] || project.status || '-'}</div>
-          </div>
-        </div>
-        {#if project.fiscalYear}
+        {#if project.acquisitionMethodId}
           <div class="info-item">
-            <span class="info-icon"><Icon name="calendar" size={24} /></span>
+            <span class="info-icon"><Icon name="library" size={24} /></span>
             <div>
-              <div class="info-label">ปีงบประมาณ</div>
-              <div class="info-value">: {project.fiscalYear}</div>
+              <div class="info-label">วิธีการได้มา</div>
+              <div class="info-value">: {getAcquisitionMethodName(project.acquisitionMethodId)}</div>
             </div>
           </div>
         {/if}
@@ -526,24 +529,20 @@
             </div>
           </div>
         {/if}
-        {#if project.acquisitionMethodId}
-          <div class="info-item">
-            <span class="info-icon"><Icon name="library" size={24} /></span>
-            <div>
-              <div class="info-label">วิธีการได้มา</div>
-              <div class="info-value">: {getAcquisitionMethodName(project.acquisitionMethodId)}</div>
-            </div>
+        <div class="info-item">
+          <span class="info-icon"><Icon name="check-circle" size={24} /></span>
+          <div>
+            <div class="info-label">สถานะ</div>
+            <div class="info-value">: {STATUS_LABELS[project.status ?? ''] || project.status || '-'}</div>
           </div>
-        {/if}
-        {#if project.note}
-          <div class="info-item info-item-full">
-            <span class="info-icon"><Icon name="pencil" size={24} /></span>
-            <div>
-              <div class="info-label">หมายเหตุ</div>
-              <div class="info-value">: {project.note}</div>
-            </div>
+        </div>
+        <div class="info-item">
+          <span class="info-icon"><Icon name="pencil" size={24} /></span>
+          <div>
+            <div class="info-label">หมายเหตุ</div>
+            <div class="info-value">: {project.note || '-'}</div>
           </div>
-        {/if}
+        </div>
       </div>
     </div>
 
@@ -551,9 +550,15 @@
     <div class="section-card">
       <div class="section-header">
         <h2 class="section-title">เลข อว. ในโครงการ</h2>
-        {#if mhesiList.length > 0}
-          <span class="section-count">{mhesiList.length} รายการ</span>
-        {/if}
+        <div style="display:flex; align-items:center; gap:0.75rem;">
+          {#if mhesiList.length > 0}
+            <span class="section-count">{mhesiList.length} รายการ</span>
+          {/if}
+          <button class="btn-add-mhesi" on:click={() => goto(`/mhesi/add-mhesi?projectId=${project?.id}`)}>
+            <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="flex-shrink:0"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+            เพิ่มเลข อว.
+          </button>
+        </div>
       </div>
       {#if mhesiList.length === 0}
         <p class="empty-text">ยังไม่มีเลข อว. ในโครงการนี้</p>
@@ -569,17 +574,19 @@
                 {#each group.items as m (m.uuid ?? m.mhesiNumber)}
                   <a href="/mhesi/detail/{m.uuid}" class="mhesi-item">
                     <div class="mhesi-info">
-                      <div class="mhesi-number">{m.mhesiNumber}</div>
-                      <div class="mhesi-meta">
+                      <div class="mhesi-number-row">
+                        <span class="mhesi-number">{m.mhesiNumber}</span>
                         {#if m.activityName}
+                          <span class="mhesi-dot-sep">·</span>
                           <span class="mhesi-activity">{m.activityName}</span>
                         {/if}
+                      </div>
+                      <div class="mhesi-meta">
                         {#if m.date}
-                          <span class="mhesi-dot-sep">·</span>
                           <span class="mhesi-date">{formatDate(m.date)}</span>
                         {/if}
                         {#if m.amount}
-                          <span class="mhesi-dot-sep">·</span>
+                          {#if m.date}<span class="mhesi-dot-sep">·</span>{/if}
                           <span class="mhesi-amount">{formatCurrency(m.amount)} บาท</span>
                         {/if}
                       </div>
@@ -627,10 +634,8 @@
           <div class="equip-sub-header">
             <span class="equip-sub-badge pending">รอเบิกจ่าย</span>
             <span class="equip-sub-count">{pendingEquipment.length} รายการ</span>
-            <button
-              class="btn-disburse"
-              on:click={() => goto(`/equipments/disburse?projectId=${project?.id}`)}
-            >
+            <button class="btn-disburse" on:click={() => goto(`/equipments/disburse?projectId=${project?.id}`)}>
+              <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="flex-shrink:0"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
               เบิกจ่าย
             </button>
           </div>
@@ -665,6 +670,10 @@
           <div class="equip-sub-header" class:equip-sub-mt={pendingEquipment.length > 0}>
             <span class="equip-sub-badge disbursed">เบิกจ่ายแล้ว</span>
             <span class="equip-sub-count">{disbursedEquipment.length} รายการ</span>
+            <button class="btn-add-equip" on:click={() => goto(`/equipments/add-equipments?projectId=${project?.id}`)}>
+              <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="flex-shrink:0"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+              ลงทะเบียนครุภัณฑ์
+            </button>
           </div>
           <div class="table-scroll">
             <table class="detail-table">
@@ -1064,6 +1073,13 @@
     min-width: 0;
   }
 
+  .mhesi-number-row {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    flex-wrap: wrap;
+  }
+
   .mhesi-number {
     font-size: 0.875rem;
     font-weight: 600;
@@ -1184,19 +1200,37 @@
     margin-left: auto;
     display: inline-flex;
     align-items: center;
-    gap: 0.35rem;
-    padding: 0.3rem 0.875rem;
+    gap: 0.4rem;
+    padding: 0.5rem 1.125rem;
     background: #ffa200;
     color: #fff;
     border: none;
-    border-radius: 6px;
-    font-size: 0.8rem;
+    border-radius: 8px;
+    font-size: 0.875rem;
     font-weight: 600;
     cursor: pointer;
     transition: background 0.15s;
   }
 
   .btn-disburse:hover { background: #e69100; }
+
+  .btn-add-equip {
+    margin-left: auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.5rem 1.125rem;
+    background: #ffa200;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-size: 0.875rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+
+  .btn-add-equip:hover { background: #e69100; }
 
   /* Section Cards */
   .section-card {
@@ -1210,9 +1244,28 @@
   .section-header {
     display: flex;
     align-items: center;
+    justify-content: space-between;
     gap: 0.625rem;
     margin-bottom: 1.25rem;
   }
+
+  .btn-add-mhesi {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    background: #ffa200;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 0.5rem 1.125rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s;
+    white-space: nowrap;
+  }
+
+  .btn-add-mhesi:hover { background: #e69200; }
 
   .section-title {
     font-size: 1.125rem;

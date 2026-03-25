@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
+  import { page } from '$app/stores';
   import Dropdown from '$lib/components/ui/Dropdown.svelte';
   import ThaiDatePicker from '$lib/components/ui/ThaiDatePicker.svelte';
   import { apiFetch } from '$lib/api/client';
@@ -38,6 +39,14 @@
   let errors: Record<string, boolean> = {};
 
   let mhesiFile: File | null = null;
+  let mhesiDragOver = false;
+
+  function handleMhesiDrop(e: DragEvent) {
+    e.preventDefault();
+    mhesiDragOver = false;
+    const file = e.dataTransfer?.files?.[0];
+    if (file && /\.(pdf|jpe?g|png)$/i.test(file.name)) mhesiFile = file;
+  }
 
   // Combobox state
   let mhesiOpen = false;
@@ -198,7 +207,14 @@
     return `${ceYear}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
   }
 
-  onMount(fetchMasterData);
+  onMount(async () => {
+    await fetchMasterData();
+    const qProjectId = $page.url.searchParams.get('projectId');
+    if (qProjectId) {
+      const parsed = parseInt(qProjectId);
+      if (!isNaN(parsed)) formData.projectId = parsed;
+    }
+  });
 </script>
 
 <div class="page-container">
@@ -318,24 +334,44 @@
           </div>
 
           <!-- หมายเหตุ -->
-          <div class="form-group">
+          <div class="form-group form-group-stretch">
             <label class="label">หมายเหตุ</label>
             <textarea
               bind:value={formData.note}
-              class="input textarea"
-              rows="3"
+              class="input textarea textarea-stretch"
             ></textarea>
           </div>
 
           <!-- เอกสารแนบ -->
-          <div class="form-group">
+          <div class="form-group form-group-stretch">
             <label class="label">เอกสารแนบ</label>
-            <input
-              type="file"
-              accept=".jpg,.jpeg,.png,.webp,.pdf"
-              class="input"
-              on:change={(e) => { mhesiFile = e.currentTarget.files?.[0] ?? null; }}
-            />
+            {#if mhesiFile}
+              <div class="file-selected-row">
+                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="color:#ffa200;flex-shrink:0">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/>
+                </svg>
+                <span class="file-selected-name">{mhesiFile.name}</span>
+                <button type="button" class="file-remove-btn" on:click={() => mhesiFile = null}>
+                  <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+              </div>
+            {:else}
+              <label
+                class="file-dropzone"
+                class:file-dropzone-over={mhesiDragOver}
+                on:dragover|preventDefault={() => mhesiDragOver = true}
+                on:dragleave={() => mhesiDragOver = false}
+                on:drop={handleMhesiDrop}
+              >
+                <input type="file" accept=".jpg,.jpeg,.png,.pdf" style="display:none"
+                  on:change={(e) => { mhesiFile = e.currentTarget.files?.[0] ?? null; }} />
+                <svg class="dropzone-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+                </svg>
+                <p class="dropzone-text">คลิกเพื่อเพิ่มไฟล์แนบ</p>
+                <p class="dropzone-hint">PDF, JPG, PNG หรือลากไฟล์มาวาง</p>
+              </label>
+            {/if}
           </div>
 
         </div>
@@ -390,6 +426,21 @@
   .textarea {
     resize: vertical;
     min-height: 80px;
+  }
+
+  .form-group-stretch {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .textarea-stretch {
+    flex: 1;
+    resize: none;
+    min-height: 120px;
+  }
+
+  .form-group-stretch .file-dropzone {
+    flex: 1;
   }
 
   .input-readonly {
@@ -512,4 +563,75 @@
     white-space: nowrap;
     min-width: 0;  
   }
+  .file-dropzone {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.375rem;
+    border: 2px dashed #d1d5db;
+    border-radius: 0.625rem;
+    padding: 1.75rem 1rem;
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+    background: #fafafa;
+  }
+
+  .file-dropzone:hover,
+  .file-dropzone-over {
+    border-color: #ffa200;
+    background: #fffbf2;
+  }
+
+  .dropzone-icon {
+    width: 36px;
+    height: 36px;
+    color: #9ca3af;
+  }
+
+  .dropzone-text {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: #ffa200;
+    margin: 0;
+  }
+
+  .dropzone-hint {
+    font-size: 0.78rem;
+    color: #9ca3af;
+    margin: 0;
+  }
+
+  .file-selected-row {
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
+    border-radius: 0.5rem;
+    padding: 0.6rem 0.875rem;
+  }
+
+  .file-selected-name {
+    flex: 1;
+    font-size: 0.875rem;
+    color: #374151;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .file-remove-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #9ca3af;
+    padding: 0.125rem;
+    display: flex;
+    align-items: center;
+    border-radius: 0.25rem;
+    transition: color 0.15s;
+  }
+
+  .file-remove-btn:hover { color: #ef4444; }
 </style>

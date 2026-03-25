@@ -216,6 +216,7 @@
     activityName: '',
     date: '',
     amount: '',
+    faculty: '',
     note: '',
   };
 
@@ -310,6 +311,7 @@
       activityName: record.activityName || '',
       date: record.date ? record.date.slice(0, 10) : '',
       amount: record.amount ? String(record.amount) : '',
+      faculty: record.faculty || '',
       note: record.note || '',
     };
     editError = '';
@@ -337,6 +339,7 @@
         activityName: editForm.activityName || null,
         date: editForm.date || null,
         amount: editForm.amount ? parseFloat(editForm.amount) : null,
+        faculty: editForm.faculty || null,
         note: editForm.note || null,
       };
       if (attachmentId !== null) payload.attachmentId = attachmentId;
@@ -396,7 +399,15 @@
         <h2 class="card-title">ข้อมูลทั่วไป</h2>
 
         <div class="detail-grid">
-          <!-- เลข อว. | ประเภทเอกสาร -->
+          <!-- โครงการ | เลข อว. -->
+          <div class="detail-item">
+            <div class="detail-icon"><Icon name="folder" size={24} /></div>
+            <div class="detail-content">
+              <div class="detail-label">โครงการ</div>
+              <div class="detail-value">{getProjectName(record.projectId)}</div>
+            </div>
+          </div>
+
           <div class="detail-item">
             <div class="detail-icon"><Icon name="clipboard-list" size={24} /></div>
             <div class="detail-content">
@@ -405,6 +416,7 @@
             </div>
           </div>
 
+          <!-- ประเภทเอกสาร | ชื่อกิจกรรม -->
           <div class="detail-item">
             <div class="detail-icon"><Icon name="tag" size={24} /></div>
             <div class="detail-content">
@@ -416,32 +428,6 @@
                   -
                 {/if}
               </div>
-            </div>
-          </div>
-
-          <!-- คณะ | แผนงาน -->
-          <div class="detail-item">
-            <div class="detail-icon"><Icon name="academic-cap" size={24} /></div>
-            <div class="detail-content">
-              <div class="detail-label">คณะ/ส่วนงาน</div>
-              <div class="detail-value">{record.faculty || getDepartmentName(record.departmentId)}</div>
-            </div>
-          </div>
-
-          <div class="detail-item">
-            <div class="detail-icon"><Icon name="chart-bar" size={24} /></div>
-            <div class="detail-content">
-              <div class="detail-label">แผนงาน</div>
-              <div class="detail-value">{getPlanName(record.planId)}</div>
-            </div>
-          </div>
-
-          <!-- โครงการ | ชื่อกิจกรรม -->
-          <div class="detail-item">
-            <div class="detail-icon"><Icon name="folder" size={24} /></div>
-            <div class="detail-content">
-              <div class="detail-label">โครงการ</div>
-              <div class="detail-value">{getProjectName(record.projectId)}</div>
             </div>
           </div>
 
@@ -467,6 +453,23 @@
             <div class="detail-content">
               <div class="detail-label">จำนวนเงิน</div>
               <div class="detail-value">{formatCurrency(record.amount)} บาท</div>
+            </div>
+          </div>
+
+          <!-- คณะ | แผนงาน -->
+          <div class="detail-item">
+            <div class="detail-icon"><Icon name="academic-cap" size={24} /></div>
+            <div class="detail-content">
+              <div class="detail-label">คณะ/ส่วนงาน</div>
+              <div class="detail-value">{record.faculty || getDepartmentName(record.departmentId)}</div>
+            </div>
+          </div>
+
+          <div class="detail-item">
+            <div class="detail-icon"><Icon name="chart-bar" size={24} /></div>
+            <div class="detail-content">
+              <div class="detail-label">แผนงาน</div>
+              <div class="detail-value">{getPlanName(record.planId)}</div>
             </div>
           </div>
 
@@ -669,6 +672,15 @@
       </div>
       <div class="edit-form">
         <div class="form-group">
+          <label class="form-label">โครงการ</label>
+          <Dropdown
+            fullWidth
+            options={projects.map(p => ({ value: p.id, label: p.projectName }))}
+            bind:value={editForm.projectId}
+            placeholder="เลือกโครงการ"
+          />
+        </div>
+        <div class="form-group">
           <label class="form-label">เลข อว.</label>
           <input class="form-input" type="text" bind:value={editForm.mhesiNumber} />
         </div>
@@ -679,24 +691,6 @@
             options={ROLE_OPTIONS}
             bind:value={editForm.role}
             placeholder="เลือกประเภท"
-          />
-        </div>
-        <div class="form-group">
-          <label class="form-label">โครงการ</label>
-          <Dropdown
-            fullWidth
-            options={projects.map(p => ({ value: p.id, label: p.projectName }))}
-            bind:value={editForm.projectId}
-            placeholder="เลือกโครงการ"
-          />
-        </div>
-        <div class="form-group">
-          <label class="form-label">แผนงาน</label>
-          <Dropdown
-            fullWidth
-            options={plans.map(p => ({ value: p.id, label: p.name }))}
-            bind:value={editForm.planId}
-            placeholder="เลือกแผนงาน"
           />
         </div>
         <div class="form-group">
@@ -711,6 +705,19 @@
           <label class="form-label">จำนวนเงิน</label>
           <input class="form-input" type="text" inputmode="decimal" bind:value={editForm.amount}
             on:input={(e) => { editForm.amount = e.currentTarget.value.replace(/[^0-9.]/g, ''); }} />
+        </div>
+        <div class="form-group">
+          <label class="form-label">คณะ/ส่วนงาน</label>
+          <input class="form-input" type="text" bind:value={editForm.faculty} placeholder="ชื่อคณะ/ส่วนงาน" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">แผนงาน</label>
+          <Dropdown
+            fullWidth
+            options={plans.map(p => ({ value: p.id, label: p.name }))}
+            bind:value={editForm.planId}
+            placeholder="เลือกแผนงาน"
+          />
         </div>
         <div class="form-group full-col">
           <label class="form-label">หมายเหตุ</label>
