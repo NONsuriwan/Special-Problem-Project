@@ -1,7 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import Dropdown from '$lib/components/ui/Dropdown.svelte';
-  import ThaiDatePicker from '$lib/components/ui/ThaiDatePicker.svelte';
 
   const API_URL = 'http://localhost:3000';
 
@@ -75,11 +74,15 @@
 
   $: if (fyStart !== null) {
     const ce = fyStart - 543;
-    startDate = `${ce - 1}-10-01`;
+    startDate = `${ce}-10-01`;
+  } else {
+    startDate = '';
   }
   $: if (fyEnd !== null) {
     const ce = fyEnd - 543;
     endDate = `${ce}-09-30`;
+  } else {
+    endDate = '';
   }
 
   function formatDate(d: string | null) {
@@ -169,8 +172,6 @@
         { label: 'กองทุน', value: label(funds, fundId) },
         { label: 'ประเภท', value: label(equipmentTypes, equipmentTypeId) },
         { label: 'แหล่งเงินทุน', value: label(acquisitionSources, acquisitionSourceId) },
-        { label: 'ปีงบประมาณเริ่มต้น', value: fyStart ? String(fyStart) : 'ทั้งหมด' },
-        { label: 'ปีงบประมาณสิ้นสุด', value: fyEnd ? String(fyEnd) : 'ทั้งหมด' },
         { label: 'วิธีการได้มา', value: label(acquisitionMethods, acquisitionMethodId) },
         { label: 'มูลค่าต่ำสุด', value: minPrice.trim() ? `${Number(minPrice).toLocaleString('th-TH')} บาท` : 'ทั้งหมด' },
       ];
@@ -203,29 +204,23 @@
       <div class="field" class:field-error={errors.startDate}>
         <!-- svelte-ignore a11y_label_has_associated_control -->
         <label class="label">วันเริ่มปีงบประมาณ <span class="req">*</span></label>
-        <ThaiDatePicker
-          bind:value={startDate}
-          error={errors.startDate}
-          inputClass="finput"
-          on:change={(e) => { if (endDate && e.detail > endDate) endDate = ''; }}
-        />
-        <p class="number-preview">
-          ตัวอย่าง: 01/10/2565 
-        </p>
+        <Dropdown fullWidth options={[{ value: null, label: 'เลือกปี' }, ...fyOptions]} bind:value={fyStart} placeholder="เลือกปี" />
+        {#if fyStart !== null}
+          <p class="number-preview">1 ตุลาคม {fyStart}</p>
+        {:else}
+          <p class="number-preview">วันที่ 1 ตุลาคม ของปีที่เลือก</p>
+        {/if}
       </div>
 
       <div class="field" class:field-error={errors.endDate}>
         <!-- svelte-ignore a11y_label_has_associated_control -->
         <label class="label">วันสิ้นปีงบประมาณ <span class="req">*</span></label>
-        <ThaiDatePicker
-          bind:value={endDate}
-          error={errors.endDate}
-          inputClass="finput"
-          on:change={(e) => { if (startDate && e.detail < startDate) endDate = startDate; }}
-        />
-        <p class="number-preview">
-          ตัวอย่าง: 30/09/2566
-        </p>
+        <Dropdown fullWidth options={[{ value: null, label: 'เลือกปี' }, ...fyOptions]} bind:value={fyEnd} placeholder="เลือกปี" />
+        {#if fyEnd !== null}
+          <p class="number-preview">30 กันยายน {fyEnd}</p>
+        {:else}
+          <p class="number-preview">วันที่ 30 กันยายน ของปีที่เลือก</p>
+        {/if}
       </div>
 
       <div class="field">
@@ -250,18 +245,6 @@
         <!-- svelte-ignore a11y_label_has_associated_control -->
         <label class="label">ประเภท</label>
         <Dropdown fullWidth options={[{ value: null, label: 'ทั้งหมด' }, ...equipmentTypes.map(t => ({ value: t.id, label: t.name }))]} bind:value={equipmentTypeId} placeholder="ทั้งหมด" />
-      </div>
-
-      <div class="field">
-        <!-- svelte-ignore a11y_label_has_associated_control -->
-        <label class="label">ปีงบประมาณเริ่มต้น</label>
-        <Dropdown fullWidth options={[{ value: null, label: 'ทั้งหมด' }, ...fyOptions]} bind:value={fyStart} placeholder="ทั้งหมด" />
-      </div>
-
-      <div class="field">
-        <!-- svelte-ignore a11y_label_has_associated_control -->
-        <label class="label">ปีงบประมาณสิ้นสุด</label>
-        <Dropdown fullWidth options={[{ value: null, label: 'ทั้งหมด' }, ...fyOptions]} bind:value={fyEnd} placeholder="ทั้งหมด" />
       </div>
 
       <div class="field">
