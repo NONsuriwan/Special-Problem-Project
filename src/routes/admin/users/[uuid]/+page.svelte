@@ -24,7 +24,6 @@
 
   const roleOptions = [
     { value: 'user',    label: 'User' },
-    { value: 'manager', label: 'Manager' },
     { value: 'admin',   label: 'Admin' },
   ];
 
