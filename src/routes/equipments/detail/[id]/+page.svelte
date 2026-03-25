@@ -1089,6 +1089,7 @@
         <div class="timeline">
           {#each history as h, idx}
             {@const diffFields = h.type === 'edit' ? getDiffFields(h.before, h.after) : []}
+            {@const isFileUploadEdit = h.type === 'edit' && (h.after?.fileUrls != null || (h.after?.uploadedFiles ?? 0) > 0) && Object.keys(h.before ?? {}).length === 0}
             <div class="tl-item">
               <div class="tl-line-wrap">
                 <div class="tl-dot" class:tl-dot-edit={h.type === 'edit'} class:tl-dot-disburse={h.type === 'disbursement'}></div>
@@ -1103,6 +1104,8 @@
                       </span>
                     {:else if h.type === 'disbursement'}
                       <span class="tl-badge tl-badge-disburse">เบิกจ่าย</span>
+                    {:else if isFileUploadEdit}
+                      <span class="tl-badge tl-badge-upload">เพิ่มไฟล์ {h.after?.uploadedFiles ?? (h.after?.fileUrls?.length ?? 0)} รายการ</span>
                     {:else}
                       <span class="tl-badge tl-badge-edit">แก้ไขข้อมูล</span>
                     {/if}
