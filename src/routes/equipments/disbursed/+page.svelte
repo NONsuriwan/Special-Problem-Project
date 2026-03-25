@@ -152,7 +152,7 @@
       if (activeRoomId)     params.set('roomId',              String(activeRoomId));
       if (activeUnitId)     params.set('supportUnitId',       String(activeUnitId));
       if (activeSourceId)   params.set('acquisitionSourceId', String(activeSourceId));
-      if (activeBudgetYear) params.set('budgetYear',          String(activeBudgetYear));
+      if (activeBudgetYear) params.set('fiscalYear',          String(activeBudgetYear));
       if (activePriceMin)   params.set('priceMin',            activePriceMin);
       if (activePriceMax)   params.set('priceMax',            activePriceMax);
       const result = await apiFetch<ApiResponse>(`${API_ENDPOINTS.ASSETS}?${params.toString()}`);

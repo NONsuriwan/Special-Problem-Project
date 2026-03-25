@@ -118,7 +118,7 @@
       if (sortBy) { params.set('sortBy', sortBy); params.set('sortDir', sortDir); }
       if (activeTypeId)   params.set('equipmentTypeId',     String(activeTypeId));
       if (activeSourceId) params.set('acquisitionSourceId', String(activeSourceId));
-      if (activeBudgetYear) params.set('budgetYear',          String(activeBudgetYear));
+      if (activeBudgetYear) params.set('fiscalYear',          String(activeBudgetYear));
       if (activePriceMin)   params.set('priceMin',            activePriceMin);
       if (activePriceMax)   params.set('priceMax',            activePriceMax);
       const result = await apiFetch<ApiResponse>(`${API_ENDPOINTS.ASSETS}?${params.toString()}`);
