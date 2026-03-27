@@ -55,6 +55,9 @@
     fundId: null as number | null,
     acquisitionSourceId: null as number | null,
     acquisitionMethodId: null as number | null,
+    warrantyYears: null as number | null,
+    warrantyMonths: null as number | null,
+    warrantyAttachmentId: null as number | null,
     unit: '',
     company: '',
     sizeDetail: '',
@@ -108,6 +111,31 @@
   let errorMessage = '';
   let errors: Record<string, boolean> = {};
   let attachmentFiles: File[] = [];
+
+  // Warranty attachment
+  let warrantyFile: File | null = null;
+
+  const warrantyYearOpts = Array.from({ length: 10 }, (_, i) => ({ value: i + 1, label: `${i + 1} ปี` }));
+  const warrantyMonthOpts = Array.from({ length: 11 }, (_, i) => ({ value: i + 1, label: `${i + 1} เดือน` }));
+
+  // warrantyEnd: acquisitionDate + warrantyYears + warrantyMonths (pure arithmetic, no Date constructor)
+  function computeWarrantyEnd(date: string, years: number, months: number): string {
+    if (!date || (!years && !months)) return '';
+    const parts = date.split('-');
+    if (parts.length !== 3) return '';
+    let y = parseInt(parts[0]);
+    let m = parseInt(parts[1]) - 1; // 0-indexed
+    const d = parseInt(parts[2]);
+    m += months;
+    y += years + Math.floor(m / 12);
+    m = ((m % 12) + 12) % 12;
+    return `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+  }
+  $: warrantyEnd = computeWarrantyEnd(
+    formData.acquisitionDate,
+    formData.warrantyYears ?? 0,
+    formData.warrantyMonths ?? 0
+  );
 
   function getFileType(file: File): 'pdf' | 'image' | 'other' {
     if (file.type === 'application/pdf') return 'pdf';
@@ -185,6 +213,17 @@
     loading = true;
 
     try {
+      // Upload warranty file if selected
+      if (warrantyFile) {
+        const fd = new FormData();
+        fd.append('file', warrantyFile);
+        const res = await apiFetch<{ data: { id: number } }>(
+          `${API_ENDPOINTS.ATTACHMENTS_UPLOAD}?folder=equipments`,
+          { method: 'POST', body: fd }
+        );
+        formData.warrantyAttachmentId = res.data?.id ?? null;
+      }
+
       // Map frontend field names to backend schema names
       const submitData = {
         equipmentCode: formData.assetCode,
@@ -209,6 +248,10 @@
         roomId: formData.roomId || null,
         projectId: formData.projectId || null,
         receivingMhesiId: formData.mhesiId || null,
+        warrantyYears: formData.warrantyYears ?? undefined,
+        warrantyMonths: formData.warrantyMonths ?? undefined,
+        warrantyEnd: warrantyEnd || undefined,
+        warrantyAttachmentId: formData.warrantyAttachmentId || undefined,
         note: formData.note || null,
         status: 'normal',
       };
@@ -447,6 +490,28 @@
             />
           </div>
 
+          <!-- ระยะเวลาประกัน -->
+          <div class="form-group full-width">
+            <label class="label">ระยะเวลาประกัน</label>
+            <div class="warranty-period-row">
+              <Dropdown
+                fullWidth
+                options={warrantyYearOpts}
+                bind:value={formData.warrantyYears}
+                placeholder="ปี"
+              />
+              <Dropdown
+                fullWidth
+                options={warrantyMonthOpts}
+                bind:value={formData.warrantyMonths}
+                placeholder="เดือน"
+              />
+              {#if warrantyEnd}
+                <span class="warranty-end-text">วันสิ้นสุด: {isoToBeDisplay(warrantyEnd)}</span>
+              {/if}
+            </div>
+          </div>
+
           <!-- หน่วยนับ -->
           <div class="form-group">
             <label class="label">หน่วยนับ <span class="required">*</span></label>
@@ -490,10 +555,37 @@
             ></textarea>
           </div>
 
-          <!-- เอกสารแนบ -->
+          <!-- เอกสารประกัน -->
+          <div class="form-group full-width">
+            <label class="label">เอกสารประกัน</label>
+            {#if warrantyFile}
+              <div class="warranty-staged">
+                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="flex-shrink:0;color:#6b7280">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                </svg>
+                <span class="warranty-filename">{warrantyFile.name}</span>
+                <button type="button" class="file-remove-text" on:click={() => warrantyFile = null}>ลบ</button>
+              </div>
+            {:else}
+              <label class="warranty-pick-label">
+                <input
+                  type="file"
+                  accept=".pdf,.jpg,.jpeg,.png"
+                  hidden
+                  on:change={(e) => { warrantyFile = e.currentTarget.files?.[0] ?? null; e.currentTarget.value = ''; }}
+                />
+                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                </svg>
+                เลือกไฟล์เอกสารประกัน
+              </label>
+            {/if}
+          </div>
+
+          <!-- เอกสารแนบเพิ่มเติม -->
           <div class="form-group full-width">
             <label class="label">
-              เอกสารแนบ
+              เอกสารแนบเพิ่มเติม
             </label>
             <div class="file-upload">
               <input
@@ -734,8 +826,74 @@
   }
   
   .number-preview {
-  font-size: 0.875rem;
-  color: #9a9b9c;
-  margin-top: 0.25rem;
-}
+    font-size: 0.875rem;
+    color: #9a9b9c;
+    margin-top: 0.25rem;
+  }
+
+  .warranty-period-row {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+  }
+
+  .warranty-period-row :global(.dropdown-wrapper) {
+    flex: 1;
+  }
+
+  .warranty-end-text {
+    font-size: 0.875rem;
+    color: #6b7280;
+    white-space: nowrap;
+  }
+
+  .warranty-staged {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
+    border-radius: 0.375rem;
+    font-size: 0.875rem;
+    color: #374151;
+  }
+
+  .warranty-filename {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .file-remove-text {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 0.8125rem;
+    color: #6b7280;
+    padding: 0;
+    text-decoration: underline;
+    white-space: nowrap;
+  }
+
+  .warranty-pick-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.5rem 0.875rem;
+    border: 1px dashed #d1d5db;
+    border-radius: 0.375rem;
+    font-size: 0.875rem;
+    color: #6b7280;
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+  }
+
+  .warranty-pick-label:hover {
+    border-color: #ffa200;
+    background: #fffbf5;
+    color: #374151;
+  }
+
 </style>

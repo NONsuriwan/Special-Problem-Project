@@ -44,6 +44,7 @@
   let disbursedDate = '';
   let buildingId: number | null = null;
   let roomId: number | null = null;
+  let floor = '';
   let departmentId: number | null = null;
   let reason = '';
 
@@ -154,9 +155,10 @@
           data: {
             disbursedTo:  disbursedTo.trim(),
             disbursedDate,
-            buildingId:   buildingId   ?? undefined,
-            roomId:       roomId       ?? undefined,
-            departmentId: departmentId ?? undefined,
+            buildingId:   buildingId        ?? undefined,
+            roomId:       roomId            ?? undefined,
+            floor:        floor.trim()      || undefined,
+            departmentId: departmentId      ?? undefined,
             reason:       reason.trim() || undefined,
           },
         }),
@@ -243,6 +245,17 @@
             options={filteredRooms.map(r => ({ value: r.id, label: r.name }))}
             bind:value={roomId}
             placeholder="กรุณาเลือก"
+          />
+        </div>
+
+        <!-- ชั้นที่จัดตั้ง -->
+        <div class="form-group">
+          <label class="label">ชั้นที่จัดตั้ง</label>
+          <input
+            type="text"
+            bind:value={floor}
+            class="input"
+            placeholder="เช่น 1, 2, 3"
           />
         </div>
 

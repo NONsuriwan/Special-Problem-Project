@@ -134,7 +134,7 @@
     try {
       const fd = new FormData();
       for (const f of additionalFiles) {
-        fd.append('file', f);
+        fd.append('files', f);
       }
       await apiFetch(`/api/mhesi/${uuid}/attachments`, {
         method: 'POST',
