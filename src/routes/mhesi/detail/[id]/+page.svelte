@@ -28,6 +28,8 @@
     note: string | null;
     attachmentId: number | null;
     attachment?: { id: number; fileName: string; filePath: string } | null;
+    mainAttachment?: { id: number; fileName: string; fileType: string; fileUrl: string } | null;
+    additionalAttachments?: { id: number; fileName: string; fileUrl: string }[];
     createdAt: string;
     updatedAt: string;
   };
@@ -50,6 +52,12 @@
   let directUploading = false;
   let directUploadError = '';
   let directDragOver = false;
+
+  // Additional attachments
+  let additionalFiles: File[] = [];
+  let additionalUploading = false;
+  let additionalUploadError = '';
+  let additionalDragOver = false;
 
   function handleDirectDrop(e: DragEvent) {
     e.preventDefault();
@@ -102,6 +110,42 @@
       directUploadError = e instanceof Error ? e.message : 'อัปโหลดไม่สำเร็จ';
     } finally {
       directUploading = false;
+    }
+  }
+
+  function handleAdditionalDrop(e: DragEvent) {
+    e.preventDefault();
+    additionalDragOver = false;
+    const files = Array.from(e.dataTransfer?.files ?? []).filter(f =>
+      /\.(pdf|jpe?g|png)$/i.test(f.name)
+    );
+    additionalFiles = [...additionalFiles, ...files];
+    additionalUploadError = '';
+  }
+
+  function removeAdditionalFile(idx: number) {
+    additionalFiles = additionalFiles.filter((_, i) => i !== idx);
+  }
+
+  async function uploadAdditionalFiles() {
+    if (!additionalFiles.length || !record) return;
+    additionalUploading = true;
+    additionalUploadError = '';
+    try {
+      const fd = new FormData();
+      for (const f of additionalFiles) {
+        fd.append('file', f);
+      }
+      await apiFetch(`/api/mhesi/${uuid}/attachments`, {
+        method: 'POST',
+        body: fd,
+      });
+      additionalFiles = [];
+      await fetchAll();
+    } catch (e) {
+      additionalUploadError = e instanceof Error ? e.message : 'อัปโหลดไม่สำเร็จ';
+    } finally {
+      additionalUploading = false;
     }
   }
 
@@ -235,8 +279,15 @@
       record = recData.data ?? null;
       if (!record) error = 'ไม่พบข้อมูลเลข อว.';
 
-      // fetch attachment info ถ้ามี
-      if (record?.attachmentId) {
+      // fetch attachment info ถ้ามี (fallback ถ้า API ไม่ return mainAttachment)
+      if (record?.mainAttachment) {
+        attachmentInfo = {
+          id: record.mainAttachment.id,
+          fileName: record.mainAttachment.fileName,
+          filePath: record.mainAttachment.fileUrl,
+          refType: '',
+        };
+      } else if (record?.attachmentId) {
         try {
           const attData = await apiFetch<{ data: AttachmentInfo }>(
             API_ENDPOINTS.ATTACHMENT_DETAIL(record.attachmentId)
@@ -484,7 +535,13 @@
       <!-- Right Column: Attachments -->
       <div class="right-column">
         <div class="attachment-card">
+          <!-- ──────── เอกสารแนบหลัก ──────── -->
           <h2 class="card-title">เอกสารแนบ</h2>
+
+          <div class="attach-section-header">
+            <span class="attach-section-title">เอกสารแนบหลัก</span>
+          </div>
+
           {#if canAccessRestricted}
             <input
               type="file"
@@ -512,6 +569,8 @@
             {#if canAccessRestricted}
               <div class="attach-section-label">เปลี่ยนไฟล์</div>
             {/if}
+          {:else}
+            <p class="no-attachment-text">ยังไม่มีเอกสารแนบหลัก</p>
           {/if}
 
           {#if canAccessRestricted}
@@ -542,12 +601,96 @@
                 <svg class="upload-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                 </svg>
-                <p>{directDragOver ? 'วางไฟล์ที่นี่' : 'คลิกเพื่อเพิ่มไฟล์แนบ'}</p>
+                <p>{directDragOver ? 'วางไฟล์ที่นี่' : (attachmentInfo ? 'คลิกเพื่อเปลี่ยนไฟล์' : 'คลิกเพื่อเพิ่มไฟล์แนบ')}</p>
                 <p class="hint">PDF, JPG, PNG หรือลากไฟล์มาวาง</p>
               </label>
             {/if}
             {#if directUploadError}
               <p class="upload-error">{directUploadError}</p>
+            {/if}
+          {/if}
+
+          <!-- ──────── เอกสารแนบเพิ่มเติม ──────── -->
+          <div class="attach-divider"></div>
+
+          <div class="attach-section-header">
+            <span class="attach-section-title">เอกสารแนบเพิ่มเติม</span>
+          </div>
+
+          {#if record.additionalAttachments && record.additionalAttachments.length > 0}
+            <div class="attachment-list" style="margin-bottom:0.75rem">
+              {#each record.additionalAttachments as att}
+                <div class="attachment-item">
+                  <svg class="file-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  <div class="file-info">
+                    <div class="file-name">{att.fileName}</div>
+                  </div>
+                  <button class="btn-preview" on:click={() => loadPreviewById(att.id, att.fileName)} disabled={previewLoading}>
+                    {previewLoading ? 'กำลังโหลด...' : 'ดูไฟล์'}
+                  </button>
+                </div>
+              {/each}
+            </div>
+          {:else if additionalFiles.length === 0}
+            <p class="no-attachment-text">ยังไม่มีเอกสารแนบเพิ่มเติม</p>
+          {/if}
+
+          {#if canAccessRestricted}
+            <input
+              type="file"
+              id="additional-file-input"
+              accept=".jpg,.jpeg,.png,.pdf"
+              multiple
+              hidden
+              on:change={(e) => {
+                const picked = Array.from(e.currentTarget.files ?? []).filter(f => /\.(pdf|jpe?g|png)$/i.test(f.name));
+                additionalFiles = [...additionalFiles, ...picked];
+                additionalUploadError = '';
+                e.currentTarget.value = '';
+              }}
+            />
+
+            {#if additionalFiles.length > 0}
+              <div class="additional-staged">
+                {#each additionalFiles as f, i}
+                  <div class="attach-ready" style="margin-bottom:0.375rem">
+                    <div class="attach-ready-files">
+                      <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="flex-shrink:0;color:#6b7280">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                      </svg>
+                      <span>{f.name}</span>
+                    </div>
+                    <button type="button" class="attach-cancel-btn" style="padding:0.25rem 0.625rem" on:click={() => removeAdditionalFile(i)}>✕</button>
+                  </div>
+                {/each}
+                <div style="display:flex;gap:0.5rem;margin-top:0.25rem">
+                  <label for="additional-file-input" class="attach-cancel-btn" style="cursor:pointer;text-align:center;flex:1">+ เพิ่มไฟล์</label>
+                  <button type="button" class="attach-upload-btn" style="flex:2" disabled={additionalUploading} on:click={uploadAdditionalFiles}>
+                    {additionalUploading ? 'กำลังอัปโหลด...' : `อัปโหลด ${additionalFiles.length} ไฟล์`}
+                  </button>
+                </div>
+              </div>
+            {:else}
+              <label
+                for="additional-file-input"
+                class="upload-placeholder"
+                class:drag-over={additionalDragOver}
+                on:dragover|preventDefault={() => additionalDragOver = true}
+                on:dragleave={() => additionalDragOver = false}
+                on:drop={handleAdditionalDrop}
+                style="padding:1rem"
+              >
+                <svg class="upload-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:1.75rem;height:1.75rem;margin-bottom:0.5rem">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                </svg>
+                <p>{additionalDragOver ? 'วางไฟล์ที่นี่' : 'คลิกเพื่อเพิ่มเอกสารแนบ'}</p>
+                <p class="hint">PDF, JPG, PNG · เลือกได้หลายไฟล์</p>
+              </label>
+            {/if}
+            {#if additionalUploadError}
+              <p class="upload-error">{additionalUploadError}</p>
             {/if}
           {/if}
         </div>
@@ -1247,6 +1390,37 @@
     color: #dc2626;
     font-size: 0.8125rem;
     margin-top: 0.5rem;
+  }
+
+  .attach-section-header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 0.75rem;
+  }
+
+  .attach-section-title {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: #374151;
+    background: #f3f4f6;
+    border-radius: 0.375rem;
+    padding: 0.2rem 0.625rem;
+  }
+
+  .attach-divider {
+    border: none;
+    border-top: 1px solid #f0f0f0;
+    margin: 1.25rem 0 1rem;
+  }
+
+  .no-attachment-text {
+    font-size: 0.8125rem;
+    color: #9ca3af;
+    margin: 0 0 0.75rem 0;
+  }
+
+  .additional-staged {
+    margin-top: 0.25rem;
   }
 
   /* Preview modal */
