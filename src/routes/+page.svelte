@@ -6,7 +6,7 @@
   import { API_ENDPOINTS } from '$lib/api/endpoints';
 
   let stats = [
-    { label: 'ครุภัณฑ์ทั้งหมด', value: '-', icon: 'box',          color: '#f39c12', bg: '#fff8ec' },
+    { label: 'ครุภัณฑ์ทั้งหมด', value: '-', icon: 'box',          color: '#ffa200', bg: '#fff8ec' },
     { label: 'พร้อมใช้งาน',      value: '-', icon: 'check-circle', color: '#16a34a', bg: '#f0fdf4' },
     { label: 'ถูกยืม',           value: '-', icon: 'inbox',        color: '#2563eb', bg: '#eff6ff' },
     { label: 'กำลังซ่อม',        value: '-', icon: 'wrench',       color: '#d97706', bg: '#fffbeb' },
@@ -23,7 +23,7 @@
       const { data } = await apiFetch<{ data: { total: string; byStatus: { status: string; count: number }[] } }>(API_ENDPOINTS.ASSET_STATS);
       const by = data.byStatus ?? [];
       stats = [
-        { label: 'ครุภัณฑ์ทั้งหมด', value: Number(data.total).toLocaleString('th-TH'), icon: 'box',          color: '#f39c12', bg: '#fff8ec' },
+        { label: 'ครุภัณฑ์ทั้งหมด', value: Number(data.total).toLocaleString('th-TH'), icon: 'box',          color: '#ffa200', bg: '#fff8ec' },
         { label: 'พร้อมใช้งาน',      value: getCount(by, 'normal'),      icon: 'check-circle', color: '#16a34a', bg: '#f0fdf4' },
         { label: 'ถูกยืม',           value: getCount(by, 'borrowed'),     icon: 'inbox',        color: '#2563eb', bg: '#eff6ff' },
         { label: 'กำลังซ่อม',        value: getCount(by, 'repair'),       icon: 'wrench',       color: '#d97706', bg: '#fffbeb' },
@@ -43,18 +43,86 @@
   let selectedPeriod = periods[0].value;
 </script>
 
-<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-  {#each stats as s}
-    <StatCard {...s} />
-  {/each}
+<div class="dashboard">
+  <!-- สรุปสถานะครุภัณฑ์ -->
+  <div class="dash-card">
+    <h2 class="dash-card-title">สรุปสถานะครุภัณฑ์</h2>
+    <div class="stats-grid">
+      {#each stats as s}
+        <StatCard {...s} />
+      {/each}
+    </div>
+  </div>
+
+  <!-- สถิติการใช้งาน -->
+  <div class="dash-card">
+    <div class="dash-card-header">
+      <h2 class="dash-card-title">สถิติการใช้งานครุภัณฑ์</h2>
+      <Dropdown options={periods} bind:value={selectedPeriod} />
+    </div>
+    <div class="chart-placeholder">
+      (พื้นที่สำหรับกราฟ/แดชบอร์ด)
+    </div>
+  </div>
 </div>
 
-<div class="mt-8 rounded-xl border bg-white p-6">
-  <div class="flex items-center justify-between">
-    <h2 class="font-bold text-lg">สถิติการใช้งานครุภัณฑ์</h2>
-    <Dropdown options={periods} bind:value={selectedPeriod} />
-  </div>
-  <div class="mt-6 h-56 grid place-items-center text-gray-500">
-    (พื้นที่สำหรับกราฟ/แดชบอร์ด)
-  </div>
-</div>
+<style>
+  .dashboard {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+  }
+
+  .dash-card {
+    background: white;
+    border-radius: 0.75rem;
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+    padding: 1.5rem;
+  }
+
+  .dash-card-title {
+    font-size: 1.0625rem;
+    font-weight: 600;
+    color: #1f2937;
+    margin: 0 0 1.25rem 0;
+  }
+
+  .dash-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1.25rem;
+  }
+
+  .dash-card-header .dash-card-title {
+    margin: 0;
+  }
+
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.875rem;
+  }
+
+  @media (max-width: 900px) {
+    .stats-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+
+  @media (max-width: 560px) {
+    .stats-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  .chart-placeholder {
+    height: 14rem;
+    display: grid;
+    place-items: center;
+    color: #9ca3af;
+    font-size: 0.9rem;
+    background: #f9fafb;
+    border-radius: 0.5rem;
+  }
+</style>
