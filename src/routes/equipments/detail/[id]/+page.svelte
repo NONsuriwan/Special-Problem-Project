@@ -133,6 +133,7 @@
     sizeDetail:          'รายละเอียดขนาด',
     unit:                'หน่วย',
     note:                'หมายเหตุ',
+    warrantyAttachmentId: 'เอกสารประกัน',
   };
 
   function resolveFieldValue(field: string, val: any): string {
@@ -353,6 +354,63 @@
       history = result.data || [];
     } catch (_) {}
   }
+
+  type DisplayEntry = HistoryEntry & { groupedFiles?: { attachmentId: number; fileName: string }[] };
+
+  let attachmentNameCache: Record<number, string> = {};
+
+  async function prefetchWarrantyNames(entries: DisplayEntry[]) {
+    const ids = entries
+      .filter(h => h.type === 'edit' && h.after?.warrantyAttachmentId)
+      .map(h => h.after!.warrantyAttachmentId as number)
+      .filter(id => !(id in attachmentNameCache));
+    for (const id of [...new Set(ids)]) {
+      try {
+        const res = await apiFetch<{ data: { id: number; fileName: string } }>(API_ENDPOINTS.ATTACHMENT_DETAIL(id));
+        if (res.data?.fileName) attachmentNameCache = { ...attachmentNameCache, [id]: res.data.fileName };
+      } catch (_) {}
+    }
+  }
+
+  const FILE_ONLY_KEYS = new Set(['attachmentId', 'fileName', 'fileUrl']);
+
+  function isFileOnlyEdit(h: HistoryEntry): boolean {
+    return h.type === 'edit' &&
+      !!h.after?.attachmentId &&
+      !!h.after?.fileName &&
+      Object.keys(h.before ?? {}).length === 0 &&
+      Object.keys(h.after ?? {}).every(k => FILE_ONLY_KEYS.has(k));
+  }
+
+  $: displayHistory = (() => {
+    const result: DisplayEntry[] = [];
+    let i = 0;
+    while (i < history.length) {
+      const h = history[i];
+      if (isFileOnlyEdit(h)) {
+        const files: { attachmentId: number; fileName: string }[] = [
+          { attachmentId: h.after!.attachmentId, fileName: h.after!.fileName }
+        ];
+        const baseMinute = h.createdAt.slice(0, 16);
+        let j = i + 1;
+        while (j < history.length &&
+               isFileOnlyEdit(history[j]) &&
+               history[j].createdBy === h.createdBy &&
+               history[j].createdAt.slice(0, 16) === baseMinute) {
+          files.push({ attachmentId: history[j].after!.attachmentId, fileName: history[j].after!.fileName });
+          j++;
+        }
+        result.push({ ...h, groupedFiles: files });
+        i = j;
+      } else {
+        result.push(h);
+        i++;
+      }
+    }
+    return result;
+  })();
+
+  $: { prefetchWarrantyNames(displayHistory); }
 
   // Get name from ID helpers
   function getMasterName(list: MasterData[], id: number | null): string {
@@ -1273,9 +1331,11 @@
         <div class="empty-history"><p>ยังไม่มีประวัติการใช้งาน</p></div>
       {:else}
         <div class="timeline">
-          {#each history as h, idx}
+          {#each displayHistory as h, idx}
             {@const diffFields = h.type === 'edit' ? getDiffFields(h.before, h.after) : []}
             {@const isFileUploadEdit = h.type === 'edit' && (h.after?.fileUrls != null || (h.after?.uploadedFiles ?? 0) > 0) && Object.keys(h.before ?? {}).length === 0}
+            {@const isGroupedFileUpload = !!h.groupedFiles && h.groupedFiles.length > 0}
+            {@const isWarrantyEdit = h.type === 'edit' && diffFields.length > 0 && diffFields.every(f => f === 'warrantyAttachmentId')}
             <div class="tl-item">
               <div class="tl-line-wrap">
                 <div class="tl-dot" class:tl-dot-edit={h.type === 'edit'} class:tl-dot-disburse={h.type === 'disbursement'}></div>
@@ -1290,8 +1350,12 @@
                       </span>
                     {:else if h.type === 'disbursement'}
                       <span class="tl-badge tl-badge-disburse">เบิกจ่าย</span>
+                    {:else if isGroupedFileUpload}
+                      <span class="tl-badge tl-badge-upload">เพิ่มไฟล์ {h.groupedFiles!.length} รายการ</span>
                     {:else if isFileUploadEdit}
                       <span class="tl-badge tl-badge-upload">เพิ่มไฟล์ {h.after?.uploadedFiles ?? (h.after?.fileUrls?.length ?? 0)} รายการ</span>
+                    {:else if isWarrantyEdit}
+                      <span class="tl-badge tl-badge-edit">แก้ไขเอกสารประกัน</span>
                     {:else}
                       <span class="tl-badge tl-badge-edit">แก้ไขข้อมูล</span>
                     {/if}
@@ -1392,9 +1456,9 @@
                     <svg width="13" height="13" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10M7 12h6"/></svg>
                     {h.remark}
                   </div>
-                {:else if h.type === 'edit' && diffFields.length > 0}
+                {:else if h.type === 'edit' && diffFields.length > 0 && !isWarrantyEdit}
                   <div class="tl-changes">
-                    {#each diffFields as field}
+                    {#each diffFields.filter(f => f !== 'warrantyAttachmentId') as field}
                       <div class="tl-change-row">
                         <span class="tl-field">{FIELD_LABELS[field]}</span>
                         <div class="tl-diff">
@@ -1406,7 +1470,40 @@
                     {/each}
                   </div>
                 {/if}
-                {#if h.type === 'edit' && h.after?.attachmentId && h.after?.fileName}
+                {#if isWarrantyEdit && h.after?.warrantyAttachmentId}
+                  <div class="tl-attachment">
+                    <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                    </svg>
+                    <span class="tl-attachment-name">เอกสารประกัน: {attachmentNameCache[h.after?.warrantyAttachmentId] ?? '...'}</span>
+                    <button
+                      class="tl-attachment-btn"
+                      on:click={() => loadPreviewById(h.after?.warrantyAttachmentId ?? 0, attachmentNameCache[h.after?.warrantyAttachmentId] ?? 'เอกสารประกัน')}
+                      disabled={previewLoading}
+                    >
+                      ดูไฟล์
+                    </button>
+                  </div>
+                {/if}
+                {#if isGroupedFileUpload}
+                  <div class="tl-file-list">
+                    {#each h.groupedFiles! as f}
+                      <div class="tl-attachment">
+                        <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/>
+                        </svg>
+                        <span class="tl-attachment-name">{f.fileName}</span>
+                        <button
+                          class="tl-attachment-btn"
+                          on:click={() => loadPreviewById(f.attachmentId, f.fileName)}
+                          disabled={previewLoading}
+                        >
+                          ดูไฟล์
+                        </button>
+                      </div>
+                    {/each}
+                  </div>
+                {:else if h.type === 'edit' && h.after?.attachmentId && h.after?.fileName}
                   <div class="tl-attachment">
                     <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/>

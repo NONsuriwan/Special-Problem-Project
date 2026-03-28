@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
+  import { page } from '$app/stores';
   import Dropdown from '$lib/components/ui/Dropdown.svelte';
   import ThaiDatePicker from '$lib/components/ui/ThaiDatePicker.svelte';
   import { apiFetch } from '$lib/api/client';
@@ -111,9 +112,29 @@
   let errorMessage = '';
   let errors: Record<string, boolean> = {};
   let attachmentFiles: File[] = [];
+  let attachDragOver = false;
 
   // Warranty attachment
   let warrantyFile: File | null = null;
+  let warrantyDragOver = false;
+
+  function handleWarrantyDrop(e: DragEvent) {
+    e.preventDefault();
+    warrantyDragOver = false;
+    const file = e.dataTransfer?.files?.[0];
+    if (file && /\.(pdf|jpe?g|png)$/i.test(file.name)) warrantyFile = file;
+  }
+
+  function addFiles(incoming: File[]) {
+    const valid = incoming.filter(f => /\.(pdf|jpe?g|png)$/i.test(f.name));
+    if (valid.length > 0) attachmentFiles = [...attachmentFiles, ...valid];
+  }
+
+  function handleAttachDrop(e: DragEvent) {
+    e.preventDefault();
+    attachDragOver = false;
+    addFiles(Array.from(e.dataTransfer?.files ?? []));
+  }
 
   const warrantyYearOpts = Array.from({ length: 10 }, (_, i) => ({ value: i + 1, label: `${i + 1} ปี` }));
   const warrantyMonthOpts = Array.from({ length: 11 }, (_, i) => ({ value: i + 1, label: `${i + 1} เดือน` }));
@@ -172,14 +193,10 @@
     }
   }
 
-  // Handle file upload
   function handleFileChange(e: Event) {
     const target = e.target as HTMLInputElement;
     if (target.files && target.files.length > 0) {
-      const newFiles = Array.from(target.files).filter(
-        nf => !attachmentFiles.some(ef => ef.name === nf.name)
-      );
-      attachmentFiles = [...attachmentFiles, ...newFiles];
+      addFiles(Array.from(target.files));
       target.value = '';
     }
   }
@@ -310,7 +327,17 @@
     return `${ceYear}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
   }
 
-  onMount(fetchMasterData);
+  onMount(async () => {
+    await fetchMasterData();
+    const qProjectId = $page.url.searchParams.get('projectId');
+    if (qProjectId) {
+      const parsed = parseInt(qProjectId);
+      if (!isNaN(parsed)) {
+        formData.projectId = parsed;
+        onProjectChange(parsed);
+      }
+    }
+  });
 </script>
 
 <div class="page-container">
@@ -547,7 +574,7 @@
 
           <!-- หมายเหตุ -->
           <div class="form-group">
-            <label class="label">หมายเหตุ</label>
+            <label class="label">หมายเหตุ (ถ้ามี)</label>
             <textarea
               bind:value={formData.note}
               class="input textarea"
@@ -555,77 +582,84 @@
             ></textarea>
           </div>
 
-          <!-- เอกสารประกัน -->
+          <!-- เอกสารประกัน + เอกสารแนบเพิ่มเติม -->
           <div class="form-group full-width">
-            <label class="label">เอกสารประกัน</label>
-            {#if warrantyFile}
-              <div class="warranty-staged">
-                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="flex-shrink:0;color:#6b7280">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-                </svg>
-                <span class="warranty-filename">{warrantyFile.name}</span>
-                <button type="button" class="file-remove-text" on:click={() => warrantyFile = null}>ลบ</button>
-              </div>
-            {:else}
-              <label class="warranty-pick-label">
-                <input
-                  type="file"
-                  accept=".pdf,.jpg,.jpeg,.png"
-                  hidden
-                  on:change={(e) => { warrantyFile = e.currentTarget.files?.[0] ?? null; e.currentTarget.value = ''; }}
-                />
-                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-                </svg>
-                เลือกไฟล์เอกสารประกัน
-              </label>
-            {/if}
-          </div>
-
-          <!-- เอกสารแนบเพิ่มเติม -->
-          <div class="form-group full-width">
-            <label class="label">
-              เอกสารแนบเพิ่มเติม
-            </label>
-            <div class="file-upload">
-              <input
-                type="file"
-                id="file-input"
-                on:change={handleFileChange}
-                accept=".pdf,.jpg,.jpeg,.png"
-                multiple
-                hidden
-              />
-              <label for="file-input" class="file-upload-label">
-                <svg class="upload-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                </svg>
-                <p class="upload-title">คลิกเพื่อเปิดไฟล์แนบ หรือลากไฟล์มาวางที่นี่</p>
-              </label>
-
-              {#if attachmentFiles.length > 0}
-                <div class="file-list">
-                  {#each attachmentFiles as file, i}
-                    <div class="file-item">
-                      <button class="file-remove" type="button" on:click={() => removeFile(i)}>✕</button>
-                      {#if getFileType(file) === 'pdf'}
-                        <svg class="file-icon pdf-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                        </svg>
-                      {:else if getFileType(file) === 'image'}
-                        <svg class="file-icon image-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                        </svg>
-                      {:else}
-                        <svg class="file-icon other-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                        </svg>
-                      {/if}
-                      <span class="file-item-name">{file.name}</span>
+            <div class="doc-row">
+              <!-- ซ้าย: เอกสารประกัน -->
+              <div class="doc-col">
+                <label class="label">เอกสารประกัน</label>
+                <div class="file-upload"
+                  class:file-upload-dragover={warrantyDragOver}
+                  on:dragover|preventDefault={() => warrantyDragOver = true}
+                  on:dragleave={() => warrantyDragOver = false}
+                  on:drop={handleWarrantyDrop}
+                >
+                  <label class="file-upload-label">
+                    <input type="file" accept=".pdf,.jpg,.jpeg,.png" hidden
+                      on:change={(e) => { warrantyFile = e.currentTarget.files?.[0] ?? null; e.currentTarget.value = ''; }} />
+                    <svg class="upload-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+                    </svg>
+                    <p class="upload-title">คลิกหรือลากไฟล์มาวาง</p>
+                  </label>
+                  {#if warrantyFile}
+                    <div class="file-list">
+                      <div class="file-item">
+                        <button class="file-remove" type="button" on:click|preventDefault={() => warrantyFile = null}>✕</button>
+                        {#if getFileType(warrantyFile) === 'pdf'}
+                          <svg class="file-icon pdf-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                        {:else if getFileType(warrantyFile) === 'image'}
+                          <svg class="file-icon image-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                        {:else}
+                          <svg class="file-icon other-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                        {/if}
+                        <span class="file-item-name">{warrantyFile.name}</span>
+                      </div>
                     </div>
-                  {/each}
+                  {/if}
                 </div>
-              {/if}
+              </div>
+
+              <!-- ขวา: เอกสารแนบเพิ่มเติม -->
+              <div class="doc-col">
+                <div class="label-row">
+                  <label class="label">เอกสารแนบเพิ่มเติม</label>
+                  {#if attachmentFiles.length > 0}
+                    <button type="button" class="btn-clear-files" on:click={() => attachmentFiles = []}>ล้างทั้งหมด</button>
+                  {/if}
+                </div>
+                <div class="file-upload"
+                  class:file-upload-dragover={attachDragOver}
+                  on:dragover|preventDefault={() => attachDragOver = true}
+                  on:dragleave={() => attachDragOver = false}
+                  on:drop={handleAttachDrop}
+                >
+                  <label class="file-upload-label">
+                    <input type="file" id="file-input" on:change={handleFileChange} accept=".pdf,.jpg,.jpeg,.png" multiple hidden />
+                    <svg class="upload-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+                    </svg>
+                    <p class="upload-title">คลิกหรือลากไฟล์มาวาง</p>
+                  </label>
+                  {#if attachmentFiles.length > 0}
+                    <div class="file-list">
+                      {#each attachmentFiles as file, i}
+                        <div class="file-item">
+                          <button class="file-remove" type="button" on:click={() => removeFile(i)}>✕</button>
+                          {#if getFileType(file) === 'pdf'}
+                            <svg class="file-icon pdf-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                          {:else if getFileType(file) === 'image'}
+                            <svg class="file-icon image-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                          {:else}
+                            <svg class="file-icon other-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                          {/if}
+                          <span class="file-item-name">{file.name}</span>
+                        </div>
+                      {/each}
+                    </div>
+                  {/if}
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -730,16 +764,50 @@
     flex-shrink: 0;
   }
 
-  /* File Upload */
+  /* Doc row — 2 columns */
+  .doc-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    align-items: start;
+  }
+
+  .doc-col {
+    display: flex;
+    flex-direction: column;
+    gap: 0.375rem;
+  }
+
+  .label-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .btn-clear-files {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 0.78rem;
+    color: #ef4444;
+    padding: 0;
+    text-decoration: underline;
+  }
+
+  .btn-clear-files:hover {
+    color: #b91c1c;
+  }
+
+/* File Upload */
   .file-upload {
     border: 2px dashed #d1d5db;
     border-radius: 0.5rem;
-    padding: 2rem;
-    text-align: center;
-    transition: all 0.2s;
+    background: #fafafa;
+    transition: border-color 0.15s, background 0.15s;
+    overflow: hidden;
   }
 
-  .file-upload:hover {
+  .file-upload:hover, .file-upload-dragover {
     border-color: #ffa200;
     background: #fffbf5;
   }
@@ -749,21 +817,18 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 0.75rem;
+    gap: 0.5rem;
+    padding: 1.5rem 1rem 1.25rem;
   }
 
   .upload-icon {
-    width: 3rem;
-    height: 3rem;
+    width: 2.25rem;
+    height: 2.25rem;
     color: #9ca3af;
   }
 
-  .upload-text {
-    color: #6b7280;
-  }
-
   .upload-title {
-    font-size: 0.875rem;
+    font-size: 0.8rem;
     margin: 0;
     color: #6b7280;
   }
@@ -772,7 +837,7 @@
     display: flex;
     flex-wrap: wrap;
     gap: 1rem;
-    margin-top: 1.25rem;
+    padding: 0.75rem 1.25rem 1.25rem;
     justify-content: center;
   }
 
@@ -847,53 +912,5 @@
     white-space: nowrap;
   }
 
-  .warranty-staged {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.5rem 0.75rem;
-    background: #f9fafb;
-    border: 1px solid #e5e7eb;
-    border-radius: 0.375rem;
-    font-size: 0.875rem;
-    color: #374151;
-  }
-
-  .warranty-filename {
-    flex: 1;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .file-remove-text {
-    background: none;
-    border: none;
-    cursor: pointer;
-    font-size: 0.8125rem;
-    color: #6b7280;
-    padding: 0;
-    text-decoration: underline;
-    white-space: nowrap;
-  }
-
-  .warranty-pick-label {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.375rem;
-    padding: 0.5rem 0.875rem;
-    border: 1px dashed #d1d5db;
-    border-radius: 0.375rem;
-    font-size: 0.875rem;
-    color: #6b7280;
-    cursor: pointer;
-    transition: border-color 0.15s, background 0.15s;
-  }
-
-  .warranty-pick-label:hover {
-    border-color: #ffa200;
-    background: #fffbf5;
-    color: #374151;
-  }
 
 </style>

@@ -163,6 +163,17 @@
   padding: 0.35rem 0.75rem;
 }
 
+.tl-file-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-top: 0.25rem;
+}
+
+.tl-file-list .tl-attachment {
+  margin-top: 0;
+}
+
 .tl-attachment {
   display: flex;
   align-items: center;

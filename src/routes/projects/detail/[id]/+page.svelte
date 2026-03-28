@@ -624,6 +624,11 @@
         <h2 class="section-title">ครุภัณฑ์ ในโครงการ</h2>
         {#if equipmentList.length > 0}
           <span class="section-count">{equipmentList.length} รายการ</span>
+        {:else}
+          <button class="btn-add-equip" on:click={() => goto(`/equipments/add-equipments?projectId=${project?.id}`)}>
+            <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="flex-shrink:0"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+            ลงทะเบียนครุภัณฑ์
+          </button>
         {/if}
       </div>
       {#if equipmentList.length === 0}
@@ -1306,7 +1311,7 @@
 
   .show-more-btn:hover { background: #fff8ec; }
 
-  .empty-text {
+.empty-text {
     color: #9ca3af;
     font-size: 0.875rem;
     text-align: center;

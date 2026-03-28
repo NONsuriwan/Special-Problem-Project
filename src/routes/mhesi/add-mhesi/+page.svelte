@@ -335,7 +335,7 @@
 
           <!-- หมายเหตุ -->
           <div class="form-group form-group-stretch">
-            <label class="label">หมายเหตุ</label>
+            <label class="label">หมายเหตุ (ถ้ามี)</label>
             <textarea
               bind:value={formData.note}
               class="input textarea textarea-stretch"
