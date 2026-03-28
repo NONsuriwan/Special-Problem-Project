@@ -31,6 +31,8 @@ export const API_ENDPOINTS = {
   MHESI_DETAIL: (uuid: string) => `/api/mhesi/${uuid}`,
   MHESI_HISTORY: (uuid: string) => `/api/mhesi/${uuid}/history`,
 
+  REPORTS_SURVEY: '/api/reports/survey',
+
   AUTH: {
     ME: '/api/auth/me',
     LOGOUT: '/api/auth/logout',
