@@ -42,6 +42,11 @@
     sizeDetail: string | null;
     buildingId: number | null;
     roomId: number | null;
+    floor: string | null;
+    warrantyYears: number | null;
+    warrantyMonths: number | null;
+    warrantyEnd: string | null;
+    warrantyAttachmentId: number | null;
     projectId: number | null;
     receivingMhesiId: number | null;
     status: string;
@@ -157,6 +162,78 @@
   let loading = true;
   let error = '';
 
+  // Warranty attachment
+  let warrantyAttachmentInfo: { id: number; fileName: string } | null = null;
+  let warrantyDirectFile: File | null = null;
+  let warrantyDirectUploading = false;
+  let warrantyDirectError = '';
+  let warrantyDirectDragOver = false;
+
+  async function fetchWarrantyAttachment(id: number) {
+    try {
+      const res = await apiFetch<{ data: { id: number; fileName: string } }>(API_ENDPOINTS.ATTACHMENT_DETAIL(id));
+      warrantyAttachmentInfo = res.data ?? null;
+    } catch (_) { warrantyAttachmentInfo = null; }
+  }
+
+  function handleWarrantyDrop(e: DragEvent) {
+    e.preventDefault();
+    warrantyDirectDragOver = false;
+    const file = e.dataTransfer?.files?.[0];
+    if (file && /\.(pdf|jpe?g|png)$/i.test(file.name)) {
+      warrantyDirectFile = file;
+      warrantyDirectError = '';
+    }
+  }
+
+  async function uploadWarrantyDirect() {
+    if (!warrantyDirectFile || !asset) return;
+    warrantyDirectUploading = true;
+    warrantyDirectError = '';
+    try {
+      const fd = new FormData();
+      fd.append('file', warrantyDirectFile);
+      const uploaded = await apiFetch<{ data: { id: number } }>(
+        `${API_ENDPOINTS.ATTACHMENTS_UPLOAD}?folder=equipments`,
+        { method: 'POST', body: fd }
+      );
+      const newId = uploaded.data?.id ?? null;
+      if (!newId) throw new Error('อัปโหลดไม่สำเร็จ');
+      await apiFetch(API_ENDPOINTS.ASSET_DETAIL(assetId), {
+        method: 'PUT',
+        body: JSON.stringify({
+          equipmentCode: asset.equipmentCode || null,
+          equipmentName: asset.equipmentName,
+          equipmentNumber: asset.equipmentNumber || null,
+          price: asset.price || null,
+          unit: asset.unit || null,
+          company: asset.company || null,
+          sizeDetail: asset.sizeDetail || null,
+          note: asset.note || null,
+          acquisitionDate: asset.acquisitionDate || null,
+          fiscalYear: asset.fiscalYear || null,
+          departmentId: asset.departmentId,
+          activity: asset.activity || null,
+          fundId: asset.fundId,
+          equipmentTypeId: asset.equipmentTypeId,
+          acquisitionSourceId: asset.acquisitionSourceId,
+          acquisitionMethodId: asset.acquisitionMethodId,
+          projectId: asset.projectId,
+          buildingId: asset.buildingId,
+          roomId: asset.roomId,
+          warrantyAttachmentId: newId,
+        }),
+      });
+      warrantyDirectFile = null;
+      await fetchAssetDetail();
+      await fetchHistory();
+    } catch (e) {
+      warrantyDirectError = e instanceof Error ? e.message : 'อัปโหลดไม่สำเร็จ';
+    } finally {
+      warrantyDirectUploading = false;
+    }
+  }
+
   // Attachment upload
   let attachUploadFiles: File[] = [];
   let attachUploading = false;
@@ -243,6 +320,11 @@
       if (result.success && result.data) {
         asset = result.data;
         await fetchAttachments();
+        if (asset.warrantyAttachmentId) {
+          await fetchWarrantyAttachment(asset.warrantyAttachmentId);
+        } else {
+          warrantyAttachmentInfo = null;
+        }
       } else {
         throw new Error('ไม่พบข้อมูลครุภัณฑ์');
       }
@@ -937,6 +1019,7 @@
           </div>
 
           <div class="detail-item">
+<<<<<<< HEAD
             <div class="detail-icon"><Icon name="building" size={24} /></div>
             <div>
               <div class="detail-label">หน่วยงาน</div>
@@ -944,6 +1027,37 @@
             </div>
           </div>
           <div class="detail-item">
+=======
+            <div class="detail-icon"><Icon name="template" size={24} /></div>
+            <div>
+              <div class="detail-label">ชั้นที่จัดตั้ง</div>
+              <div class="detail-value">{asset.floor || '-'}</div>
+            </div>
+          </div>
+          <div class="detail-item">
+            <div class="detail-icon"><Icon name="clock" size={24} /></div>
+            <div>
+              <div class="detail-label">ระยะเวลาประกัน</div>
+              <div class="detail-value">
+                {#if asset.warrantyYears || asset.warrantyMonths}
+                  {[asset.warrantyYears ? `${asset.warrantyYears} ปี` : '', asset.warrantyMonths ? `${asset.warrantyMonths} เดือน` : ''].filter(Boolean).join(' ')}
+                {:else}
+                  -
+                {/if}
+              </div>
+            </div>
+          </div>
+
+          <div class="detail-item">
+            <div class="detail-icon"><Icon name="calendar" size={24} /></div>
+            <div>
+              <div class="detail-label">วันที่หมดประกัน</div>
+              <div class="detail-value">{asset.warrantyEnd ? formatDate(asset.warrantyEnd) : '-'}</div>
+            </div>
+          </div>
+
+          <div class="detail-item full-width">
+>>>>>>> 83586458eef66e1cab35bf8983402737dfe3d576
             <div class="detail-icon"><Icon name="pencil" size={24} /></div>
             <div>
               <div class="detail-label">หมายเหตุ</div>
@@ -958,6 +1072,81 @@
         <!-- Attachments -->
         <div class="attachment-card">
           <h2 class="card-title">เอกสารแนบ</h2>
+
+          <!-- ──────── เอกสารประกัน ──────── -->
+          <div class="attach-section-header">
+            <span class="attach-section-title">เอกสารประกัน</span>
+          </div>
+
+          <input
+            type="file"
+            id="warranty-file-input"
+            accept=".pdf,.jpg,.jpeg,.png"
+            hidden
+            on:change={(e) => { warrantyDirectFile = e.currentTarget.files?.[0] ?? null; warrantyDirectError = ''; e.currentTarget.value = ''; }}
+          />
+
+          {#if warrantyAttachmentInfo}
+            <div class="attachment-list">
+              <div class="attachment-item">
+                <svg class="file-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                <div class="file-info">
+                  <div class="file-name">{warrantyAttachmentInfo.fileName}</div>
+                </div>
+                <button class="btn-preview" disabled={previewLoading}
+                  on:click={() => loadPreviewById(warrantyAttachmentInfo!.id, warrantyAttachmentInfo!.fileName)}>
+                  {previewLoading && previewFileName === warrantyAttachmentInfo.fileName ? 'กำลังโหลด...' : 'ดูไฟล์'}
+                </button>
+              </div>
+            </div>
+            <div class="attach-section-label">เปลี่ยนไฟล์</div>
+          {:else}
+            <p class="no-attachment-text">ยังไม่มีเอกสารประกัน</p>
+          {/if}
+
+          {#if warrantyDirectFile}
+            <div class="attach-ready">
+              <div class="attach-ready-files">
+                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="flex-shrink:0;color:#6b7280">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                </svg>
+                <span>{warrantyDirectFile.name}</span>
+              </div>
+              <div class="attach-ready-actions">
+                <button type="button" class="attach-cancel-btn" on:click={() => warrantyDirectFile = null}>ยกเลิก</button>
+                <button type="button" class="attach-upload-btn" disabled={warrantyDirectUploading} on:click={uploadWarrantyDirect}>
+                  {warrantyDirectUploading ? 'กำลังอัปโหลด...' : (warrantyAttachmentInfo ? 'เปลี่ยนไฟล์' : 'อัปโหลด')}
+                </button>
+              </div>
+            </div>
+          {:else}
+            <label
+              for="warranty-file-input"
+              class="upload-placeholder"
+              class:drag-over={warrantyDirectDragOver}
+              on:dragover|preventDefault={() => warrantyDirectDragOver = true}
+              on:dragleave={() => warrantyDirectDragOver = false}
+              on:drop={handleWarrantyDrop}
+            >
+              <svg class="upload-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+              </svg>
+              <p>{warrantyDirectDragOver ? 'วางไฟล์ที่นี่' : (warrantyAttachmentInfo ? 'คลิกเพื่อเปลี่ยนไฟล์' : 'คลิกเพื่อเพิ่มไฟล์แนบ')}</p>
+              <p class="hint">PDF, JPG, PNG หรือลากไฟล์มาวาง</p>
+            </label>
+          {/if}
+          {#if warrantyDirectError}
+            <p class="attach-upload-error">{warrantyDirectError}</p>
+          {/if}
+
+          <!-- ──────── เอกสารเพิ่มเติม ──────── -->
+          <div class="attach-divider"></div>
+
+          <div class="attach-section-header">
+            <span class="attach-section-title">เอกสารเพิ่มเติม</span>
+          </div>
 
           <input
             type="file"
@@ -1005,7 +1194,7 @@
           {/if}
 
           {#if attachments.length > 0}
-            <div class="attachment-list">
+            <div class="attachment-list" style="margin-top:0.75rem">
               {#each attachments as attachment (attachment.id)}
                 <div class="attachment-item">
                   <svg class="file-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1862,6 +2051,40 @@
     border-radius: 0.75rem;
     padding: 1.5rem;
     box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+  }
+
+  .attach-section-header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 0.75rem;
+  }
+
+  .attach-section-title {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: #374151;
+    background: #f3f4f6;
+    border-radius: 0.375rem;
+    padding: 0.2rem 0.625rem;
+  }
+
+  .attach-section-label {
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: #6b7280;
+    margin: 0.875rem 0 0.5rem;
+  }
+
+  .attach-divider {
+    border: none;
+    border-top: 1px solid #f0f0f0;
+    margin: 1.25rem 0 1rem;
+  }
+
+  .no-attachment-text {
+    font-size: 0.8125rem;
+    color: #9ca3af;
+    margin: 0 0 0.75rem 0;
   }
 
   /* เอกสารที่เกี่ยวข้อง block */
