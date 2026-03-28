@@ -1,7 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
-  import { page } from '$app/stores';
   import Dropdown from '$lib/components/ui/Dropdown.svelte';
   import ThaiDatePicker from '$lib/components/ui/ThaiDatePicker.svelte';
   import { apiFetch } from '$lib/api/client';
@@ -112,27 +111,6 @@
   let errorMessage = '';
   let errors: Record<string, boolean> = {};
   let attachmentFiles: File[] = [];
-  let attachDragOver = false;
-  let attachDupWarning = '';
-
-  function addFiles(incoming: File[]) {
-    const valid = incoming.filter(f => /\.(pdf|jpe?g|png)$/i.test(f.name));
-    const dups = valid.filter(f => attachmentFiles.some(ef => ef.name === f.name));
-    const newOnes = valid.filter(f => !attachmentFiles.some(ef => ef.name === f.name));
-    if (dups.length > 0) {
-      attachDupWarning = dups.length === 1
-        ? `"${dups[0].name.length > 30 ? dups[0].name.slice(0, 30) + '…' : dups[0].name}" มีอยู่แล้ว`
-        : `มีไฟล์ซ้ำ ${dups.length} ไฟล์`;
-      setTimeout(() => attachDupWarning = '', 3000);
-    }
-    if (newOnes.length > 0) attachmentFiles = [...attachmentFiles, ...newOnes];
-  }
-
-  function handleAttachDrop(e: DragEvent) {
-    e.preventDefault();
-    attachDragOver = false;
-    addFiles(Array.from(e.dataTransfer?.files ?? []));
-  }
 
   // Warranty attachment
   let warrantyFile: File | null = null;
@@ -198,7 +176,10 @@
   function handleFileChange(e: Event) {
     const target = e.target as HTMLInputElement;
     if (target.files && target.files.length > 0) {
-      addFiles(Array.from(target.files));
+      const newFiles = Array.from(target.files).filter(
+        nf => !attachmentFiles.some(ef => ef.name === nf.name)
+      );
+      attachmentFiles = [...attachmentFiles, ...newFiles];
       target.value = '';
     }
   }
@@ -329,17 +310,7 @@
     return `${ceYear}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
   }
 
-  onMount(async () => {
-    await fetchMasterData();
-    const qProjectId = $page.url.searchParams.get('projectId');
-    if (qProjectId) {
-      const parsed = parseInt(qProjectId);
-      if (!isNaN(parsed)) {
-        formData.projectId = parsed;
-        onProjectChange(parsed);
-      }
-    }
-  });
+  onMount(fetchMasterData);
 </script>
 
 <div class="page-container">
@@ -435,17 +406,6 @@
             <p class="number-preview">ตัวอย่าง: ตัวเดียว 0001 หลายตัว 0001-0005</p>
           </div>
 
-          <!-- กิจกรรม -->
-          <div class="form-group">
-            <label class="label">กิจกรรม <span class="required">*</span></label>
-            <input
-              type="text"
-              bind:value={formData.activity}
-              class="input"
-              class:input-error={errors.activity}
-            />
-          </div>
-
           <!-- ประเภท -->
           <div class="form-group" class:error-wrapper={errors.assetTypeId}>
             <label class="label">ประเภท <span class="required">*</span></label>
@@ -453,16 +413,6 @@
               fullWidth
               options={assetTypes.map(t => ({ value: t.id, label: t.name }))}
               bind:value={formData.assetTypeId}
-            />
-          </div>
-
-          <!-- ปีงบประมาณ -->
-          <div class="form-group" class:error-wrapper={errors.fiscalYearId}>
-            <label class="label">ปีงบประมาณ <span class="required">*</span></label>
-            <Dropdown
-              fullWidth
-              options={years.map(y => ({ value: y, label: String(y) }))}
-              bind:value={formData.fiscalYearId}
             />
           </div>
 
@@ -486,6 +436,27 @@
               bind:value={formData.acquisitionDate}
               error={errors.acquisitionDate}
               inputClass="input"
+            />
+          </div>
+
+          <!-- ปีงบประมาณ -->
+          <div class="form-group" class:error-wrapper={errors.fiscalYearId}>
+            <label class="label">ปีงบประมาณ <span class="required">*</span></label>
+            <Dropdown
+              fullWidth
+              options={years.map(y => ({ value: y, label: String(y) }))}
+              bind:value={formData.fiscalYearId}
+            />
+          </div>
+
+          <!-- กิจกรรม -->
+          <div class="form-group">
+            <label class="label">กิจกรรม <span class="required">*</span></label>
+            <input
+              type="text"
+              bind:value={formData.activity}
+              class="input"
+              class:input-error={errors.activity}
             />
           </div>
 
@@ -519,8 +490,6 @@
             />
           </div>
 
-<<<<<<< HEAD
-=======
           <!-- ระยะเวลาประกัน -->
           <div class="form-group full-width">
             <label class="label">ระยะเวลาประกัน</label>
@@ -554,7 +523,6 @@
             />
           </div>
 
->>>>>>> 83586458eef66e1cab35bf8983402737dfe3d576
           <!-- บริษัท -->
           <div class="form-group">
             <label class="label">บริษัท <span class="required">*</span></label>
@@ -563,17 +531,6 @@
               bind:value={formData.company}
               class="input"
               class:input-error={errors.company}
-            />
-          </div>
-
-          <!-- หน่วยนับ -->
-          <div class="form-group">
-            <label class="label">หน่วยนับ <span class="required">*</span></label>
-            <input
-              type="text"
-              bind:value={formData.unit}
-              class="input"
-              class:input-error={errors.unit}
             />
           </div>
 
@@ -598,27 +555,6 @@
             ></textarea>
           </div>
 
-<<<<<<< HEAD
-          <!-- เอกสารแนบ -->
-          <div class="form-group full-width" style="position:relative">
-            {#if attachDupWarning}
-              <div class="attach-dup-warning">
-                <svg width="13" height="13" fill="currentColor" viewBox="0 0 20 20" style="flex-shrink:0"><path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
-                {attachDupWarning}
-              </div>
-            {/if}
-            <label class="label">เอกสารแนบ</label>
-            <div class="file-upload"
-              class:file-upload-dragover={attachDragOver}
-              on:dragover|preventDefault={() => attachDragOver = true}
-              on:dragleave={() => attachDragOver = false}
-              on:drop={handleAttachDrop}
-            >
-              <label class="file-upload-label">
-                <input type="file" accept=".pdf,.jpg,.jpeg,.png" multiple style="display:none" on:change={handleFileChange} />
-                <svg class="dropzone-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
-=======
           <!-- เอกสารประกัน -->
           <div class="form-group full-width">
             <label class="label">เอกสารประกัน</label>
@@ -663,11 +599,10 @@
               <label for="file-input" class="file-upload-label">
                 <svg class="upload-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
->>>>>>> 83586458eef66e1cab35bf8983402737dfe3d576
                 </svg>
-                <p class="dropzone-text">คลิกเพื่อเพิ่มไฟล์แนบ</p>
-                <p class="dropzone-hint">PDF, JPG, PNG หรือลากไฟล์มาวาง</p>
+                <p class="upload-title">คลิกเพื่อเปิดไฟล์แนบ หรือลากไฟล์มาวางที่นี่</p>
               </label>
+
               {#if attachmentFiles.length > 0}
                 <div class="file-list">
                   {#each attachmentFiles as file, i}
@@ -798,71 +733,46 @@
   /* File Upload */
   .file-upload {
     border: 2px dashed #d1d5db;
-    border-radius: 0.625rem;
-    padding: 0;
-    background: #fafafa;
-    transition: border-color 0.15s, background 0.15s;
-    overflow: hidden;
+    border-radius: 0.5rem;
+    padding: 2rem;
+    text-align: center;
+    transition: all 0.2s;
   }
 
-  .file-upload:hover, .file-upload-dragover {
+  .file-upload:hover {
     border-color: #ffa200;
-    background: #fffbf2;
+    background: #fffbf5;
   }
 
   .file-upload-label {
+    cursor: pointer;
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: center;
-    gap: 0.375rem;
-    padding: 1.5rem 1rem 1.25rem;
-    cursor: pointer;
+    gap: 0.75rem;
   }
 
-  .dropzone-icon {
-    width: 36px;
-    height: 36px;
+  .upload-icon {
+    width: 3rem;
+    height: 3rem;
     color: #9ca3af;
   }
 
-  .dropzone-text {
+  .upload-text {
+    color: #6b7280;
+  }
+
+  .upload-title {
     font-size: 0.875rem;
-    font-weight: 500;
-    color: #ffa200;
     margin: 0;
-  }
-
-  .dropzone-hint {
-    font-size: 0.78rem;
-    color: #9ca3af;
-    margin: 0;
-  }
-
-  .attach-dup-warning {
-    position: absolute;
-    top: -0.75rem;
-    right: 0.5rem;
-    z-index: 10;
-    display: flex;
-    align-items: center;
-    gap: 0.375rem;
-    font-size: 0.78rem;
-    font-weight: 500;
-    color: #92400e;
-    background: #fef3c7;
-    border: 1px solid #fde68a;
-    border-radius: 0.5rem;
-    padding: 0.4rem 0.75rem;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-    white-space: nowrap;
+    color: #6b7280;
   }
 
   .file-list {
     display: flex;
     flex-wrap: wrap;
-    gap: 1.5rem;
-    padding: 1rem 2rem 2rem;
+    gap: 1rem;
+    margin-top: 1.25rem;
     justify-content: center;
   }
 

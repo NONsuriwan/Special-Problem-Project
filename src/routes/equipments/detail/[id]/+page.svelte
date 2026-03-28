@@ -840,15 +840,12 @@
       </div>
       <div class="header-actions">
         {#if asset.status !== 'disposed'}
-        <div class="status-btn-wrap" title="เปลี่ยนสถานะครุภัณฑ์">
-          <button class="btn-status-change" on:click={openStatusModal}>
-            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="16" height="16" style="flex-shrink:0">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-            </svg>
-            แก้ไขสถานะ
-          </button>
-          <span class="status-btn-pulse"></span>
-        </div>
+        <button class="btn-secondary" on:click={openStatusModal}>
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="16" height="16" style="flex-shrink:0">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+          </svg>
+          แก้ไขสถานะ
+        </button>
         {/if}
         <button class="btn-primary" on:click={openEditModal}>
           <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="16" height="16" style="flex-shrink:0">
@@ -874,33 +871,10 @@
 
         <div class="detail-grid">
           <div class="detail-item">
-            <div class="detail-icon"><Icon name="folder" size={24} /></div>
+            <div class="detail-icon"><Icon name="building" size={24} /></div>
             <div>
-              <div class="detail-label">โครงการ</div>
-              <div class="detail-value">{getProjectName(asset.projectId)}</div>
-            </div>
-          </div>
-
-          <div class="detail-item">
-            <div class="detail-icon"><Icon name="tag" size={24} /></div>
-            <div>
-              <div class="detail-label">ชื่อครุภัณฑ์</div>
-              <div class="detail-value">{asset.equipmentName || '-'}</div>
-            </div>
-          </div>
-          <div class="detail-item">
-            <div class="detail-icon"><Icon name="clipboard-list" size={24} /></div>
-            <div>
-              <div class="detail-label">รหัสครุภัณฑ์</div>
-              <div class="detail-value">{asset.equipmentCode || '-'}</div>
-            </div>
-          </div>
-
-          <div class="detail-item">
-            <div class="detail-icon"><Icon name="hashtag" size={24} /></div>
-            <div>
-              <div class="detail-label">หมายเลขครุภัณฑ์</div>
-              <div class="detail-value">{asset.equipmentNumber || '-'}</div>
+              <div class="detail-label">หน่วยงาน</div>
+              <div class="detail-value">{getMasterName(departments, asset.departmentId)}</div>
             </div>
           </div>
           <div class="detail-item">
@@ -912,10 +886,10 @@
           </div>
 
           <div class="detail-item">
-            <div class="detail-icon"><Icon name="collection" size={24} /></div>
+            <div class="detail-icon"><Icon name="library" size={24} /></div>
             <div>
-              <div class="detail-label">ประเภท</div>
-              <div class="detail-value">{getMasterName(assetTypes, asset.equipmentTypeId)}</div>
+              <div class="detail-label">กองทุน</div>
+              <div class="detail-value">{getMasterName(funds, asset.fundId)}</div>
             </div>
           </div>
           <div class="detail-item">
@@ -927,10 +901,62 @@
           </div>
 
           <div class="detail-item">
+            <div class="detail-icon"><Icon name="clipboard-list" size={24} /></div>
+            <div>
+              <div class="detail-label">รหัสครุภัณฑ์</div>
+              <div class="detail-value">{asset.equipmentCode || '-'}</div>
+            </div>
+          </div>
+          <div class="detail-item">
+            <div class="detail-icon"><Icon name="tag" size={24} /></div>
+            <div>
+              <div class="detail-label">ชื่อครุภัณฑ์</div>
+              <div class="detail-value">{asset.equipmentName || '-'}</div>
+            </div>
+          </div>
+
+          <div class="detail-item">
+            <div class="detail-icon"><Icon name="hashtag" size={24} /></div>
+            <div>
+              <div class="detail-label">หมายเลขครุภัณฑ์</div>
+              <div class="detail-value">{asset.equipmentNumber || '-'}</div>
+            </div>
+          </div>
+          <div class="detail-item">
             <div class="detail-icon"><Icon name="currency" size={24} /></div>
             <div>
               <div class="detail-label">ราคา</div>
               <div class="detail-value">{formatPrice(asset.price)} บาท</div>
+            </div>
+          </div>
+
+          <div class="detail-item">
+            <div class="detail-icon"><Icon name="document-text" size={24} /></div>
+            <div>
+              <div class="detail-label">หน่วยนับ</div>
+              <div class="detail-value">{asset.unit || '-'}</div>
+            </div>
+          </div>
+          <div class="detail-item">
+            <div class="detail-icon"><Icon name="location" size={24} /></div>
+            <div>
+              <div class="detail-label">บริษัท</div>
+              <div class="detail-value">{asset.company || '-'}</div>
+            </div>
+          </div>
+
+          <div class="detail-item">
+            <div class="detail-icon"><Icon name="collection" size={24} /></div>
+            <div>
+              <div class="detail-label">ประเภท</div>
+              <div class="detail-value">{getMasterName(assetTypes, asset.equipmentTypeId)}</div>
+            </div>
+          </div>
+          <div class="detail-item">
+            <div class="detail-icon"><Icon name="user" size={24} /></div>
+            <div>
+              <div class="detail-label">ทรัพย์สินได้มาโดย</div>
+              <div class="detail-value">{getMasterName(acquisitionSources, asset.acquisitionSourceId)}</div>
             </div>
           </div>
 
@@ -942,52 +968,6 @@
             </div>
           </div>
           <div class="detail-item">
-            <div class="detail-icon"><Icon name="calendar" size={24} /></div>
-            <div>
-              <div class="detail-label">วันที่เบิกจ่าย</div>
-              <div class="detail-value">{asset.disbursement?.disbursedDate ? formatDate(asset.disbursement.disbursedDate) : '-'}</div>
-            </div>
-          </div>
-
-          <div class="detail-item">
-            <div class="detail-icon"><Icon name="library" size={24} /></div>
-            <div>
-              <div class="detail-label">กองทุน</div>
-              <div class="detail-value">{getMasterName(funds, asset.fundId)}</div>
-            </div>
-          </div>
-
-          <div class="detail-item">
-            <div class="detail-icon"><Icon name="user" size={24} /></div>
-            <div>
-              <div class="detail-label">ทรัพย์สินได้มาโดย</div>
-              <div class="detail-value">{getMasterName(acquisitionSources, asset.acquisitionSourceId)}</div>
-            </div>
-          </div>
-          <div class="detail-item">
-            <div class="detail-icon"><Icon name="bookmark" size={24} /></div>
-            <div>
-              <div class="detail-label">วิธีการได้มา</div>
-              <div class="detail-value">{getMasterName(acquisitionMethods, asset.acquisitionMethodId)}</div>
-            </div>
-          </div>
-
-          <div class="detail-item">
-            <div class="detail-icon"><Icon name="location" size={24} /></div>
-            <div>
-              <div class="detail-label">บริษัท</div>
-              <div class="detail-value">{asset.company || '-'}</div>
-            </div>
-          </div>
-          <div class="detail-item">
-            <div class="detail-icon"><Icon name="document-text" size={24} /></div>
-            <div>
-              <div class="detail-label">หน่วยนับ</div>
-              <div class="detail-value">{asset.unit || '-'}</div>
-            </div>
-          </div>
-
-          <div class="detail-item">
             <div class="detail-icon"><Icon name="scale" size={24} /></div>
             <div>
               <div class="detail-label">ขนาดและลักษณะ</div>
@@ -996,10 +976,17 @@
           </div>
 
           <div class="detail-item">
-            <div class="detail-icon"><Icon name="user" size={24} /></div>
+            <div class="detail-icon"><Icon name="bookmark" size={24} /></div>
             <div>
-              <div class="detail-label">ผู้รับครุภัณฑ์</div>
-              <div class="detail-value">{asset.disbursement?.disbursedTo || '-'}</div>
+              <div class="detail-label">วิธีการได้มา</div>
+              <div class="detail-value">{getMasterName(acquisitionMethods, asset.acquisitionMethodId)}</div>
+            </div>
+          </div>
+          <div class="detail-item">
+            <div class="detail-icon"><Icon name="folder" size={24} /></div>
+            <div>
+              <div class="detail-label">โครงการ</div>
+              <div class="detail-value">{getProjectName(asset.projectId)}</div>
             </div>
           </div>
 
@@ -1019,15 +1006,6 @@
           </div>
 
           <div class="detail-item">
-<<<<<<< HEAD
-            <div class="detail-icon"><Icon name="building" size={24} /></div>
-            <div>
-              <div class="detail-label">หน่วยงาน</div>
-              <div class="detail-value">{getMasterName(departments, asset.departmentId)}</div>
-            </div>
-          </div>
-          <div class="detail-item">
-=======
             <div class="detail-icon"><Icon name="template" size={24} /></div>
             <div>
               <div class="detail-label">ชั้นที่จัดตั้ง</div>
@@ -1057,7 +1035,6 @@
           </div>
 
           <div class="detail-item full-width">
->>>>>>> 83586458eef66e1cab35bf8983402737dfe3d576
             <div class="detail-icon"><Icon name="pencil" size={24} /></div>
             <div>
               <div class="detail-label">หมายเหตุ</div>
@@ -1242,20 +1219,20 @@
                     <div class="mhesi-info">
                       <div class="mhesi-top-row">
                         <span class="mhesi-number">{m.mhesiNumber}</span>
-                        {#if m.activityName}
-                          <span class="mhesi-dot-sep">·</span>
-                          <span class="mhesi-activity">{m.activityName}</span>
-                        {/if}
                         {#if asset.receivingMhesi?.uuid === m.uuid}
                           <span class="mhesi-receiving-tag">ใบตรวจรับของครุภัณฑ์นี้</span>
                         {/if}
                       </div>
                       <div class="mhesi-meta">
+                        {#if m.activityName}
+                          <span class="mhesi-activity">{m.activityName}</span>
+                        {/if}
                         {#if m.date}
+                          <span class="mhesi-dot-sep">·</span>
                           <span class="mhesi-date">{formatDate(m.date)}</span>
                         {/if}
                         {#if m.amount}
-                          {#if m.date}<span class="mhesi-dot-sep">·</span>{/if}
+                          <span class="mhesi-dot-sep">·</span>
                           <span class="mhesi-amount">{parseFloat(m.amount).toLocaleString('th-TH', { minimumFractionDigits: 2 })} บาท</span>
                         {/if}
                       </div>
@@ -1760,35 +1737,22 @@
       </div>
       <div class="edit-form">
         <div class="form-group">
-          <label class="form-label">โครงการ</label>
-          <SearchableDropdown
-            fullWidth
-            options={projects.map(p => ({ value: p.id, label: p.projectName }))}
-            bind:value={editForm.projectId}
-            placeholder="เลือกโครงการ"
+          <label class="form-label">หน่วยงาน</label>
+          <Dropdown
+            options={departments.map(d => ({ value: d.id, label: d.name }))}
+            bind:value={editForm.departmentId}
+            fullWidth={true}
           />
-        </div>
-        <div class="form-group">
-          <label class="form-label">ชื่อครุภัณฑ์</label>
-          <input class="form-input" type="text" bind:value={editForm.equipmentName} placeholder="ชื่อครุภัณฑ์"/>
-        </div>
-        <div class="form-group">
-          <label class="form-label">รหัสครุภัณฑ์</label>
-          <input class="form-input" type="text" bind:value={editForm.equipmentCode} placeholder="รหัสครุภัณฑ์"/>
-        </div>
-        <div class="form-group">
-          <label class="form-label">หมายเลขครุภัณฑ์</label>
-          <input class="form-input" type="text" bind:value={editForm.equipmentNumber} placeholder="หมายเลขครุภัณฑ์"/>
         </div>
         <div class="form-group">
           <label class="form-label">กิจกรรม</label>
           <input class="form-input" type="text" bind:value={editForm.activityName} placeholder="กิจกรรม"/>
         </div>
         <div class="form-group">
-          <label class="form-label">ประเภท</label>
+          <label class="form-label">กองทุน</label>
           <Dropdown
-            options={assetTypes.map(t => ({ value: t.id, label: t.name }))}
-            bind:value={editForm.equipmentTypeId}
+            options={funds.map(f => ({ value: f.id, label: f.name }))}
+            bind:value={editForm.fundId}
             fullWidth={true}
           />
         </div>
@@ -1801,18 +1765,34 @@
           />
         </div>
         <div class="form-group">
+          <label class="form-label">รหัสครุภัณฑ์</label>
+          <input class="form-input" type="text" bind:value={editForm.equipmentCode} placeholder="รหัสครุภัณฑ์"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">ชื่อครุภัณฑ์</label>
+          <input class="form-input" type="text" bind:value={editForm.equipmentName} placeholder="ชื่อครุภัณฑ์"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">หมายเลขครุภัณฑ์</label>
+          <input class="form-input" type="text" bind:value={editForm.equipmentNumber} placeholder="หมายเลขครุภัณฑ์"/>
+        </div>
+        <div class="form-group">
           <label class="form-label">ราคา (บาท)</label>
           <input class="form-input" type="number" bind:value={editForm.price} placeholder="0" min="0" step="any"/>
         </div>
         <div class="form-group">
-          <label class="form-label">วันที่ได้มา</label>
-          <ThaiDatePicker bind:value={editForm.acquisitionDate} inputClass="form-input" />
+          <label class="form-label">หน่วยนับ</label>
+          <input class="form-input" type="text" bind:value={editForm.unit} placeholder="เช่น เครื่อง, ชุด"/>
         </div>
         <div class="form-group">
-          <label class="form-label">กองทุน</label>
+          <label class="form-label">บริษัท</label>
+          <input class="form-input" type="text" bind:value={editForm.company} placeholder="ชื่อบริษัท"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">ประเภท</label>
           <Dropdown
-            options={funds.map(f => ({ value: f.id, label: f.name }))}
-            bind:value={editForm.fundId}
+            options={assetTypes.map(t => ({ value: t.id, label: t.name }))}
+            bind:value={editForm.equipmentTypeId}
             fullWidth={true}
           />
         </div>
@@ -1825,6 +1805,10 @@
           />
         </div>
         <div class="form-group">
+          <label class="form-label">วันที่ได้มา</label>
+          <ThaiDatePicker bind:value={editForm.acquisitionDate} inputClass="form-input" />
+        </div>
+        <div class="form-group">
           <label class="form-label">วิธีการได้มา</label>
           <Dropdown
             options={acquisitionMethods.map(m => ({ value: m.id, label: m.name }))}
@@ -1833,16 +1817,17 @@
           />
         </div>
         <div class="form-group">
-          <label class="form-label">บริษัท</label>
-          <input class="form-input" type="text" bind:value={editForm.company} placeholder="ชื่อบริษัท"/>
-        </div>
-        <div class="form-group">
-          <label class="form-label">หน่วยนับ</label>
-          <input class="form-input" type="text" bind:value={editForm.unit} placeholder="เช่น เครื่อง, ชุด"/>
-        </div>
-        <div class="form-group">
           <label class="form-label">ขนาดและลักษณะ</label>
           <input class="form-input" type="text" bind:value={editForm.sizeDetail} placeholder="ขนาด/ลักษณะ"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">โครงการ</label>
+          <SearchableDropdown
+            fullWidth
+            options={projects.map(p => ({ value: p.id, label: p.projectName }))}
+            bind:value={editForm.projectId}
+            placeholder="เลือกโครงการ"
+          />
         </div>
         <div class="form-group">
           <label class="form-label">สถานที่ตั้ง</label>
@@ -1857,14 +1842,6 @@
           <Dropdown
             options={rooms.map(r => ({ value: r.id, label: r.name }))}
             bind:value={editForm.roomId}
-            fullWidth={true}
-          />
-        </div>
-        <div class="form-group">
-          <label class="form-label">หน่วยงาน</label>
-          <Dropdown
-            options={departments.map(d => ({ value: d.id, label: d.name }))}
-            bind:value={editForm.departmentId}
             fullWidth={true}
           />
         </div>
@@ -1984,46 +1961,6 @@
     font-weight: 500;
     cursor: pointer;
     transition: all 0.2s;
-  }
-
-  .status-btn-wrap {
-    position: relative;
-    display: inline-flex;
-  }
-
-  .btn-status-change {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.375rem;
-    background: #0ea5e9;
-    color: #fff;
-    border: none;
-    padding: 0.625rem 1.5rem;
-    border-radius: 0.5rem;
-    font-size: 0.875rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: background 0.2s;
-    position: relative;
-    z-index: 1;
-  }
-
-  .btn-status-change:hover { background: #0284c7; }
-
-  .status-btn-pulse {
-    position: absolute;
-    inset: 0;
-    border-radius: 0.5rem;
-    background: #0ea5e9;
-    opacity: 0.4;
-    animation: pulse-ring 2s ease-out infinite;
-    pointer-events: none;
-  }
-
-  @keyframes pulse-ring {
-    0%   { transform: scale(1);   opacity: 0.4; }
-    70%  { transform: scale(1.18); opacity: 0; }
-    100% { transform: scale(1.18); opacity: 0; }
   }
 
   .btn-secondary:hover {

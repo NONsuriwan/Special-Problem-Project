@@ -2,7 +2,7 @@
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
   import Dropdown from '$lib/components/ui/Dropdown.svelte';
-  import { apiFetch } from '$lib/api/client';
+  import { apiFetch, apiFetchBlob } from '$lib/api/client';
   import { API_ENDPOINTS } from '$lib/api/endpoints';
   import '../../../styles/pagination.css';
   import '../../../styles/filter.css';
@@ -21,10 +21,40 @@
     price: string | null;
     buildingId: number | null;
     roomId: number | null;
+    warrantyEnd: string | null;
+    warrantyAttachmentId: number | null;
     departmentId?: number | null;
     acquisitionSourceId?: number | null;
     moneyTypeId?: number | null;
   };
+
+  // Preview modal
+  let previewUrl: string | null = null;
+  let previewLoading = false;
+  let previewFileName = '';
+  let showPreviewModal = false;
+  let previewMimeType = '';
+
+  async function loadPreviewById(id: number, fileName: string) {
+    previewLoading = true;
+    previewFileName = fileName;
+    try {
+      const blob = await apiFetchBlob(`/api/attachments/${id}/file`);
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+      previewUrl = URL.createObjectURL(blob);
+      previewMimeType = blob.type;
+      showPreviewModal = true;
+    } catch (err) {
+      console.error('preview failed:', err);
+    } finally {
+      previewLoading = false;
+    }
+  }
+
+  function closePreview() {
+    showPreviewModal = false;
+    if (previewUrl) { URL.revokeObjectURL(previewUrl); previewUrl = null; }
+  }
 
   type MasterData = { id: number; name: string; };
 
@@ -269,6 +299,7 @@
           <colgroup>
             <col class="col-num"><col class="col-name"><col class="col-type"><col class="col-status">
             <col class="col-date"><col class="col-price"><col class="col-bldg"><col class="col-room">
+            <col class="col-warranty">
           </colgroup>
           <thead>
             <tr>
@@ -281,6 +312,7 @@
                 { col: 'price',           label: 'ราคา' },
                 { col: 'building',        label: 'อาคาร' },
                 { col: 'room',            label: 'ห้อง' },
+                { col: 'warrantyEnd',     label: 'วันที่หมดประกัน' },
               ] as h}
                 <th class="sortable" on:click={() => toggleSort(h.col)}>
                   <span class="th-inner">
@@ -305,6 +337,21 @@
                 <td>{formatPrice(r.price)}</td>
                 <td>{getBuildingName(r.buildingId)}</td>
                 <td>{getRoomName(r.roomId)}</td>
+                <td class="warranty-cell" on:click|stopPropagation>
+                  <span>{r.warrantyEnd ? formatDate(r.warrantyEnd) : '-'}</span>
+                  {#if r.warrantyAttachmentId}
+                    <button
+                      class="warranty-pdf-btn"
+                      disabled={previewLoading && previewFileName === r.warrantyEnd}
+                      on:click={() => loadPreviewById(r.warrantyAttachmentId!, 'เอกสารประกัน')}
+                      title="ดูเอกสารประกัน"
+                    >
+                      <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                      </svg>
+                    </button>
+                  {/if}
+                </td>
               </tr>
             {/each}
           </tbody>
@@ -342,6 +389,24 @@
     </div>
   {/if}
 </div>
+
+{#if showPreviewModal && previewUrl}
+  <div class="preview-overlay" on:click={closePreview} role="presentation">
+    <div class="preview-modal" on:click|stopPropagation>
+      <div class="preview-header">
+        <span class="preview-title">{previewFileName}</span>
+        <button class="preview-close" on:click={closePreview}>✕</button>
+      </div>
+      <div class="preview-body">
+        {#if previewMimeType.startsWith('image/')}
+          <img src={previewUrl} alt={previewFileName} class="preview-image" />
+        {:else}
+          <iframe src={previewUrl} title={previewFileName} class="preview-iframe"></iframe>
+        {/if}
+      </div>
+    </div>
+  </div>
+{/if}
 
 {#if showFilter}
   <div class="filter-backdrop" on:click={() => showFilter = false} role="presentation">
@@ -396,8 +461,9 @@
   .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.5rem; }
   .table { table-layout: fixed; width: 100%; }
   .table th { padding: 0.875rem 1rem; text-transform: none; font-size: 0.875rem; letter-spacing: normal; overflow: hidden; text-overflow: ellipsis; }
-  .col-num { width: 14%; } .col-name { width: 18%; } .col-type { width: 12%; } .col-status { width: 9%; }
-  .col-date { width: 10%; } .col-price { width: 9%; } .col-bldg { width: 14%; } .col-room { width: 14%; }
+  .col-num { width: 12%; } .col-name { width: 15%; } .col-type { width: 10%; } .col-status { width: 8%; }
+  .col-date { width: 9%; } .col-price { width: 8%; } .col-bldg { width: 12%; } .col-room { width: 10%; }
+  .col-warranty { width: 16%; }
   .table th.sortable { cursor: pointer; user-select: none; }
   .table th.sortable:hover { background: #f3f4f6; }
   .th-inner { display: inline-flex; align-items: center; gap: 0.3rem; white-space: nowrap; }
@@ -417,4 +483,37 @@
   .status-disbursed { background: #d1fae5; color: #065f46; }
   .card-wrapper { background: white; border-radius: 0.75rem; overflow: hidden; box-shadow: 0 1px 3px 0 rgba(0,0,0,0.1); }
   .table-no-radius { border-radius: 0 !important; box-shadow: none !important; }
+
+  .warranty-cell { display: flex; align-items: center; gap: 0.375rem; }
+  .warranty-pdf-btn {
+    display: inline-flex; align-items: center; justify-content: center;
+    padding: 0.2rem 0.35rem; border: 1px solid #e5e7eb; border-radius: 0.25rem;
+    background: #f9fafb; color: #ef4444; cursor: pointer; flex-shrink: 0;
+    transition: background 0.15s, border-color 0.15s;
+  }
+  .warranty-pdf-btn:hover { background: #fee2e2; border-color: #fca5a5; }
+  .warranty-pdf-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .preview-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.6);
+    display: flex; align-items: center; justify-content: center; z-index: 1000;
+  }
+  .preview-modal {
+    background: white; border-radius: 0.75rem; width: 90vw; max-width: 900px;
+    height: 85vh; display: flex; flex-direction: column; overflow: hidden;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+  }
+  .preview-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0.875rem 1.25rem; border-bottom: 1px solid #e5e7eb;
+  }
+  .preview-title { font-weight: 600; color: #111827; font-size: 0.9375rem; }
+  .preview-close {
+    background: none; border: none; cursor: pointer; font-size: 1rem;
+    color: #6b7280; padding: 0.25rem 0.5rem; border-radius: 0.25rem;
+  }
+  .preview-close:hover { background: #f3f4f6; color: #111827; }
+  .preview-body { flex: 1; overflow: hidden; }
+  .preview-image { width: 100%; height: 100%; object-fit: contain; padding: 1rem; }
+  .preview-iframe { width: 100%; height: 100%; border: none; }
 </style>
