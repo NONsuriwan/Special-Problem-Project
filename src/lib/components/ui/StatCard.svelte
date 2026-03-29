@@ -27,8 +27,8 @@
     display: flex;
     align-items: center;
     gap: 1rem;
-    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
-    border: 1px solid #f1f1f1;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    border: 1px solid #e5e7eb;
     overflow: hidden;
   }
 

@@ -10,7 +10,14 @@
 
   // ข้อมูลเมนูตามรายการที่คุณระบุ
   // restricted: true → แสดงเฉพาะ admin หรือ user ที่ departmentId === 1
-  const links = [
+  type NavChild = { href: string; label: string; subtitle?: string; restricted?: boolean };
+  type NavLink = {
+    href?: string; label: string; icon: string; subtitle?: string;
+    exact?: boolean; basePath?: string; defaultTitle?: string; defaultSubtitle?: string;
+    children?: NavChild[];
+  };
+
+  const links: NavLink[] = [
     { href: "/", label: "แดชบอร์ด", icon: "chart-bar", subtitle: "ภาพรวมครุภัณฑ์คณะวิทยาศาสตร์" },
     {
       label: "ครุภัณฑ์",
@@ -23,7 +30,6 @@
         { href: "/equipments/disburse",       label: "เบิกจ่ายครุภัณฑ์",          subtitle: "เบิกจ่ายครุภัณฑ์ที่รอดำเนินการ",            restricted: true },
         { href: "/equipments/pending",        label: "สืบค้นครุภัณฑ์รอเบิกจ่าย",    subtitle: "รายการครุภัณฑ์ที่รอดำเนินการเบิกจ่าย", restricted: true },
         { href: "/equipments/disbursed",      label: "สืบค้นครุภัณฑ์เบิกจ่ายสำเร็จ", subtitle: "รายการครุภัณฑ์ที่เบิกจ่ายเสร็จสิ้นแล้ว" },
-        { href: "/equipments/depreciation",   label: "รายงานค่าเสื่อม",            subtitle: "รายงานค่าเสื่อมราคาของครุภัณฑ์" },
       ]
     },
     {
@@ -44,7 +50,15 @@
         { href: "/projects",             label: "สืบค้นโครงการ",    subtitle: "ค้นหา จัดการ และเพิ่มโครงการ" },
       ]
     },
-    { href: "/reports", label: "รายงาน", icon: "trending-up", subtitle: "จัดการและสรุปข้อมูลของครุภัณฑ์", exact: true },
+    {
+      label: "รายงาน",
+      icon: "trending-up",
+      basePath: "/reports",
+      children: [
+        { href: "/reports/depreciation",    label: "รายงานค่าเสื่อม",     subtitle: "รายงานค่าเสื่อมราคาของครุภัณฑ์" },
+        { href: "/reports",                 label: "รายงานสำรวจครุภัณฑ์", subtitle: "จัดการและสรุปข้อมูลของครุภัณฑ์" },
+      ]
+    },
   ];
 
   // ตรวจสอบสิทธิ์เข้าถึงเมนูที่ restricted
@@ -57,6 +71,7 @@
     "ครุภัณฑ์": false,
     "เลข อว.": false,
     "โครงการ": false,
+    "รายงาน": false,
   };
 
   function toggleMenu(label: string) {
@@ -70,10 +85,14 @@
 
   // Auto-open dropdown เมื่อ child active หรืออยู่ใต้ basePath
   $: {
+    const allChildHrefs = links.flatMap(l => l.children?.map(c => c.href) ?? []);
     for (const l of links) {
       if (l.children) {
         const childMatch = l.children.some(c => c.href && isActive(currentPath, c.href));
-        const baseMatch = l.basePath && currentPath.startsWith(l.basePath + '/');
+        const claimedByOther = allChildHrefs
+          .filter(href => !l.children!.some(c => c.href === href))
+          .some(href => href && currentPath.startsWith(href));
+        const baseMatch = !claimedByOther && l.basePath && currentPath.startsWith(l.basePath + '/');
         if (childMatch || baseMatch) openMenus[l.label] = true;
       }
     }
@@ -244,7 +263,7 @@
             href={l.href}
             on:click={() => selectLink(l.label, l.subtitle ?? '')}
             class="flex items-center gap-5 px-4 py-3 rounded-lg hover:bg-black/5 transition-colors
-                  {isActive(currentPath, l.href, l.exact) ? 'bg-white/20' : 'opacity-90'}"
+                  {isActive(currentPath, l.href ?? '', l.exact) ? 'bg-white/20' : 'opacity-90'}"
           >
             <span class="sidebar-icon"><Icon name={l.icon} size={24} strokeWidth={1.8} /></span>
             <span class="text-b6">{l.label}</span>

@@ -447,7 +447,15 @@
         <h2 class="card-title">ข้อมูลทั่วไป</h2>
 
         <div class="detail-grid">
-          <!-- เลข อว. | ประเภทเอกสาร -->
+          <!-- โครงการ | เลข อว. -->
+          <div class="detail-item">
+            <div class="detail-icon"><Icon name="folder" size={24} /></div>
+            <div class="detail-content">
+              <div class="detail-label">โครงการ</div>
+              <div class="detail-value">{getProjectName(record.projectId)}</div>
+            </div>
+          </div>
+
           <div class="detail-item">
             <div class="detail-icon"><Icon name="clipboard-list" size={24} /></div>
             <div class="detail-content">
@@ -456,6 +464,7 @@
             </div>
           </div>
 
+          <!-- ประเภทเอกสาร | ชื่อกิจกรรม -->
           <div class="detail-item">
             <div class="detail-icon"><Icon name="tag" size={24} /></div>
             <div class="detail-content">
@@ -467,32 +476,6 @@
                   -
                 {/if}
               </div>
-            </div>
-          </div>
-
-          <!-- คณะ | แผนงาน -->
-          <div class="detail-item">
-            <div class="detail-icon"><Icon name="academic-cap" size={24} /></div>
-            <div class="detail-content">
-              <div class="detail-label">คณะ/ส่วนงาน</div>
-              <div class="detail-value">{record.faculty || getDepartmentName(record.departmentId)}</div>
-            </div>
-          </div>
-
-          <div class="detail-item">
-            <div class="detail-icon"><Icon name="chart-bar" size={24} /></div>
-            <div class="detail-content">
-              <div class="detail-label">แผนงาน</div>
-              <div class="detail-value">{getPlanName(record.planId)}</div>
-            </div>
-          </div>
-
-          <!-- โครงการ | ชื่อกิจกรรม -->
-          <div class="detail-item">
-            <div class="detail-icon"><Icon name="folder" size={24} /></div>
-            <div class="detail-content">
-              <div class="detail-label">โครงการ</div>
-              <div class="detail-value">{getProjectName(record.projectId)}</div>
             </div>
           </div>
 
@@ -518,6 +501,23 @@
             <div class="detail-content">
               <div class="detail-label">จำนวนเงิน</div>
               <div class="detail-value">{formatCurrency(record.amount)} บาท</div>
+            </div>
+          </div>
+
+          <!-- คณะ/ส่วนงาน | แผนงาน -->
+          <div class="detail-item">
+            <div class="detail-icon"><Icon name="academic-cap" size={24} /></div>
+            <div class="detail-content">
+              <div class="detail-label">คณะ/ส่วนงาน</div>
+              <div class="detail-value">{record.faculty || getDepartmentName(record.departmentId)}</div>
+            </div>
+          </div>
+
+          <div class="detail-item">
+            <div class="detail-icon"><Icon name="chart-bar" size={24} /></div>
+            <div class="detail-content">
+              <div class="detail-label">แผนงาน</div>
+              <div class="detail-value">{getPlanName(record.planId)}</div>
             </div>
           </div>
 
@@ -601,8 +601,8 @@
                 <svg class="upload-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                 </svg>
-                <p>{directDragOver ? 'วางไฟล์ที่นี่' : (attachmentInfo ? 'คลิกเพื่อเปลี่ยนไฟล์' : 'คลิกเพื่อเพิ่มไฟล์แนบ')}</p>
-                <p class="hint">PDF, JPG, PNG หรือลากไฟล์มาวาง</p>
+                <p>{directDragOver ? 'วางไฟล์ที่นี่' : (attachmentInfo ? 'คลิกหรือลากไฟล์เพื่อเปลี่ยนไฟล์' : 'คลิกหรือลากเพื่อเพิ่มไฟล์แนบ')}</p>
+                <p class="hint">PDF, JPG, PNG</p>
               </label>
             {/if}
             {#if directUploadError}
@@ -614,7 +614,7 @@
           <div class="attach-divider"></div>
 
           <div class="attach-section-header">
-            <span class="attach-section-title">เอกสารแนบเพิ่มเติม</span>
+            <span class="attach-section-title">เอกสารเพิ่มเติม</span>
           </div>
 
           {#if record.additionalAttachments && record.additionalAttachments.length > 0}
@@ -653,22 +653,17 @@
             />
 
             {#if additionalFiles.length > 0}
-              <div class="additional-staged">
-                {#each additionalFiles as f, i}
-                  <div class="attach-ready" style="margin-bottom:0.375rem">
-                    <div class="attach-ready-files">
-                      <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="flex-shrink:0;color:#6b7280">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-                      </svg>
-                      <span>{f.name}</span>
-                    </div>
-                    <button type="button" class="attach-cancel-btn" style="padding:0.25rem 0.625rem" on:click={() => removeAdditionalFile(i)}>✕</button>
-                  </div>
-                {/each}
-                <div style="display:flex;gap:0.5rem;margin-top:0.25rem">
-                  <label for="additional-file-input" class="attach-cancel-btn" style="cursor:pointer;text-align:center;flex:1">+ เพิ่มไฟล์</label>
-                  <button type="button" class="attach-upload-btn" style="flex:2" disabled={additionalUploading} on:click={uploadAdditionalFiles}>
-                    {additionalUploading ? 'กำลังอัปโหลด...' : `อัปโหลด ${additionalFiles.length} ไฟล์`}
+              <div class="attach-ready">
+                <div class="attach-ready-files">
+                  <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="flex-shrink:0;color:#6b7280">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                  </svg>
+                  <span>{additionalFiles.length} ไฟล์พร้อมอัปโหลด</span>
+                </div>
+                <div class="attach-ready-actions">
+                  <button type="button" class="attach-cancel-btn" on:click={() => additionalFiles = []}>ยกเลิก</button>
+                  <button type="button" class="attach-upload-btn" disabled={additionalUploading} on:click={uploadAdditionalFiles}>
+                    {additionalUploading ? 'กำลังอัปโหลด...' : 'อัปโหลด'}
                   </button>
                 </div>
               </div>
@@ -680,17 +675,16 @@
                 on:dragover|preventDefault={() => additionalDragOver = true}
                 on:dragleave={() => additionalDragOver = false}
                 on:drop={handleAdditionalDrop}
-                style="padding:1rem"
               >
-                <svg class="upload-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:1.75rem;height:1.75rem;margin-bottom:0.5rem">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                <svg class="upload-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
                 </svg>
-                <p>{additionalDragOver ? 'วางไฟล์ที่นี่' : 'คลิกเพื่อเพิ่มเอกสารแนบ'}</p>
+                <p>{additionalDragOver ? 'วางไฟล์ที่นี่' : 'คลิกหรือลากเพื่อเพิ่มไฟล์แนบ'}</p>
                 <p class="hint">PDF, JPG, PNG · เลือกได้หลายไฟล์</p>
               </label>
             {/if}
             {#if additionalUploadError}
-              <p class="upload-error">{additionalUploadError}</p>
+              <p class="attach-upload-error">{additionalUploadError}</p>
             {/if}
           {/if}
         </div>
@@ -1012,22 +1006,6 @@
     gap: 1.5rem;
   }
 
-  .right-column .attachment-card {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-  }
-
-  .right-column .attachment-card .upload-placeholder {
-    flex: 1;
-    margin-bottom: 0;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-  }
-
-
   /* Attachments */
   .upload-placeholder {
     display: block;
@@ -1056,7 +1034,8 @@
 
   .upload-placeholder p {
     margin: 0.25rem 0;
-    color: #6b7280;
+    color: var(--color-brand-500);
+    font-weight: 500;
     font-size: 0.875rem;
   }
 
@@ -1348,6 +1327,12 @@
     padding: 0.75rem;
     border: 1px solid #e5e7eb;
     border-radius: 0.5rem;
+    transition: background 0.15s, border-color 0.15s;
+  }
+
+  .attachment-item:hover {
+    background: #f9fafb;
+    border-color: #ffa200;
   }
 
   .file-icon {
@@ -1386,7 +1371,8 @@
 
   .btn-preview:hover { background: #e5e7eb; }
 
-  .upload-error {
+  .upload-error,
+  .attach-upload-error {
     color: #dc2626;
     font-size: 0.8125rem;
     margin-top: 0.5rem;
@@ -1417,10 +1403,6 @@
     font-size: 0.8125rem;
     color: #9ca3af;
     margin: 0 0 0.75rem 0;
-  }
-
-  .additional-staged {
-    margin-top: 0.25rem;
   }
 
   /* Preview modal */

@@ -351,6 +351,7 @@
         <div class="form-grid">
           <!-- โครงการ -->
           <div class="form-group" class:error-wrapper={errors.projectId}>
+            <!-- svelte-ignore a11y_label_has_associated_control -->
             <label class="label">โครงการ <span class="required">*</span></label>
             <Dropdown
               fullWidth
@@ -362,6 +363,7 @@
 
           <!-- ใบตรวจรับ -->
           <div class="form-group">
+            <!-- svelte-ignore a11y_label_has_associated_control -->
             <label class="label">ใบตรวจรับ</label>
             <Dropdown
               fullWidth
@@ -373,8 +375,9 @@
 
           <!-- ชื่อครุภัณฑ์ -->
           <div class="form-group">
-            <label class="label">ชื่อครุภัณฑ์ <span class="required">*</span></label>
+            <label class="label" for="add-assetName">ชื่อครุภัณฑ์ <span class="required">*</span></label>
             <input
+              id="add-assetName"
               type="text"
               bind:value={formData.assetName}
               class="input"
@@ -384,8 +387,9 @@
 
           <!-- รหัสครุภัณฑ์ -->
           <div class="form-group">
-            <label class="label">รหัสครุภัณฑ์ <span class="required">*</span></label>
+            <label class="label" for="add-assetCode">รหัสครุภัณฑ์ <span class="required">*</span></label>
             <input
+              id="add-assetCode"
               type="text"
               inputmode="numeric"
               pattern="[0-9]*"
@@ -398,8 +402,9 @@
 
           <!-- หมายเลขครุภัณฑ์ -->
           <div class="form-group">
-            <label class="label">หมายเลขครุภัณฑ์ <span class="required">*</span></label>
+            <label class="label" for="add-assetNumber">หมายเลขครุภัณฑ์ <span class="required">*</span></label>
             <input
+              id="add-assetNumber"
               type="text"
               bind:value={formData.assetNumber}
               class="input"
@@ -410,6 +415,7 @@
 
           <!-- ถึง -->
           <div class="form-group">
+            <!-- svelte-ignore a11y_label_has_associated_control -->
             <label class="label">ถึง</label>
             <div class="range-input">
               <input
@@ -433,8 +439,19 @@
             <p class="number-preview">ตัวอย่าง: ตัวเดียว 0001 หลายตัว 0001-0005</p>
           </div>
 
-          <!-- ประเภท -->
+          <!-- กิจกรรม | ประเภท -->
+          <div class="form-group">
+            <label class="label" for="add-activity">กิจกรรม <span class="required">*</span></label>
+            <input
+              id="add-activity"
+              type="text"
+              bind:value={formData.activity}
+              class="input"
+              class:input-error={errors.activity}
+            />
+          </div>
           <div class="form-group" class:error-wrapper={errors.assetTypeId}>
+            <!-- svelte-ignore a11y_label_has_associated_control -->
             <label class="label">ประเภท <span class="required">*</span></label>
             <Dropdown
               fullWidth
@@ -443,10 +460,20 @@
             />
           </div>
 
-          <!-- ราคา -->
+          <!-- ปีงบประมาณ | ราคา -->
+          <div class="form-group" class:error-wrapper={errors.fiscalYearId}>
+            <!-- svelte-ignore a11y_label_has_associated_control -->
+            <label class="label">ปีงบประมาณ <span class="required">*</span></label>
+            <Dropdown
+              fullWidth
+              options={years.map(y => ({ value: y, label: String(y) }))}
+              bind:value={formData.fiscalYearId}
+            />
+          </div>
           <div class="form-group">
-            <label class="label">ราคา <span class="required">*</span></label>
+            <label class="label" for="add-price">ราคา <span class="required">*</span></label>
             <input
+              id="add-price"
               type="text"
               inputmode="decimal"
               bind:value={formData.price}
@@ -456,39 +483,18 @@
             />
           </div>
 
-          <!-- วันที่ได้มา -->
-          <div class="form-group">
-            <label class="label">วันที่ได้มา <span class="required">*</span></label>
-            <ThaiDatePicker
-              bind:value={formData.acquisitionDate}
-              error={errors.acquisitionDate}
-              inputClass="input"
-            />
-          </div>
-
-          <!-- ปีงบประมาณ -->
-          <div class="form-group" class:error-wrapper={errors.fiscalYearId}>
-            <label class="label">ปีงบประมาณ <span class="required">*</span></label>
+          <!-- ทรัพย์สินได้มาโดย | กองทุน -->
+          <div class="form-group" class:error-wrapper={errors.acquisitionSourceId}>
+            <!-- svelte-ignore a11y_label_has_associated_control -->
+            <label class="label">ทรัพย์สินได้มาโดย <span class="required">*</span></label>
             <Dropdown
               fullWidth
-              options={years.map(y => ({ value: y, label: String(y) }))}
-              bind:value={formData.fiscalYearId}
+              options={acquisitionSources.map(s => ({ value: s.id, label: s.name }))}
+              bind:value={formData.acquisitionSourceId}
             />
           </div>
-
-          <!-- กิจกรรม -->
-          <div class="form-group">
-            <label class="label">กิจกรรม <span class="required">*</span></label>
-            <input
-              type="text"
-              bind:value={formData.activity}
-              class="input"
-              class:input-error={errors.activity}
-            />
-          </div>
-
-          <!-- กองทุน -->
           <div class="form-group" class:error-wrapper={errors.fundId}>
+            <!-- svelte-ignore a11y_label_has_associated_control -->
             <label class="label">กองทุน <span class="required">*</span></label>
             <Dropdown
               fullWidth
@@ -497,18 +503,30 @@
             />
           </div>
 
-          <!-- ทรัพย์สินได้มาโดย -->
-          <div class="form-group" class:error-wrapper={errors.acquisitionSourceId}>
-            <label class="label">ทรัพย์สินได้มาโดย <span class="required">*</span></label>
-            <Dropdown
-              fullWidth
-              options={acquisitionSources.map(s => ({ value: s.id, label: s.name }))}
-              bind:value={formData.acquisitionSourceId}
+          <!-- วันที่ได้มา -->
+          <div class="form-group full-width">
+            <!-- svelte-ignore a11y_label_has_associated_control -->
+            <label class="label">วันที่ได้มา <span class="required">*</span></label>
+            <ThaiDatePicker
+              bind:value={formData.acquisitionDate}
+              error={errors.acquisitionDate}
+              inputClass="input"
             />
           </div>
 
-          <!-- วิธีการได้มา -->
+          <!-- บริษัท | วิธีการได้มา -->
+          <div class="form-group">
+            <label class="label" for="add-company">บริษัท <span class="required">*</span></label>
+            <input
+              id="add-company"
+              type="text"
+              bind:value={formData.company}
+              class="input"
+              class:input-error={errors.company}
+            />
+          </div>
           <div class="form-group" class:error-wrapper={errors.acquisitionMethodId}>
+            <!-- svelte-ignore a11y_label_has_associated_control -->
             <label class="label">วิธีการได้มา <span class="required">*</span></label>
             <Dropdown
               fullWidth
@@ -519,7 +537,13 @@
 
           <!-- ระยะเวลาประกัน -->
           <div class="form-group full-width">
-            <label class="label">ระยะเวลาประกัน</label>
+            <div class="warranty-label-row">
+              <!-- svelte-ignore a11y_label_has_associated_control -->
+              <label class="label">ระยะเวลาประกัน</label>
+              {#if warrantyEnd}
+                <span class="warranty-end-text">วันสิ้นสุด: {isoToBeDisplay(warrantyEnd)}</span>
+              {/if}
+            </div>
             <div class="warranty-period-row">
               <Dropdown
                 fullWidth
@@ -533,38 +557,24 @@
                 bind:value={formData.warrantyMonths}
                 placeholder="เดือน"
               />
-              {#if warrantyEnd}
-                <span class="warranty-end-text">วันสิ้นสุด: {isoToBeDisplay(warrantyEnd)}</span>
-              {/if}
             </div>
           </div>
 
-          <!-- หน่วยนับ -->
+          <!-- หน่วยนับ | ขนาดและลักษณะ -->
           <div class="form-group">
-            <label class="label">หน่วยนับ <span class="required">*</span></label>
+            <label class="label" for="add-unit">หน่วยนับ <span class="required">*</span></label>
             <input
+              id="add-unit"
               type="text"
               bind:value={formData.unit}
               class="input"
               class:input-error={errors.unit}
             />
           </div>
-
-          <!-- บริษัท -->
           <div class="form-group">
-            <label class="label">บริษัท <span class="required">*</span></label>
+            <label class="label" for="add-sizeDetail">ขนาดและลักษณะ <span class="required">*</span></label>
             <input
-              type="text"
-              bind:value={formData.company}
-              class="input"
-              class:input-error={errors.company}
-            />
-          </div>
-
-          <!-- ขนาดและลักษณะ -->
-          <div class="form-group">
-            <label class="label">ขนาดและลักษณะ <span class="required">*</span></label>
-            <input
+              id="add-sizeDetail"
               type="text"
               bind:value={formData.sizeDetail}
               class="input"
@@ -573,9 +583,10 @@
           </div>
 
           <!-- หมายเหตุ -->
-          <div class="form-group">
-            <label class="label">หมายเหตุ (ถ้ามี)</label>
+          <div class="form-group full-width">
+            <label class="label" for="add-note">หมายเหตุ (ถ้ามี)</label>
             <textarea
+              id="add-note"
               bind:value={formData.note}
               class="input textarea"
               rows="3"
@@ -587,8 +598,11 @@
             <div class="doc-row">
               <!-- ซ้าย: เอกสารประกัน -->
               <div class="doc-col">
+                <!-- svelte-ignore a11y_label_has_associated_control -->
                 <label class="label">เอกสารประกัน</label>
                 <div class="file-upload"
+                  role="region"
+                  aria-label="อัปโหลดเอกสารประกัน"
                   class:file-upload-dragover={warrantyDragOver}
                   on:dragover|preventDefault={() => warrantyDragOver = true}
                   on:dragleave={() => warrantyDragOver = false}
@@ -600,7 +614,8 @@
                     <svg class="upload-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
                     </svg>
-                    <p class="upload-title">คลิกหรือลากไฟล์มาวาง</p>
+                    <p class="upload-title">คลิกหรือลากไฟล์เพื่อเพิ่มไฟล์แนบ</p>
+                    <p class="upload-hint">PDF, JPG, PNG </p>
                   </label>
                   {#if warrantyFile}
                     <div class="file-list">
@@ -623,12 +638,15 @@
               <!-- ขวา: เอกสารแนบเพิ่มเติม -->
               <div class="doc-col">
                 <div class="label-row">
+                  <!-- svelte-ignore a11y_label_has_associated_control -->
                   <label class="label">เอกสารแนบเพิ่มเติม</label>
                   {#if attachmentFiles.length > 0}
                     <button type="button" class="btn-clear-files" on:click={() => attachmentFiles = []}>ล้างทั้งหมด</button>
                   {/if}
                 </div>
                 <div class="file-upload"
+                  role="region"
+                  aria-label="อัปโหลดเอกสารแนบเพิ่มเติม"
                   class:file-upload-dragover={attachDragOver}
                   on:dragover|preventDefault={() => attachDragOver = true}
                   on:dragleave={() => attachDragOver = false}
@@ -639,7 +657,8 @@
                     <svg class="upload-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
                     </svg>
-                    <p class="upload-title">คลิกหรือลากไฟล์มาวาง</p>
+                    <p class="upload-title">คลิกหรือลากไฟล์เพื่อเพิ่มไฟล์แนบ</p>
+                    <p class="upload-hint">PDF, JPG, PNG · เลือกได้หลายไฟล์</p>
                   </label>
                   {#if attachmentFiles.length > 0}
                     <div class="file-list">
@@ -713,35 +732,6 @@
 {/if}
 
 <style>
-  .date-wrapper {
-    position: relative;
-  }
-
-  .date-picker-hidden {
-    position: absolute;
-    inset: 0;
-    opacity: 0;
-    width: 100%;
-    cursor: pointer;
-  }
-
-  .date-display {
-    cursor: pointer;
-    padding-right: 2.5rem;
-  }
-
-  .cal-icon {
-    position: absolute;
-    right: 0.75rem;
-    top: 50%;
-    transform: translateY(-50%);
-    pointer-events: none;
-    color: #9ca3af;
-  }
-
-  .file-upload-error {
-    border-color: #dc2626 !important;
-  }
 
   .textarea {
     resize: vertical;
@@ -817,20 +807,28 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 0.5rem;
-    padding: 1.5rem 1rem 1.25rem;
+    gap: 0.25rem;
+    padding: 1.25rem 1rem;
   }
 
   .upload-icon {
     width: 2.25rem;
     height: 2.25rem;
     color: #9ca3af;
+    margin-bottom: 0.25rem;
   }
 
   .upload-title {
     font-size: 0.8rem;
+    font-weight: 500;
     margin: 0;
-    color: #6b7280;
+    color: var(--color-brand-500);
+  }
+
+  .upload-hint {
+    font-size: 0.75rem;
+    margin: 0;
+    color: #9ca3af;
   }
 
   .file-list {
@@ -867,6 +865,7 @@
     line-height: 1.3;
     display: -webkit-box;
     -webkit-line-clamp: 2;
+    line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
   }
@@ -894,6 +893,17 @@
     font-size: 0.875rem;
     color: #9a9b9c;
     margin-top: 0.25rem;
+  }
+
+  .warranty-label-row {
+    display: flex;
+    align-items: baseline;
+    gap: 0.75rem;
+    margin-bottom: 0.375rem;
+  }
+
+  .warranty-label-row .label {
+    margin-bottom: 0;
   }
 
   .warranty-period-row {

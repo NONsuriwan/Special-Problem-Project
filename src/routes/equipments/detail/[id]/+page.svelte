@@ -797,8 +797,72 @@
     projectId: null as number | null,
     buildingId: null as number | null,
     roomId: null as number | null,
+    warrantyYears: null as number | null,
+    warrantyMonths: null as number | null,
+    mhesiId: null as string | null,
     note: '',
   };
+
+  let editMhesiOptions: MhesiEntry[] = [];
+  let editMhesiLoading = false;
+
+  async function fetchEditMhesiOptions(projectId: number) {
+    editMhesiLoading = true;
+    try {
+      const res = await apiFetch<{ data: MhesiEntry[] }>(`${API_ENDPOINTS.MHESI}?role=receiving&projectId=${projectId}`);
+      editMhesiOptions = res.data || [];
+    } catch (e) { console.error(e); }
+    editMhesiLoading = false;
+  }
+
+  function onEditProjectChange(pid: number | null) {
+    editMhesiOptions = [];
+    editForm.mhesiId = null;
+    if (!pid) return;
+    const proj = projects.find((p: any) => p.id === pid);
+    if (proj) {
+      if (proj.projectTypeId != null) editForm.equipmentTypeId = proj.projectTypeId;
+      if (proj.fiscalYear != null) editForm.fiscalYear = proj.fiscalYear;
+      if (proj.acquisitionSourceId != null) editForm.acquisitionSourceId = proj.acquisitionSourceId;
+      if (proj.acquisitionMethodId != null) editForm.acquisitionMethodId = proj.acquisitionMethodId;
+      const budget = proj.budget != null ? parseFloat(String(proj.budget)) : null;
+      const qty = proj.qtyOrdered ?? null;
+      if (budget !== null && qty && qty > 0) {
+        editForm.price = String(Math.round((budget / qty) * 100) / 100);
+      }
+    }
+    fetchEditMhesiOptions(pid);
+  }
+
+  let prevEditMhesiId: string | null = null;
+  $: {
+    if (editForm.mhesiId !== prevEditMhesiId) {
+      prevEditMhesiId = editForm.mhesiId;
+      const mhesi = editMhesiOptions.find(m => m.uuid === editForm.mhesiId);
+      if (mhesi?.date) editForm.acquisitionDate = mhesi.date.slice(0, 10);
+    }
+  }
+
+  const editWarrantyYearOpts = Array.from({ length: 10 }, (_, i) => ({ value: i + 1, label: `${i + 1} ปี` }));
+  const editWarrantyMonthOpts = Array.from({ length: 11 }, (_, i) => ({ value: i + 1, label: `${i + 1} เดือน` }));
+
+  function computeEditWarrantyEnd(date: string, years: number, months: number): string {
+    if (!date || (!years && !months)) return '';
+    const parts = date.split('-');
+    if (parts.length !== 3) return '';
+    let y = parseInt(parts[0]);
+    let m = parseInt(parts[1]) - 1;
+    const d = parseInt(parts[2]);
+    m += months;
+    y += years + Math.floor(m / 12);
+    m = ((m % 12) + 12) % 12;
+    return `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+  }
+  $: editWarrantyEnd = computeEditWarrantyEnd(
+    editForm.acquisitionDate,
+    editForm.warrantyYears ?? 0,
+    editForm.warrantyMonths ?? 0
+  );
 
   function openEditModal() {
     const a = asset;
@@ -822,8 +886,13 @@
       projectId: a.projectId,
       buildingId: a.buildingId,
       roomId: a.roomId,
+      warrantyYears: a.warrantyYears ?? null,
+      warrantyMonths: a.warrantyMonths ?? null,
+      mhesiId: a.receivingMhesi?.uuid ?? null,
       note: a.note || '',
     };
+    editMhesiOptions = [];
+    if (a.projectId) fetchEditMhesiOptions(a.projectId);
     editError = '';
     showEditModal = true;
   }
@@ -853,6 +922,10 @@
         projectId: editForm.projectId,
         buildingId: editForm.buildingId,
         roomId: editForm.roomId,
+        warrantyYears: editForm.warrantyYears ?? null,
+        warrantyMonths: editForm.warrantyMonths ?? null,
+        warrantyEnd: editWarrantyEnd || null,
+        receivingMhesiId: editForm.mhesiId || null,
       };
 
       const result = await apiFetch<{ data: Asset }>(API_ENDPOINTS.ASSET_DETAIL(assetId), {
@@ -897,7 +970,7 @@
         <p class="code"><span class="meta-label">หมายเลขครุภัณฑ์:</span> {asset.equipmentNumber ?? asset.equipmentCode}</p>
       </div>
       <div class="header-actions">
-        {#if asset.status !== 'disposed'}
+        {#if asset.status !== 'disposed' && asset.status !== 'pending'}
         <button class="btn-secondary" on:click={openStatusModal}>
           <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="16" height="16" style="flex-shrink:0">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
@@ -928,41 +1001,12 @@
         </div>
 
         <div class="detail-grid">
+          <!-- Row 1: โครงการ | ชื่อครุภัณฑ์ -->
           <div class="detail-item">
-            <div class="detail-icon"><Icon name="building" size={24} /></div>
+            <div class="detail-icon"><Icon name="folder" size={24} /></div>
             <div>
-              <div class="detail-label">หน่วยงาน</div>
-              <div class="detail-value">{getMasterName(departments, asset.departmentId)}</div>
-            </div>
-          </div>
-          <div class="detail-item">
-            <div class="detail-icon"><Icon name="flag" size={24} /></div>
-            <div>
-              <div class="detail-label">กิจกรรม</div>
-              <div class="detail-value">{asset.activity || '-'}</div>
-            </div>
-          </div>
-
-          <div class="detail-item">
-            <div class="detail-icon"><Icon name="library" size={24} /></div>
-            <div>
-              <div class="detail-label">กองทุน</div>
-              <div class="detail-value">{getMasterName(funds, asset.fundId)}</div>
-            </div>
-          </div>
-          <div class="detail-item">
-            <div class="detail-icon"><Icon name="calendar" size={24} /></div>
-            <div>
-              <div class="detail-label">ปีงบประมาณ</div>
-              <div class="detail-value">{asset.fiscalYear || '-'}</div>
-            </div>
-          </div>
-
-          <div class="detail-item">
-            <div class="detail-icon"><Icon name="clipboard-list" size={24} /></div>
-            <div>
-              <div class="detail-label">รหัสครุภัณฑ์</div>
-              <div class="detail-value">{asset.equipmentCode || '-'}</div>
+              <div class="detail-label">โครงการ</div>
+              <div class="detail-value">{getProjectName(asset.projectId)}</div>
             </div>
           </div>
           <div class="detail-item">
@@ -973,11 +1017,44 @@
             </div>
           </div>
 
+          <!-- Row 2: หมายเลขครุภัณฑ์ | รหัสครุภัณฑ์ -->
           <div class="detail-item">
             <div class="detail-icon"><Icon name="hashtag" size={24} /></div>
             <div>
               <div class="detail-label">หมายเลขครุภัณฑ์</div>
               <div class="detail-value">{asset.equipmentNumber || '-'}</div>
+            </div>
+          </div>
+          <div class="detail-item">
+            <div class="detail-icon"><Icon name="clipboard-list" size={24} /></div>
+            <div>
+              <div class="detail-label">รหัสครุภัณฑ์</div>
+              <div class="detail-value">{asset.equipmentCode || '-'}</div>
+            </div>
+          </div>
+
+          <!-- Row 3: กิจกรรม | ประเภท -->
+          <div class="detail-item">
+            <div class="detail-icon"><Icon name="flag" size={24} /></div>
+            <div>
+              <div class="detail-label">กิจกรรม</div>
+              <div class="detail-value">{asset.activity || '-'}</div>
+            </div>
+          </div>
+          <div class="detail-item">
+            <div class="detail-icon"><Icon name="collection" size={24} /></div>
+            <div>
+              <div class="detail-label">ประเภท</div>
+              <div class="detail-value">{getMasterName(assetTypes, asset.equipmentTypeId)}</div>
+            </div>
+          </div>
+
+          <!-- Row 4: ปีงบประมาณ | ราคา -->
+          <div class="detail-item">
+            <div class="detail-icon"><Icon name="calendar" size={24} /></div>
+            <div>
+              <div class="detail-label">ปีงบประมาณ</div>
+              <div class="detail-value">{asset.fiscalYear || '-'}</div>
             </div>
           </div>
           <div class="detail-item">
@@ -988,28 +1065,7 @@
             </div>
           </div>
 
-          <div class="detail-item">
-            <div class="detail-icon"><Icon name="document-text" size={24} /></div>
-            <div>
-              <div class="detail-label">หน่วยนับ</div>
-              <div class="detail-value">{asset.unit || '-'}</div>
-            </div>
-          </div>
-          <div class="detail-item">
-            <div class="detail-icon"><Icon name="location" size={24} /></div>
-            <div>
-              <div class="detail-label">บริษัท</div>
-              <div class="detail-value">{asset.company || '-'}</div>
-            </div>
-          </div>
-
-          <div class="detail-item">
-            <div class="detail-icon"><Icon name="collection" size={24} /></div>
-            <div>
-              <div class="detail-label">ประเภท</div>
-              <div class="detail-value">{getMasterName(assetTypes, asset.equipmentTypeId)}</div>
-            </div>
-          </div>
+          <!-- Row 5: ทรัพย์สินได้มาโดย | กองทุน -->
           <div class="detail-item">
             <div class="detail-icon"><Icon name="user" size={24} /></div>
             <div>
@@ -1017,7 +1073,15 @@
               <div class="detail-value">{getMasterName(acquisitionSources, asset.acquisitionSourceId)}</div>
             </div>
           </div>
+          <div class="detail-item">
+            <div class="detail-icon"><Icon name="library" size={24} /></div>
+            <div>
+              <div class="detail-label">กองทุน</div>
+              <div class="detail-value">{getMasterName(funds, asset.fundId)}</div>
+            </div>
+          </div>
 
+          <!-- Row 6: วันที่ได้มา | วันที่เบิกจ่าย -->
           <div class="detail-item">
             <div class="detail-icon"><Icon name="calendar" size={24} /></div>
             <div>
@@ -1026,13 +1090,43 @@
             </div>
           </div>
           <div class="detail-item">
-            <div class="detail-icon"><Icon name="scale" size={24} /></div>
+            <div class="detail-icon"><Icon name="calendar" size={24} /></div>
             <div>
-              <div class="detail-label">ขนาดและลักษณะ</div>
-              <div class="detail-value">{asset.sizeDetail || '-'}</div>
+              <div class="detail-label">วันที่เบิกจ่าย</div>
+              <div class="detail-value">{asset.disbursement?.disbursedDate ? formatDate(asset.disbursement.disbursedDate) : '-'}</div>
             </div>
           </div>
 
+          <!-- Row 7: วันที่หมดประกัน | ระยะเวลาประกัน -->
+          <div class="detail-item">
+            <div class="detail-icon"><Icon name="calendar" size={24} /></div>
+            <div>
+              <div class="detail-label">วันที่หมดประกัน</div>
+              <div class="detail-value">{asset.warrantyEnd ? formatDate(asset.warrantyEnd) : '-'}</div>
+            </div>
+          </div>
+          <div class="detail-item">
+            <div class="detail-icon"><Icon name="shield-check" size={24} /></div>
+            <div>
+              <div class="detail-label">ระยะเวลาประกัน</div>
+              <div class="detail-value">
+                {#if asset.warrantyYears || asset.warrantyMonths}
+                  {[asset.warrantyYears ? `${asset.warrantyYears} ปี` : '', asset.warrantyMonths ? `${asset.warrantyMonths} เดือน` : ''].filter(Boolean).join(' ')}
+                {:else}
+                  -
+                {/if}
+              </div>
+            </div>
+          </div>
+
+          <!-- Row 8: บริษัท | วิธีการได้มา -->
+          <div class="detail-item">
+            <div class="detail-icon"><Icon name="location" size={24} /></div>
+            <div>
+              <div class="detail-label">บริษัท</div>
+              <div class="detail-value">{asset.company || '-'}</div>
+            </div>
+          </div>
           <div class="detail-item">
             <div class="detail-icon"><Icon name="bookmark" size={24} /></div>
             <div>
@@ -1040,14 +1134,24 @@
               <div class="detail-value">{getMasterName(acquisitionMethods, asset.acquisitionMethodId)}</div>
             </div>
           </div>
+
+          <!-- Row 9: ผู้รับครุภัณฑ์ | หน่วยงาน -->
           <div class="detail-item">
-            <div class="detail-icon"><Icon name="folder" size={24} /></div>
+            <div class="detail-icon"><Icon name="user" size={24} /></div>
             <div>
-              <div class="detail-label">โครงการ</div>
-              <div class="detail-value">{getProjectName(asset.projectId)}</div>
+              <div class="detail-label">ผู้รับครุภัณฑ์</div>
+              <div class="detail-value">{asset.disbursement?.disbursedTo || '-'}</div>
+            </div>
+          </div>
+          <div class="detail-item">
+            <div class="detail-icon"><Icon name="building" size={24} /></div>
+            <div>
+              <div class="detail-label">หน่วยงาน</div>
+              <div class="detail-value">{getMasterName(departments, asset.departmentId)}</div>
             </div>
           </div>
 
+          <!-- Row 10: อาคาร | ห้อง -->
           <div class="detail-item">
             <div class="detail-icon"><Icon name="building" size={24} /></div>
             <div>
@@ -1063,6 +1167,7 @@
             </div>
           </div>
 
+          <!-- Row 11: ชั้นที่จัดตั้ง -->
           <div class="detail-item">
             <div class="detail-icon"><Icon name="template" size={24} /></div>
             <div>
@@ -1070,28 +1175,24 @@
               <div class="detail-value">{asset.floor || '-'}</div>
             </div>
           </div>
+
+          <!-- Row 12: ขนาดและลักษณะ | หน่วยนับ -->
           <div class="detail-item">
-            <div class="detail-icon"><Icon name="clock" size={24} /></div>
+            <div class="detail-icon"><Icon name="scale" size={24} /></div>
             <div>
-              <div class="detail-label">ระยะเวลาประกัน</div>
-              <div class="detail-value">
-                {#if asset.warrantyYears || asset.warrantyMonths}
-                  {[asset.warrantyYears ? `${asset.warrantyYears} ปี` : '', asset.warrantyMonths ? `${asset.warrantyMonths} เดือน` : ''].filter(Boolean).join(' ')}
-                {:else}
-                  -
-                {/if}
-              </div>
+              <div class="detail-label">ขนาดและลักษณะ</div>
+              <div class="detail-value">{asset.sizeDetail || '-'}</div>
+            </div>
+          </div>
+          <div class="detail-item">
+            <div class="detail-icon"><Icon name="document-text" size={24} /></div>
+            <div>
+              <div class="detail-label">หน่วยนับ</div>
+              <div class="detail-value">{asset.unit || '-'}</div>
             </div>
           </div>
 
-          <div class="detail-item">
-            <div class="detail-icon"><Icon name="calendar" size={24} /></div>
-            <div>
-              <div class="detail-label">วันที่หมดประกัน</div>
-              <div class="detail-value">{asset.warrantyEnd ? formatDate(asset.warrantyEnd) : '-'}</div>
-            </div>
-          </div>
-
+          <!-- หมายเหตุ (full-width) -->
           <div class="detail-item full-width">
             <div class="detail-icon"><Icon name="pencil" size={24} /></div>
             <div>
@@ -1168,8 +1269,8 @@
               <svg class="upload-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
               </svg>
-              <p>{warrantyDirectDragOver ? 'วางไฟล์ที่นี่' : (warrantyAttachmentInfo ? 'คลิกเพื่อเปลี่ยนไฟล์' : 'คลิกเพื่อเพิ่มไฟล์แนบ')}</p>
-              <p class="hint">PDF, JPG, PNG หรือลากไฟล์มาวาง</p>
+              <p>{warrantyDirectDragOver ? 'วางไฟล์ที่นี่' : (warrantyAttachmentInfo ? 'คลิกหรือลากเพื่อเปลี่ยนไฟล์' : 'คลิกหรือลากเพื่อเพิ่มไฟล์แนบ')}</p>
+              <p class="hint">PDF, JPG, PNG</p>
             </label>
           {/if}
           {#if warrantyDirectError}
@@ -1219,8 +1320,8 @@
               <svg class="upload-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
               </svg>
-              <p>{attachDragOver ? 'วางไฟล์ที่นี่' : 'คลิกเพื่อเพิ่มไฟล์แนบ'}</p>
-              <p class="hint">PDF, JPG, PNG หรือลากไฟล์มาวาง</p>
+              <p>{attachDragOver ? 'วางไฟล์ที่นี่' : 'คลิกหรือลากเพื่อเพิ่มไฟล์แนบ'}</p>
+              <p class="hint">PDF, JPG, PNG · เลือกได้หลายไฟล์</p>
             </label>
           {/if}
 
@@ -1529,12 +1630,12 @@
 
 <!-- Status Modal -->
 {#if showStatusModal}
-  <div class="modal-backdrop" on:click={() => (showStatusModal = false)} role="presentation">
-    <div class="modal-box modal-status" on:click|stopPropagation role="dialog" aria-modal="true">
+  <div class="modal-backdrop" on:click={() => (showStatusModal = false)} on:keydown={(e) => e.key === 'Escape' && (showStatusModal = false)} role="presentation">
+    <div class="modal-box modal-status" on:click|stopPropagation on:keydown|stopPropagation role="dialog" aria-modal="true" tabindex="-1">
       <!-- Header -->
       <div class="modal-header">
         <span class="modal-title">แก้ไขสถานะครุภัณฑ์</span>
-        <button class="modal-close" on:click={() => (showStatusModal = false)}>
+        <button class="modal-close" aria-label="ปิด" on:click={() => (showStatusModal = false)}>
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M18 6L6 18M6 6l12 12"/>
           </svg>
@@ -1579,7 +1680,7 @@
               {#each extraEquipment as eq (eq.uuid)}
                 <div class="sm-chip">
                   <span>{eq.equipmentName} • {eq.equipmentNumber ?? eq.equipmentCode}</span>
-                  <button class="sm-chip-remove" type="button" on:click={() => {
+                  <button class="sm-chip-remove" type="button" aria-label="ลบ" on:click={() => {
                     extraEquipment = extraEquipment.filter(e => e.uuid !== eq.uuid);
                   }}>
                     <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="13" height="13">
@@ -1603,10 +1704,11 @@
             {#if selectedStatus === 'borrowed'}
               <div class="sm-form-grid">
                 <div class="sm-fg" class:sm-fg-err={statusFieldErrors.borrowerName}>
-                  <label class="sm-label">ผู้ยืม <span class="sm-req">*</span></label>
-                  <input class="sm-input" bind:value={borrowerName} placeholder="ชื่อผู้ยืม" />
+                  <label class="sm-label" for="sm-borrowerName">ผู้ยืม <span class="sm-req">*</span></label>
+                  <input id="sm-borrowerName" class="sm-input" bind:value={borrowerName} placeholder="ชื่อผู้ยืม" />
                 </div>
                 <div class="sm-fg" class:sm-fg-err={statusFieldErrors.borrowUnitId}>
+                  <!-- svelte-ignore a11y_label_has_associated_control -->
                   <label class="sm-label">หน่วยงานที่ยืม <span class="sm-req">*</span></label>
                   <Dropdown
                     options={departments.map(d => ({ value: d.id, label: d.name }))}
@@ -1615,6 +1717,7 @@
                   />
                 </div>
                 <div class="sm-fg" class:sm-fg-err={statusFieldErrors.borrowDate}>
+                  <!-- svelte-ignore a11y_label_has_associated_control -->
                   <label class="sm-label">วันที่ยืม <span class="sm-req">*</span></label>
                   <ThaiDatePicker
                     bind:value={borrowDate}
@@ -1624,6 +1727,7 @@
                   />
                 </div>
                 <div class="sm-fg" class:sm-fg-err={statusFieldErrors.returnDate}>
+                  <!-- svelte-ignore a11y_label_has_associated_control -->
                   <label class="sm-label">วันที่คืน <span class="sm-req">*</span></label>
                   <ThaiDatePicker
                     bind:value={returnDate}
@@ -1633,6 +1737,7 @@
                   />
                 </div>
                 <div class="sm-fg">
+                  <!-- svelte-ignore a11y_label_has_associated_control -->
                   <label class="sm-label">อาคารที่ยืมไปใช้</label>
                   <Dropdown
                     options={buildings.map(b => ({ value: b.id, label: b.name }))}
@@ -1642,6 +1747,7 @@
                   />
                 </div>
                 <div class="sm-fg">
+                  <!-- svelte-ignore a11y_label_has_associated_control -->
                   <label class="sm-label">ห้องที่ยืมไปใช้</label>
                   <Dropdown
                     options={rooms.map(r => ({ value: r.id, label: r.name }))}
@@ -1651,36 +1757,39 @@
                   />
                 </div>
                 <div class="sm-fg sm-fg-full">
-                  <label class="sm-label">เหตุผลการยืม</label>
-                  <textarea class="sm-textarea" bind:value={borrowReason} rows="2" placeholder="ระบุเหตุผล..."></textarea>
+                  <label class="sm-label" for="sm-borrowReason">เหตุผลการยืม</label>
+                  <textarea id="sm-borrowReason" class="sm-textarea" bind:value={borrowReason} rows="2" placeholder="ระบุเหตุผล..."></textarea>
                 </div>
               </div>
 
             {:else if selectedStatus === 'repair'}
               <div class="sm-form-grid">
                 <div class="sm-fg" class:sm-fg-err={statusFieldErrors.repairDate}>
+                  <!-- svelte-ignore a11y_label_has_associated_control -->
                   <label class="sm-label">วันที่แจ้งซ่อม <span class="sm-req">*</span></label>
                   <ThaiDatePicker bind:value={repairDate} error={statusFieldErrors.repairDate} inputClass="form-input"
                     on:change={(e) => { if (repairEndDate && e.detail > repairEndDate) repairEndDate = ''; }} />
                 </div>
                 <div class="sm-fg" class:sm-fg-err={statusFieldErrors.repairEndDate}>
+                  <!-- svelte-ignore a11y_label_has_associated_control -->
                   <label class="sm-label">วันที่คาดว่าจะเสร็จ <span class="sm-req">*</span></label>
                   <ThaiDatePicker bind:value={repairEndDate} error={statusFieldErrors.repairEndDate} inputClass="form-input"
                     on:change={(e) => { if (repairDate && e.detail < repairDate) repairEndDate = repairDate; }} />
                 </div>
                 <div class="sm-fg" class:sm-fg-err={statusFieldErrors.repairBy}>
-                  <label class="sm-label">สาเหตุ <span class="sm-req">*</span></label>
-                  <input class="sm-input" bind:value={repairBy} placeholder="ระบุสาเหตุ" />
+                  <label class="sm-label" for="sm-repairBy">สาเหตุ <span class="sm-req">*</span></label>
+                  <input id="sm-repairBy" class="sm-input" bind:value={repairBy} placeholder="ระบุสาเหตุ" />
                 </div>
                 <div class="sm-fg" class:sm-fg-err={statusFieldErrors.repairCompany}>
-                  <label class="sm-label">บริษัทที่ซ่อม <span class="sm-req">*</span></label>
-                  <input class="sm-input" bind:value={repairCompany} placeholder="ชื่อบริษัท/ช่างซ่อม" />
+                  <label class="sm-label" for="sm-repairCompany">บริษัทที่ซ่อม <span class="sm-req">*</span></label>
+                  <input id="sm-repairCompany" class="sm-input" bind:value={repairCompany} placeholder="ชื่อบริษัท/ช่างซ่อม" />
                 </div>
                 <div class="sm-fg" class:sm-fg-err={statusFieldErrors.repairCost}>
-                  <label class="sm-label">ค่าซ่อม (บาท) <span class="sm-req">*</span></label>
-                  <input class="sm-input" type="number" bind:value={repairCost} placeholder="0.00" min="0" />
+                  <label class="sm-label" for="sm-repairCost">ค่าซ่อม (บาท) <span class="sm-req">*</span></label>
+                  <input id="sm-repairCost" class="sm-input" type="number" bind:value={repairCost} placeholder="0.00" min="0" />
                 </div>
                 <div class="sm-fg sm-fg-full">
+                  <!-- svelte-ignore a11y_label_has_associated_control -->
                   <label class="sm-label">เอกสารการซ่อม (ถ้ามี)</label>
                   <label class="file-upload-label">
                     <input type="file" class="file-input-hidden" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" multiple
@@ -1711,33 +1820,35 @@
 
             {:else if selectedStatus === 'unavailable'}
               <div class="sm-fg" class:sm-fg-err={statusFieldErrors.unavailableReason}>
-                <label class="sm-label">เหตุผลที่ไม่พร้อมใช้งาน <span class="sm-req">*</span></label>
-                <textarea class="sm-textarea" bind:value={unavailableReason} rows="3" placeholder="ระบุเหตุผล..."></textarea>
+                <label class="sm-label" for="sm-unavailableReason">เหตุผลที่ไม่พร้อมใช้งาน <span class="sm-req">*</span></label>
+                <textarea id="sm-unavailableReason" class="sm-textarea" bind:value={unavailableReason} rows="3" placeholder="ระบุเหตุผล..."></textarea>
               </div>
 
             {:else if selectedStatus === 'disposed'}
               <div class="sm-form-grid">
                 <div class="sm-fg" class:sm-fg-err={statusFieldErrors.disposeDate}>
+                  <!-- svelte-ignore a11y_label_has_associated_control -->
                   <label class="sm-label">วันที่จำหน่าย <span class="sm-req">*</span></label>
                   <ThaiDatePicker bind:value={disposeDate} error={statusFieldErrors.disposeDate} inputClass="form-input" />
                 </div>
                 <div class="sm-fg" class:sm-fg-err={statusFieldErrors.disposePrice}>
-                  <label class="sm-label">ราคาจำหน่าย (บาท) <span class="sm-req">*</span></label>
-                  <input class="sm-input" type="number" bind:value={disposePrice} placeholder="0.00" min="0" />
+                  <label class="sm-label" for="sm-disposePrice">ราคาจำหน่าย (บาท) <span class="sm-req">*</span></label>
+                  <input id="sm-disposePrice" class="sm-input" type="number" bind:value={disposePrice} placeholder="0.00" min="0" />
                 </div>
                 <div class="sm-fg" class:sm-fg-err={statusFieldErrors.disposeMethod}>
-                  <label class="sm-label">วิธีการจำหน่าย <span class="sm-req">*</span></label>
-                  <input class="sm-input" bind:value={disposeMethod} placeholder="เช่น ขายทอดตลาด, บริจาค, ทำลาย" />
+                  <label class="sm-label" for="sm-disposeMethod">วิธีการจำหน่าย <span class="sm-req">*</span></label>
+                  <input id="sm-disposeMethod" class="sm-input" bind:value={disposeMethod} placeholder="เช่น ขายทอดตลาด, บริจาค, ทำลาย" />
                 </div>
                 <div class="sm-fg" class:sm-fg-err={statusFieldErrors.disposeApprovedBy}>
-                  <label class="sm-label">ผู้อนุมัติ <span class="sm-req">*</span></label>
-                  <input class="sm-input" bind:value={disposeApprovedBy} placeholder="ชื่อ-นามสกุล ผู้อนุมัติ" />
+                  <label class="sm-label" for="sm-disposeApprovedBy">ผู้อนุมัติ <span class="sm-req">*</span></label>
+                  <input id="sm-disposeApprovedBy" class="sm-input" bind:value={disposeApprovedBy} placeholder="ชื่อ-นามสกุล ผู้อนุมัติ" />
                 </div>
                 <div class="sm-fg sm-fg-full" class:sm-fg-err={statusFieldErrors.disposeReason}>
-                  <label class="sm-label">เหตุผลการจำหน่าย <span class="sm-req">*</span></label>
-                  <textarea class="sm-textarea" bind:value={disposeReason} rows="2" placeholder="ระบุเหตุผล..."></textarea>
+                  <label class="sm-label" for="sm-disposeReason">เหตุผลการจำหน่าย <span class="sm-req">*</span></label>
+                  <textarea id="sm-disposeReason" class="sm-textarea" bind:value={disposeReason} rows="2" placeholder="ระบุเหตุผล..."></textarea>
                 </div>
                 <div class="sm-fg sm-fg-full">
+                  <!-- svelte-ignore a11y_label_has_associated_control -->
                   <label class="sm-label">เอกสารการจำหน่าย (ถ้ามี)</label>
                   <label class="file-upload-label">
                     <input type="file" class="file-input-hidden" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" multiple
@@ -1771,8 +1882,8 @@
 
         <!-- Remark -->
         <div class="sm-card">
-          <label class="sm-label">หมายเหตุ</label>
-          <textarea class="sm-textarea" bind:value={statusRemark} rows="2" placeholder="หมายเหตุเพิ่มเติม (ถ้ามี)"></textarea>
+          <label class="sm-label" for="sm-statusRemark">หมายเหตุ</label>
+          <textarea id="sm-statusRemark" class="sm-textarea" bind:value={statusRemark} rows="2" placeholder="หมายเหตุเพิ่มเติม (ถ้ามี)"></textarea>
         </div>
       </div>
 
@@ -1794,11 +1905,11 @@
 
 <!-- Preview Modal -->
 {#if showPreviewModal && previewUrl}
-  <div class="modal-backdrop" on:click={() => showPreviewModal = false} role="presentation">
-    <div class="modal-box modal-preview" on:click|stopPropagation role="dialog" aria-modal="true">
+  <div class="modal-backdrop" on:click={() => showPreviewModal = false} on:keydown={(e) => e.key === 'Escape' && (showPreviewModal = false)} role="presentation">
+    <div class="modal-box modal-preview" on:click|stopPropagation on:keydown|stopPropagation role="dialog" aria-modal="true" tabindex="-1">
       <div class="modal-header">
         <span class="modal-title">{previewFileName}</span>
-        <button class="modal-close" on:click={() => showPreviewModal = false}>
+        <button class="modal-close" aria-label="ปิด" on:click={() => showPreviewModal = false}>
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M18 6L6 18M6 6l12 12"/>
           </svg>
@@ -1822,11 +1933,11 @@
 
 <!-- Edit Modal -->
 {#if showEditModal}
-  <div class="modal-backdrop" on:click={() => (showEditModal = false)} role="presentation">
-    <div class="modal-box modal-box-lg" on:click|stopPropagation role="dialog" aria-modal="true">
+  <div class="modal-backdrop" on:click={() => (showEditModal = false)} on:keydown={(e) => e.key === 'Escape' && (showEditModal = false)} role="presentation">
+    <div class="modal-box modal-box-lg" on:click|stopPropagation on:keydown|stopPropagation role="dialog" aria-modal="true" tabindex="-1">
       <div class="modal-header">
         <span class="modal-title">แก้ไขข้อมูลครุภัณฑ์</span>
-        <button class="modal-close" on:click={() => (showEditModal = false)}>
+        <button class="modal-close" aria-label="ปิด" on:click={() => (showEditModal = false)}>
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M18 6L6 18M6 6l12 12"/>
           </svg>
@@ -1834,58 +1945,44 @@
       </div>
       <div class="edit-form">
         <div class="form-group">
-          <label class="form-label">หน่วยงาน</label>
-          <Dropdown
-            options={departments.map(d => ({ value: d.id, label: d.name }))}
-            bind:value={editForm.departmentId}
-            fullWidth={true}
+          <!-- svelte-ignore a11y_label_has_associated_control -->
+          <label class="form-label">โครงการ</label>
+          <SearchableDropdown
+            fullWidth
+            options={projects.map(p => ({ value: p.id, label: p.projectNumber ? `${p.projectNumber} - ${p.projectName}` : p.projectName }))}
+            bind:value={editForm.projectId}
+            placeholder="เลือกโครงการ"
+            on:change={(e) => onEditProjectChange(e.detail)}
           />
         </div>
         <div class="form-group">
-          <label class="form-label">กิจกรรม</label>
-          <input class="form-input" type="text" bind:value={editForm.activityName} placeholder="กิจกรรม"/>
-        </div>
-        <div class="form-group">
-          <label class="form-label">กองทุน</label>
+          <!-- svelte-ignore a11y_label_has_associated_control -->
+          <label class="form-label">ใบตรวจรับ</label>
           <Dropdown
-            options={funds.map(f => ({ value: f.id, label: f.name }))}
-            bind:value={editForm.fundId}
-            fullWidth={true}
+            fullWidth
+            options={editMhesiOptions.map(m => ({ value: m.uuid, label: m.mhesiNumber + (m.activityName ? ` — ${m.activityName}` : '') }))}
+            bind:value={editForm.mhesiId}
+            placeholder={editMhesiLoading ? 'กำลังโหลด...' : (editForm.projectId ? 'เลือกใบตรวจรับ' : 'เลือกโครงการก่อน')}
           />
         </div>
         <div class="form-group">
-          <label class="form-label">ปีงบประมาณ</label>
-          <Dropdown
-            options={Array.from({ length: 16 }, (_, i) => ({ value: 2560 + i, label: String(2560 + i) }))}
-            bind:value={editForm.fiscalYear}
-            fullWidth={true}
-          />
+          <label class="form-label" for="edit-equipmentName">ชื่อครุภัณฑ์</label>
+          <input id="edit-equipmentName" class="form-input" type="text" bind:value={editForm.equipmentName} placeholder="ชื่อครุภัณฑ์"/>
         </div>
         <div class="form-group">
-          <label class="form-label">รหัสครุภัณฑ์</label>
-          <input class="form-input" type="text" bind:value={editForm.equipmentCode} placeholder="รหัสครุภัณฑ์"/>
+          <label class="form-label" for="edit-equipmentNumber">หมายเลขครุภัณฑ์</label>
+          <input id="edit-equipmentNumber" class="form-input" type="text" bind:value={editForm.equipmentNumber} placeholder="หมายเลขครุภัณฑ์"/>
         </div>
         <div class="form-group">
-          <label class="form-label">ชื่อครุภัณฑ์</label>
-          <input class="form-input" type="text" bind:value={editForm.equipmentName} placeholder="ชื่อครุภัณฑ์"/>
+          <label class="form-label" for="edit-equipmentCode">รหัสครุภัณฑ์</label>
+          <input id="edit-equipmentCode" class="form-input" type="text" bind:value={editForm.equipmentCode} placeholder="รหัสครุภัณฑ์"/>
         </div>
         <div class="form-group">
-          <label class="form-label">หมายเลขครุภัณฑ์</label>
-          <input class="form-input" type="text" bind:value={editForm.equipmentNumber} placeholder="หมายเลขครุภัณฑ์"/>
+          <label class="form-label" for="edit-activityName">กิจกรรม</label>
+          <input id="edit-activityName" class="form-input" type="text" bind:value={editForm.activityName} placeholder="กิจกรรม"/>
         </div>
         <div class="form-group">
-          <label class="form-label">ราคา (บาท)</label>
-          <input class="form-input" type="number" bind:value={editForm.price} placeholder="0" min="0" step="any"/>
-        </div>
-        <div class="form-group">
-          <label class="form-label">หน่วยนับ</label>
-          <input class="form-input" type="text" bind:value={editForm.unit} placeholder="เช่น เครื่อง, ชุด"/>
-        </div>
-        <div class="form-group">
-          <label class="form-label">บริษัท</label>
-          <input class="form-input" type="text" bind:value={editForm.company} placeholder="ชื่อบริษัท"/>
-        </div>
-        <div class="form-group">
+          <!-- svelte-ignore a11y_label_has_associated_control -->
           <label class="form-label">ประเภท</label>
           <Dropdown
             options={assetTypes.map(t => ({ value: t.id, label: t.name }))}
@@ -1894,6 +1991,20 @@
           />
         </div>
         <div class="form-group">
+          <!-- svelte-ignore a11y_label_has_associated_control -->
+          <label class="form-label">ปีงบประมาณ</label>
+          <Dropdown
+            options={Array.from({ length: 16 }, (_, i) => ({ value: 2560 + i, label: String(2560 + i) }))}
+            bind:value={editForm.fiscalYear}
+            fullWidth={true}
+          />
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="edit-price">ราคา (บาท)</label>
+          <input id="edit-price" class="form-input" type="number" bind:value={editForm.price} placeholder="0" min="0" step="any"/>
+        </div>
+        <div class="form-group">
+          <!-- svelte-ignore a11y_label_has_associated_control -->
           <label class="form-label">ทรัพย์สินได้มาโดย</label>
           <Dropdown
             options={acquisitionSources.map(s => ({ value: s.id, label: s.name }))}
@@ -1902,10 +2013,48 @@
           />
         </div>
         <div class="form-group">
+          <!-- svelte-ignore a11y_label_has_associated_control -->
+          <label class="form-label">กองทุน</label>
+          <Dropdown
+            options={funds.map(f => ({ value: f.id, label: f.name }))}
+            bind:value={editForm.fundId}
+            fullWidth={true}
+          />
+        </div>
+        <div class="form-group">
+          <!-- svelte-ignore a11y_label_has_associated_control -->
           <label class="form-label">วันที่ได้มา</label>
           <ThaiDatePicker bind:value={editForm.acquisitionDate} inputClass="form-input" />
         </div>
+        <div class="form-group full-col">
+          <div class="warranty-label-row">
+            <!-- svelte-ignore a11y_label_has_associated_control -->
+            <label class="form-label" style="margin-bottom:0">ระยะเวลาประกัน</label>
+            {#if editWarrantyEnd}
+              <span class="warranty-end-text">วันสิ้นสุด: {isoToBeDisplay(editWarrantyEnd)}</span>
+            {/if}
+          </div>
+          <div class="warranty-period-row">
+            <Dropdown
+              fullWidth
+              options={editWarrantyYearOpts}
+              bind:value={editForm.warrantyYears}
+              placeholder="ปี"
+            />
+            <Dropdown
+              fullWidth
+              options={editWarrantyMonthOpts}
+              bind:value={editForm.warrantyMonths}
+              placeholder="เดือน"
+            />
+          </div>
+        </div>
         <div class="form-group">
+          <label class="form-label" for="edit-company">บริษัท</label>
+          <input id="edit-company" class="form-input" type="text" bind:value={editForm.company} placeholder="ชื่อบริษัท"/>
+        </div>
+        <div class="form-group">
+          <!-- svelte-ignore a11y_label_has_associated_control -->
           <label class="form-label">วิธีการได้มา</label>
           <Dropdown
             options={acquisitionMethods.map(m => ({ value: m.id, label: m.name }))}
@@ -1914,19 +2063,17 @@
           />
         </div>
         <div class="form-group">
-          <label class="form-label">ขนาดและลักษณะ</label>
-          <input class="form-input" type="text" bind:value={editForm.sizeDetail} placeholder="ขนาด/ลักษณะ"/>
-        </div>
-        <div class="form-group">
-          <label class="form-label">โครงการ</label>
-          <SearchableDropdown
-            fullWidth
-            options={projects.map(p => ({ value: p.id, label: p.projectName }))}
-            bind:value={editForm.projectId}
-            placeholder="เลือกโครงการ"
+          <!-- svelte-ignore a11y_label_has_associated_control -->
+          <label class="form-label">หน่วยงาน</label>
+          <Dropdown
+            options={departments.map(d => ({ value: d.id, label: d.name }))}
+            bind:value={editForm.departmentId}
+            fullWidth={true}
           />
         </div>
+        {#if asset?.status !== 'pending'}
         <div class="form-group">
+          <!-- svelte-ignore a11y_label_has_associated_control -->
           <label class="form-label">สถานที่ตั้ง</label>
           <Dropdown
             options={buildings.map(b => ({ value: b.id, label: b.name }))}
@@ -1935,6 +2082,7 @@
           />
         </div>
         <div class="form-group">
+          <!-- svelte-ignore a11y_label_has_associated_control -->
           <label class="form-label">ห้อง</label>
           <Dropdown
             options={rooms.map(r => ({ value: r.id, label: r.name }))}
@@ -1942,9 +2090,18 @@
             fullWidth={true}
           />
         </div>
+        {/if}
+        <div class="form-group">
+          <label class="form-label" for="edit-sizeDetail">ขนาดและลักษณะ</label>
+          <input id="edit-sizeDetail" class="form-input" type="text" bind:value={editForm.sizeDetail} placeholder="ขนาด/ลักษณะ"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="edit-unit">หน่วยนับ</label>
+          <input id="edit-unit" class="form-input" type="text" bind:value={editForm.unit} placeholder="เช่น เครื่อง, ชุด"/>
+        </div>
         <div class="form-group full-col">
-          <label class="form-label">หมายเหตุ</label>
-          <textarea class="form-input form-textarea" bind:value={editForm.note} placeholder="หมายเหตุ (ถ้ามี)"></textarea>
+          <label class="form-label" for="edit-note">หมายเหตุ</label>
+          <textarea id="edit-note" class="form-input form-textarea" bind:value={editForm.note} placeholder="หมายเหตุ (ถ้ามี)"></textarea>
         </div>
       </div>
       {#if editError}
@@ -2415,8 +2572,9 @@
 
   .upload-placeholder p {
     margin: 0.25rem 0;
-    color: #6b7280;
+    color: var(--color-brand-500);
     font-size: 0.875rem;
+    font-weight: 500;
   }
 
   .hint {
@@ -3039,6 +3197,29 @@
 
   .form-group.full-col {
     grid-column: 1 / -1;
+  }
+
+  .warranty-label-row {
+    display: flex;
+    align-items: baseline;
+    gap: 0.75rem;
+    margin-bottom: 0.375rem;
+  }
+
+  .warranty-period-row {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+  }
+
+  .warranty-period-row :global(.dropdown-wrapper) {
+    flex: 1;
+  }
+
+  .warranty-end-text {
+    font-size: 0.875rem;
+    color: #6b7280;
+    white-space: nowrap;
   }
 
   .form-label {
