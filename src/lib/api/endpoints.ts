@@ -2,6 +2,7 @@ export const API_ENDPOINTS = {
   ASSETS: '/api/equipment',
   ASSET_DETAIL: (id: string | number) => `/api/equipment/${id}`,
   ASSET_STATS: '/api/equipment/stats',
+  ASSET_ACTIVITY_STATS: '/api/equipment/stats/activity',
   ASSET_ATTACHMENTS: (id: string | number) => `/api/equipment/${id}/attachments`,
   ASSET_ATTACHMENTS_BULK: '/api/equipment/attachments',
   ASSET_HISTORY: (id: string | number) => `/api/equipment/${id}/history`,
