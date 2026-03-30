@@ -819,6 +819,10 @@
           <input id="edit-mhesiNumber" class="form-input" type="text" bind:value={editForm.mhesiNumber} />
         </div>
         <div class="form-group">
+          <label class="form-label" for="edit-activityName">ชื่อกิจกรรม</label>
+          <input id="edit-activityName" class="form-input" type="text" bind:value={editForm.activityName} />
+        </div>
+        <div class="form-group">
           <!-- svelte-ignore a11y_label_has_associated_control -->
           <label class="form-label">ประเภทเอกสาร</label>
           <Dropdown
@@ -827,10 +831,6 @@
             bind:value={editForm.role}
             placeholder="เลือกประเภท"
           />
-        </div>
-        <div class="form-group">
-          <label class="form-label" for="edit-activityName">ชื่อกิจกรรม</label>
-          <input id="edit-activityName" class="form-input" type="text" bind:value={editForm.activityName} />
         </div>
         <div class="form-group">
           <!-- svelte-ignore a11y_label_has_associated_control -->
