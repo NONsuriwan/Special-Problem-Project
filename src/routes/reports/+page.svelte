@@ -237,7 +237,7 @@
   .card-footer {
     margin-top: 1.375rem;
     display: flex;
-    justify-content: flex-end;
+    justify-content: center;
   }
 
   .btn-generate {

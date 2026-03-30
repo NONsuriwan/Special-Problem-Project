@@ -206,7 +206,8 @@
   .modal-content { background: white; border-radius: 1rem; padding: 2rem; width: min(420px, 90vw); box-shadow: 0 20px 60px rgba(0,0,0,.2); }
   .modal-title { font-size: 1.125rem; font-weight: 700; color: #111827; margin: 0 0 0.75rem; }
   .modal-text { color: #4b5563; margin: 0 0 1.5rem; }
-  .modal-actions { display: flex; justify-content: flex-end; gap: 0.75rem; }
+  .modal-actions { display: flex; justify-content: center; gap: 0.75rem; }
+  .modal-actions button { flex: 1; max-width: 8rem; }
   .btn-cancel { padding: 0.5rem 1.25rem; border: 1px solid #d1d5db; border-radius: 0.5rem; background: white; color: #374151; font-size: 0.875rem; cursor: pointer; }
   .btn-delete { padding: 0.5rem 1.25rem; border: none; border-radius: 0.5rem; background: #dc2626; color: white; font-size: 0.875rem; font-weight: 500; cursor: pointer; }
   .btn-delete:hover:not(:disabled) { background: #b91c1c; }

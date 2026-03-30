@@ -851,10 +851,10 @@
         <p class="modal-error">{editError}</p>
       {/if}
       <div class="modal-footer">
-        <button class="modal-btn-cancel" on:click={() => (showEditModal = false)}>ยกเลิก</button>
         <button class="modal-btn-confirm" on:click={saveEdit} disabled={editSaving}>
           {editSaving ? 'กำลังบันทึก...' : 'บันทึก'}
         </button>
+        <button class="modal-btn-cancel" on:click={() => (showEditModal = false)}>ยกเลิก</button>
       </div>
     </div>
   </div>
@@ -1190,9 +1190,15 @@
   .modal-footer {
     display: flex;
     gap: 0.75rem;
-    justify-content: flex-end;
+    justify-content: center;
     padding: 1.25rem 1.5rem;
     border-top: 1px solid #f0f0f0;
+  }
+
+  .modal-footer .modal-btn-cancel,
+  .modal-footer .modal-btn-confirm {
+    flex: 1;
+    max-width: 9rem;
   }
 
   .modal-btn-cancel {

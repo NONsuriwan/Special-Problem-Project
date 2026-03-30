@@ -917,10 +917,10 @@
       </div>
 
       <div class="modal-footer">
-        <button class="btn-cancel" on:click={() => showEditModal = false} disabled={editSaving}>ยกเลิก</button>
         <button class="btn-submit" on:click={saveEdit} disabled={editSaving}>
           {editSaving ? 'กำลังบันทึก...' : 'บันทึก'}
         </button>
+        <button class="btn-cancel" on:click={() => showEditModal = false} disabled={editSaving}>ยกเลิก</button>
       </div>
     </div>
   </div>
@@ -1540,10 +1540,16 @@
 
   .modal-footer {
     display: flex;
-    justify-content: flex-end;
+    justify-content: center;
     gap: 0.75rem;
     padding: 1rem 1.5rem;
     border-top: 1px solid #f3f4f6;
+  }
+
+  .modal-footer .btn-submit,
+  .modal-footer .btn-cancel {
+    flex: 1;
+    max-width: 9rem;
   }
 
   .btn-submit {

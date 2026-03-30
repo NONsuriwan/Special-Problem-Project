@@ -133,6 +133,12 @@
       errorMsg = 'กรุณาระบุวันเริ่มต้นและวันสิ้นสุดปีงบประมาณ';
       return;
     }
+    if (startDate >= endDate) {
+      errors.startDate = true;
+      errors.endDate = true;
+      errorMsg = 'วันเริ่มต้นต้องอยู่ก่อนวันสิ้นสุด กรุณาตรวจสอบช่วงวันที่อีกครั้ง';
+      return;
+    }
 
     loading = true;
     submitted = false;

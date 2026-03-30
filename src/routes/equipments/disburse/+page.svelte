@@ -193,6 +193,7 @@
 
         <!-- โครงการ -->
         <div class="form-group full-col">
+          <!-- svelte-ignore a11y_label_has_associated_control -->
           <label class="label">โครงการ</label>
           <Dropdown
             fullWidth
@@ -205,8 +206,9 @@
 
         <!-- ผู้รับ -->
         <div class="form-group" class:error-wrapper={errors.disbursedTo}>
-          <label class="label">ผู้รับครุภัณฑ์ <span class="required">*</span></label>
+          <label class="label" for="disburse-disbursedTo">ผู้รับครุภัณฑ์ <span class="required">*</span></label>
           <input
+            id="disburse-disbursedTo"
             type="text"
             bind:value={disbursedTo}
             class="input"
@@ -217,6 +219,7 @@
 
         <!-- วันที่เบิกจ่าย -->
         <div class="form-group">
+          <!-- svelte-ignore a11y_label_has_associated_control -->
           <label class="label">วันที่เบิกจ่าย <span class="required">*</span></label>
           <ThaiDatePicker
             bind:value={disbursedDate}
@@ -227,6 +230,7 @@
 
         <!-- อาคาร -->
         <div class="form-group">
+          <!-- svelte-ignore a11y_label_has_associated_control -->
           <label class="label">อาคาร</label>
           <Dropdown
             fullWidth
@@ -239,6 +243,7 @@
 
         <!-- ห้อง -->
         <div class="form-group">
+          <!-- svelte-ignore a11y_label_has_associated_control -->
           <label class="label">ห้อง</label>
           <Dropdown
             fullWidth
@@ -250,8 +255,9 @@
 
         <!-- ชั้นที่จัดตั้ง -->
         <div class="form-group">
-          <label class="label">ชั้นที่จัดตั้ง</label>
+          <label class="label" for="disburse-floor">ชั้นที่จัดตั้ง</label>
           <input
+            id="disburse-floor"
             type="text"
             bind:value={floor}
             class="input"
@@ -261,6 +267,7 @@
 
         <!-- หน่วยงาน -->
         <div class="form-group">
+          <!-- svelte-ignore a11y_label_has_associated_control -->
           <label class="label">หน่วยงาน</label>
           <Dropdown
             fullWidth
@@ -272,8 +279,9 @@
 
         <!-- หมายเหตุ -->
         <div class="form-group">
-          <label class="label">หมายเหตุ</label>
+          <label class="label" for="disburse-reason">หมายเหตุ</label>
           <input
+            id="disburse-reason"
             type="text"
             bind:value={reason}
             class="input"
