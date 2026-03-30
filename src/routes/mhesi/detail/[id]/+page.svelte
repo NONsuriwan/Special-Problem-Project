@@ -463,7 +463,15 @@
             </div>
           </div>
 
-          <!-- ประเภทเอกสาร | ชื่อกิจกรรม -->
+          <!-- ชื่อกิจกรรม | ประเภทเอกสาร -->
+          <div class="detail-item">
+            <div class="detail-icon"><Icon name="flag" size={24} /></div>
+            <div class="detail-content">
+              <div class="detail-label">ชื่อกิจกรรม</div>
+              <div class="detail-value detail-value--wrap">{record.activityName || '-'}</div>
+            </div>
+          </div>
+
           <div class="detail-item">
             <div class="detail-icon"><Icon name="tag" size={24} /></div>
             <div class="detail-content">
@@ -475,14 +483,6 @@
                   -
                 {/if}
               </div>
-            </div>
-          </div>
-
-          <div class="detail-item">
-            <div class="detail-icon"><Icon name="flag" size={24} /></div>
-            <div class="detail-content">
-              <div class="detail-label">ชื่อกิจกรรม</div>
-              <div class="detail-value detail-value--wrap">{record.activityName || '-'}</div>
             </div>
           </div>
 
