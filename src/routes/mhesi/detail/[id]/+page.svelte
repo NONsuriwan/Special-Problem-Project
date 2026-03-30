@@ -35,7 +35,7 @@
   };
 
   type MasterData = { id: number; name: string };
-  type Project = { id: number; projectName: string };
+  type Project = { id: number; projectName: string; budget?: number | string | null };
   type AttachmentInfo = { id: number; fileName: string; filePath: string; refType: string };
 
   let record: MhesiRecord | null = null;
@@ -251,7 +251,7 @@
   let showEditModal = false;
   let editSaving = false;
   let editError = '';
-  let editAttachmentFile: File | null = null;
+  let prevEditProjectId: number | null = null;
   let editForm = {
     mhesiNumber: '',
     role: null as string | null,
@@ -351,6 +351,16 @@
     return `${ceYear}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
   }
 
+  $: {
+    if (editForm.projectId !== prevEditProjectId) {
+      if (showEditModal) {
+        const proj = projects.find(p => p.id === editForm.projectId);
+        if (proj?.budget != null) editForm.amount = String(proj.budget);
+      }
+      prevEditProjectId = editForm.projectId;
+    }
+  }
+
   function openEditModal() {
     if (!record) return;
     editForm = {
@@ -363,6 +373,7 @@
       amount: record.amount ? String(record.amount) : '',
       note: record.note || '',
     };
+    prevEditProjectId = record.projectId;
     editError = '';
     showEditModal = true;
   }
@@ -372,31 +383,19 @@
     editSaving = true;
     editError = '';
     try {
-      let attachmentId: number | null = null;
-      if (editAttachmentFile) {
-        const fd = new FormData();
-        fd.append('file', editAttachmentFile);
-        const uploaded = await apiFetch<{ data: { id: number } }>(`${API_ENDPOINTS.ATTACHMENTS_UPLOAD}?folder=mhesi`, { method: 'POST', body: fd });
-        attachmentId = uploaded.data?.id ?? null;
-      }
-
-      const payload: Record<string, unknown> = {
-        mhesiNumber: editForm.mhesiNumber.trim(),
-        role: editForm.role || null,
-        planId: editForm.planId,
-        projectId: editForm.projectId,
-        activityName: editForm.activityName || null,
-        date: editForm.date || null,
-        amount: editForm.amount ? parseFloat(editForm.amount) : null,
-        note: editForm.note || null,
-      };
-      if (attachmentId !== null) payload.attachmentId = attachmentId;
-
       await apiFetch(API_ENDPOINTS.MHESI_DETAIL(uuid), {
         method: 'PUT',
-        body: JSON.stringify(payload),
+        body: JSON.stringify({
+          mhesiNumber: editForm.mhesiNumber.trim(),
+          role: editForm.role || null,
+          planId: editForm.planId,
+          projectId: editForm.projectId,
+          activityName: editForm.activityName || null,
+          date: editForm.date || null,
+          amount: editForm.amount ? parseFloat(editForm.amount) : null,
+          note: editForm.note || null,
+        }),
       });
-      editAttachmentFile = null;
       await fetchAll();
       await fetchHistory();
       showEditModal = false;
@@ -765,10 +764,10 @@
 <!-- Preview Modal -->
 {#if showPreviewModal && previewUrl}
   <div class="modal-backdrop" on:click={() => showPreviewModal = false} role="presentation">
-    <div class="modal-box modal-preview" on:click|stopPropagation role="dialog" aria-modal="true">
+    <div class="modal-box modal-preview" role="dialog" aria-modal="true" tabindex="-1" on:click|stopPropagation on:keydown|stopPropagation>
       <div class="modal-header">
         <span class="modal-title">{previewTitle}</span>
-        <button class="modal-close" on:click={() => showPreviewModal = false}>
+        <button class="modal-close" aria-label="ปิด" on:click={() => showPreviewModal = false}>
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M18 6L6 18M6 6l12 12"/>
           </svg>
@@ -795,10 +794,10 @@
 <!-- Edit Modal -->
 {#if showEditModal}
   <div class="modal-backdrop" on:click={() => (showEditModal = false)} role="presentation">
-    <div class="modal-box modal-box-lg" on:click|stopPropagation role="dialog" aria-modal="true">
+    <div class="modal-box modal-box-lg" role="dialog" aria-modal="true" tabindex="-1" on:click|stopPropagation on:keydown|stopPropagation>
       <div class="modal-header">
         <span class="modal-title">แก้ไขข้อมูลเลข อว.</span>
-        <button class="modal-close" on:click={() => (showEditModal = false)}>
+        <button class="modal-close" aria-label="ปิด" on:click={() => (showEditModal = false)}>
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M18 6L6 18M6 6l12 12"/>
           </svg>
@@ -806,19 +805,7 @@
       </div>
       <div class="edit-form">
         <div class="form-group">
-          <label class="form-label">เลข อว.</label>
-          <input class="form-input" type="text" bind:value={editForm.mhesiNumber} />
-        </div>
-        <div class="form-group">
-          <label class="form-label">ประเภทเอกสาร</label>
-          <Dropdown
-            fullWidth
-            options={ROLE_OPTIONS}
-            bind:value={editForm.role}
-            placeholder="เลือกประเภท"
-          />
-        </div>
-        <div class="form-group">
+          <!-- svelte-ignore a11y_label_has_associated_control -->
           <label class="form-label">โครงการ</label>
           <Dropdown
             fullWidth
@@ -828,39 +815,36 @@
           />
         </div>
         <div class="form-group">
-          <label class="form-label">แผนงาน</label>
+          <label class="form-label" for="edit-mhesiNumber">เลข อว.</label>
+          <input id="edit-mhesiNumber" class="form-input" type="text" bind:value={editForm.mhesiNumber} />
+        </div>
+        <div class="form-group">
+          <!-- svelte-ignore a11y_label_has_associated_control -->
+          <label class="form-label">ประเภทเอกสาร</label>
           <Dropdown
             fullWidth
-            options={plans.map(p => ({ value: p.id, label: p.name }))}
-            bind:value={editForm.planId}
-            placeholder="เลือกแผนงาน"
+            options={ROLE_OPTIONS}
+            bind:value={editForm.role}
+            placeholder="เลือกประเภท"
           />
         </div>
         <div class="form-group">
-          <label class="form-label">ชื่อกิจกรรม</label>
-          <input class="form-input" type="text" bind:value={editForm.activityName} />
+          <label class="form-label" for="edit-activityName">ชื่อกิจกรรม</label>
+          <input id="edit-activityName" class="form-input" type="text" bind:value={editForm.activityName} />
         </div>
         <div class="form-group">
+          <!-- svelte-ignore a11y_label_has_associated_control -->
           <label class="form-label">วันที่</label>
           <ThaiDatePicker bind:value={editForm.date} inputClass="form-input" />
         </div>
         <div class="form-group">
-          <label class="form-label">จำนวนเงิน</label>
-          <input class="form-input" type="text" inputmode="decimal" bind:value={editForm.amount}
+          <label class="form-label" for="edit-amount">จำนวนเงิน</label>
+          <input id="edit-amount" class="form-input" type="text" inputmode="decimal" bind:value={editForm.amount}
             on:input={(e) => { editForm.amount = e.currentTarget.value.replace(/[^0-9.]/g, ''); }} />
         </div>
         <div class="form-group full-col">
-          <label class="form-label">หมายเหตุ</label>
-          <textarea class="form-input form-textarea" bind:value={editForm.note} placeholder="หมายเหตุ (ถ้ามี)"></textarea>
-        </div>
-        <div class="form-group full-col">
-          <label class="form-label">เอกสารแนบ</label>
-          <input
-            type="file"
-            accept=".jpg,.jpeg,.png,.webp,.pdf"
-            class="form-input"
-            on:change={(e) => { editAttachmentFile = e.currentTarget.files?.[0] ?? null; }}
-          />
+          <label class="form-label" for="edit-note">หมายเหตุ</label>
+          <textarea id="edit-note" class="form-input form-textarea" bind:value={editForm.note} placeholder="หมายเหตุ (ถ้ามี)"></textarea>
         </div>
       </div>
       {#if editError}
@@ -877,31 +861,6 @@
 {/if}
 
 <style>
-  .date-wrapper {
-    position: relative;
-  }
-
-  .date-picker-hidden {
-    position: absolute;
-    inset: 0;
-    opacity: 0;
-    width: 100%;
-    cursor: pointer;
-  }
-
-  .date-display {
-    cursor: pointer;
-    padding-right: 2.5rem;
-  }
-
-  .cal-icon {
-    position: absolute;
-    right: 0.75rem;
-    top: 50%;
-    transform: translateY(-50%);
-    pointer-events: none;
-    color: #9ca3af;
-  }
 
   .page-container {
     background: #e5e5e5;
@@ -932,6 +891,7 @@
     font-family: var(--font-thai);
     display: -webkit-box;
     -webkit-line-clamp: 2;
+    line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
   }

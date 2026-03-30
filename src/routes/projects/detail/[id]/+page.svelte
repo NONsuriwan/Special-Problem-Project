@@ -765,7 +765,7 @@
 <!-- Preview Modal -->
 {#if showPreviewModal && previewUrl}
   <div class="modal-backdrop" on:click|self={() => { showPreviewModal = false; }} role="presentation">
-    <div class="modal-box modal-preview" on:click|stopPropagation role="dialog" aria-modal="true">
+    <div class="modal-box modal-preview" role="dialog" aria-modal="true" tabindex="-1" on:click|stopPropagation on:keydown|stopPropagation>
       <div class="modal-header">
         <span class="modal-title">{previewFileName}</span>
         <button class="modal-close" on:click={() => { showPreviewModal = false; }}>✕</button>
@@ -789,10 +789,10 @@
 <!-- Edit Modal -->
 {#if showEditModal}
   <div class="modal-backdrop" on:click|self={() => showEditModal = false} role="presentation">
-    <div class="modal-box">
+    <div class="modal-box" role="dialog" aria-modal="true" tabindex="-1" on:click|stopPropagation on:keydown|stopPropagation>
       <div class="modal-header">
         <h2 class="modal-title-text">แก้ไขข้อมูลโครงการ</h2>
-        <button class="modal-close" on:click={() => showEditModal = false}>
+        <button class="modal-close" aria-label="ปิด" on:click={() => showEditModal = false}>
           <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
           </svg>
@@ -811,12 +811,13 @@
       <div class="modal-form-grid">
         <!-- ชื่อโครงการ -->
         <div class="modal-field">
-          <label class="modal-label">ชื่อโครงการ</label>
-          <input type="text" bind:value={editForm.projectName} class="modal-input" />
+          <label class="modal-label" for="edit-projectName">ชื่อโครงการ</label>
+          <input id="edit-projectName" type="text" bind:value={editForm.projectName} class="modal-input" />
         </div>
 
         <!-- ประเภท -->
         <div class="modal-field">
+          <!-- svelte-ignore a11y_label_has_associated_control -->
           <label class="modal-label">ประเภทโครงการ</label>
           <Dropdown
             fullWidth
@@ -828,14 +829,16 @@
 
         <!-- วันที่ -->
         <div class="modal-field">
+          <!-- svelte-ignore a11y_label_has_associated_control -->
           <label class="modal-label">วันที่</label>
           <ThaiDatePicker bind:value={editForm.projectDate} inputClass="modal-input" />
         </div>
 
         <!-- ปีงบประมาณ -->
         <div class="modal-field">
-          <label class="modal-label">ปีงบประมาณ</label>
+          <label class="modal-label" for="edit-fiscalYear">ปีงบประมาณ</label>
           <input
+            id="edit-fiscalYear"
             type="number"
             bind:value={editForm.fiscalYear}
             class="modal-input"
@@ -845,8 +848,9 @@
 
         <!-- จำนวนที่จัดซื้อ -->
         <div class="modal-field">
-          <label class="modal-label">จำนวนที่จัดซื้อ</label>
+          <label class="modal-label" for="edit-qtyOrdered">จำนวนที่จัดซื้อ</label>
           <input
+            id="edit-qtyOrdered"
             type="text"
             inputmode="numeric"
             bind:value={editForm.qtyOrdered}
@@ -858,8 +862,9 @@
 
         <!-- งบประมาณ -->
         <div class="modal-field">
-          <label class="modal-label">งบประมาณ (บาท)</label>
+          <label class="modal-label" for="edit-budget">งบประมาณ (บาท)</label>
           <input
+            id="edit-budget"
             type="text"
             inputmode="decimal"
             bind:value={editForm.budget}
@@ -870,6 +875,7 @@
 
         <!-- แหล่งเงินทุน -->
         <div class="modal-field">
+          <!-- svelte-ignore a11y_label_has_associated_control -->
           <label class="modal-label">แหล่งเงินทุน</label>
           <Dropdown
             fullWidth
@@ -881,6 +887,7 @@
 
         <!-- วิธีการได้มา -->
         <div class="modal-field">
+          <!-- svelte-ignore a11y_label_has_associated_control -->
           <label class="modal-label">วิธีการได้มา</label>
           <Dropdown
             fullWidth
@@ -892,6 +899,7 @@
 
         <!-- สถานะ -->
         <div class="modal-field">
+          <!-- svelte-ignore a11y_label_has_associated_control -->
           <label class="modal-label">สถานะ</label>
           <Dropdown
             fullWidth
@@ -903,8 +911,8 @@
 
         <!-- หมายเหตุ -->
         <div class="modal-field full-col">
-          <label class="modal-label">หมายเหตุ</label>
-          <textarea bind:value={editForm.note} class="modal-input modal-textarea" rows="3"></textarea>
+          <label class="modal-label" for="edit-note">หมายเหตุ</label>
+          <textarea id="edit-note" bind:value={editForm.note} class="modal-input modal-textarea" rows="3"></textarea>
         </div>
       </div>
 

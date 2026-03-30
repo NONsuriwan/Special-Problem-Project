@@ -498,6 +498,7 @@
     <div class="filter-grid">
       <!-- โครงการ -->
       <div class="filter-field">
+        <!-- svelte-ignore a11y_label_has_associated_control -->
         <label class="filter-label">โครงการ</label>
         <Dropdown
           options={[{ value: 0, label: 'ทั้งหมด' }, ...projects.map(p => ({ value: p.id, label: p.projectName }))]}
@@ -508,6 +509,7 @@
 
       <!-- ส่วนสนับสนุน -->
       <div class="filter-field">
+        <!-- svelte-ignore a11y_label_has_associated_control -->
         <label class="filter-label">ส่วนสนับสนุน</label>
         <Dropdown
           options={[{ value: 0, label: 'ทั้งหมด' }, ...departments.map(u => ({ value: u.id, label: u.name }))]}
@@ -518,6 +520,7 @@
 
       <!-- แผนงาน -->
       <div class="filter-field">
+        <!-- svelte-ignore a11y_label_has_associated_control -->
         <label class="filter-label">แผนงาน</label>
         <Dropdown
           options={[{ value: 0, label: 'ทั้งหมด' }, ...plans.map(p => ({ value: p.id, label: p.name }))]}
@@ -528,6 +531,7 @@
 
       <!-- ช่วงมูลค่า -->
       <div class="filter-field">
+        <!-- svelte-ignore a11y_label_has_associated_control -->
         <label class="filter-label">ช่วงมูลค่า</label>
         <div class="price-range">
           <input class="filter-input" type="number" placeholder="ขั้นต่ำ" bind:value={draftAmountMin} />
@@ -537,6 +541,7 @@
 
       <!-- ช่วงวันที่ -->
       <div class="filter-field filter-field-full">
+        <!-- svelte-ignore a11y_label_has_associated_control -->
         <label class="filter-label">ช่วงวันที่</label>
         <div class="date-range">
           <ThaiDatePicker
@@ -629,11 +634,6 @@
   .mhesi-number {
     font-weight: 600;
     color: #ffa200;
-  }
-
-  .amount {
-    font-weight: 700;
-    color: #1f2937;
   }
 
   .card-wrapper {

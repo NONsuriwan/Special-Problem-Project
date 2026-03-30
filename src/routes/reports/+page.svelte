@@ -74,6 +74,7 @@
 
     <div class="form-grid">
       <div class="form-group">
+        <!-- svelte-ignore a11y_label_has_associated_control -->
         <label class="label text-b7">หน่วยงาน</label>
         <Dropdown
           fullWidth
@@ -83,6 +84,7 @@
         />
       </div>
       <div class="form-group">
+        <!-- svelte-ignore a11y_label_has_associated_control -->
         <label class="label text-b7">ปีงบประมาณ <span class="required">*</span></label>
         <Dropdown
           fullWidth

@@ -226,6 +226,7 @@
 
           <!-- โครงการ -->
           <div class="form-group" class:error-wrapper={errors.projectId}>
+            <!-- svelte-ignore a11y_label_has_associated_control -->
             <label class="label">โครงการ <span class="required">*</span></label>
             <Dropdown
               fullWidth
@@ -237,6 +238,7 @@
 
           <!-- เลข อว. -->
           <div class="form-group" class:error-wrapper={errors.mhesiNumber}>
+            <!-- svelte-ignore a11y_label_has_associated_control -->
             <label class="label">เลข อว. <span class="required">*</span></label>
             <div class="combobox-wrapper">
               <input
@@ -254,6 +256,7 @@
               <button
                 type="button"
                 class="combobox-chevron"
+                aria-label="เปิด/ปิดตัวเลือก"
                 tabindex="-1"
                 on:mousedown|preventDefault={() => {
                   mhesiOpen = !mhesiOpen;
@@ -287,6 +290,7 @@
 
           <!-- ประเภทเอกสาร -->
           <div class="form-group" class:error-wrapper={errors.role}>
+            <!-- svelte-ignore a11y_label_has_associated_control -->
             <label class="label">ประเภทเอกสาร <span class="required">*</span></label>
             <Dropdown
               fullWidth
@@ -298,8 +302,9 @@
 
           <!-- ชื่อกิจกรรม -->
           <div class="form-group">
-            <label class="label">ชื่อกิจกรรม <span class="required">*</span></label>
+            <label class="label" for="add-mhesi-activityName">ชื่อกิจกรรม <span class="required">*</span></label>
             <input
+              id="add-mhesi-activityName"
               type="text"
               bind:value={formData.activityName}
               class="input"
@@ -309,6 +314,7 @@
 
           <!-- วันที่ -->
           <div class="form-group">
+            <!-- svelte-ignore a11y_label_has_associated_control -->
             <label class="label">วันที่ <span class="required">*</span></label>
             <ThaiDatePicker
               bind:value={formData.date}
@@ -319,8 +325,9 @@
 
           <!-- จำนวนเงิน -->
           <div class="form-group">
-            <label class="label">จำนวนเงิน <span class="required">*</span></label>
+            <label class="label" for="add-mhesi-amount">จำนวนเงิน <span class="required">*</span></label>
             <input
+              id="add-mhesi-amount"
               type="text"
               inputmode="decimal"
               bind:value={formData.amount}
@@ -335,8 +342,9 @@
 
           <!-- หมายเหตุ -->
           <div class="form-group form-group-stretch">
-            <label class="label">หมายเหตุ (ถ้ามี)</label>
+            <label class="label" for="add-mhesi-note">หมายเหตุ (ถ้ามี)</label>
             <textarea
+              id="add-mhesi-note"
               bind:value={formData.note}
               class="input textarea textarea-stretch"
             ></textarea>
@@ -344,6 +352,7 @@
 
           <!-- เอกสารแนบ -->
           <div class="form-group form-group-stretch">
+            <!-- svelte-ignore a11y_label_has_associated_control -->
             <label class="label">เอกสารแนบ</label>
             {#if mhesiFile}
               <div class="file-selected-row">
@@ -351,7 +360,7 @@
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/>
                 </svg>
                 <span class="file-selected-name">{mhesiFile.name}</span>
-                <button type="button" class="file-remove-btn" on:click={() => mhesiFile = null}>
+                <button type="button" class="file-remove-btn" aria-label="ลบไฟล์" on:click={() => mhesiFile = null}>
                   <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
                 </button>
               </div>
@@ -443,16 +452,6 @@
     flex: 1;
   }
 
-  .input-readonly {
-    background: #f9fafb;
-    color: #6b7280;
-    cursor: default;
-  }
-
-  .input-readonly:focus {
-    border-color: #d1d5db;
-    box-shadow: none;
-  }
 
   /* Combobox */
   .combobox-wrapper {

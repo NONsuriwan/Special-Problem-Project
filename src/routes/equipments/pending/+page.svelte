@@ -308,22 +308,26 @@
 
 {#if showFilter}
   <div class="filter-backdrop" on:click={() => showFilter = false} role="presentation">
-  <div class="filter-popup" on:click|stopPropagation>
+  <div class="filter-popup" role="dialog" tabindex="-1" on:click|stopPropagation on:keydown|stopPropagation>
     <h2 class="filter-title">ตัวกรองขั้นสูง</h2>
     <div class="filter-grid">
       <div class="filter-field">
+        <!-- svelte-ignore a11y_label_has_associated_control -->
         <label class="filter-label">ประเภทครุภัณฑ์</label>
         <Dropdown options={[{ value: 0, label: 'ทั้งหมด' }, ...assetTypes.map(t => ({ value: t.id, label: t.name }))]} bind:value={draftTypeId} placeholder="ทั้งหมด" />
       </div>
       <div class="filter-field">
+        <!-- svelte-ignore a11y_label_has_associated_control -->
         <label class="filter-label">ครุภัณฑ์ได้มาโดย</label>
         <Dropdown options={[{ value: 0, label: 'ทั้งหมด' }, ...acquisitionSources.map(s => ({ value: s.id, label: s.name }))]} bind:value={draftSourceId} placeholder="ทั้งหมด" />
       </div>
       <div class="filter-field">
+        <!-- svelte-ignore a11y_label_has_associated_control -->
         <label class="filter-label">ปีงบประมาณ</label>
         <Dropdown options={[{ value: 0, label: 'ทั้งหมด' }, ...budgetYears.map(y => ({ value: y, label: String(y) }))]} bind:value={draftBudgetYear} placeholder="ทั้งหมด" />
       </div>
       <div class="filter-field">
+        <!-- svelte-ignore a11y_label_has_associated_control -->
         <label class="filter-label">ช่วงมูลค่า</label>
         <div class="price-range">
           <input class="filter-input" type="number" placeholder="มูลค่าขั้นต่ำ" bind:value={draftPriceMin} />

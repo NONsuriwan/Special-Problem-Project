@@ -465,6 +465,7 @@
     <div class="filter-grid">
       <!-- ประเภท -->
       <div class="filter-field">
+        <!-- svelte-ignore a11y_label_has_associated_control -->
         <label class="filter-label">ประเภท</label>
         <Dropdown
           fullWidth
@@ -476,6 +477,7 @@
 
       <!-- แหล่งเงินทุน -->
       <div class="filter-field">
+        <!-- svelte-ignore a11y_label_has_associated_control -->
         <label class="filter-label">แหล่งเงินทุน</label>
         <Dropdown
           fullWidth
@@ -487,6 +489,7 @@
 
       <!-- สถานะ -->
       <div class="filter-field">
+        <!-- svelte-ignore a11y_label_has_associated_control -->
         <label class="filter-label">สถานะ</label>
         <Dropdown
           fullWidth
@@ -498,6 +501,7 @@
 
       <!-- งบประมาณ (ช่วง) -->
       <div class="filter-field">
+        <!-- svelte-ignore a11y_label_has_associated_control -->
         <label class="filter-label">ช่วงงบประมาณ</label>
         <div class="range-row">
           <input type="number" min="0" class="filter-input" bind:value={draftBudgetMin} placeholder="ขั้นต่ำ" />
@@ -507,6 +511,7 @@
 
       <!-- วันที่ (ช่วง) full width -->
       <div class="filter-field full-col">
+        <!-- svelte-ignore a11y_label_has_associated_control -->
         <label class="filter-label">ช่วงวันที่</label>
         <div class="date-range-row">
           <ThaiDatePicker bind:value={draftDateFrom} inputClass="filter-input" placeholder="วันที่เริ่มต้น" />
@@ -583,15 +588,6 @@
     box-shadow: -4px 0 0 #fffbf5;
   }
 
-  .project-id {
-    font-weight: 600;
-    color: #1f2937;
-  }
-
-  .amount {
-    font-weight: 700;
-    color: #1f2937;
-  }
 
   .card-wrapper {
     background: white;

@@ -726,7 +726,40 @@
         body: JSON.stringify({ equipmentUuids: targets, newStatus: selectedStatus, data }),
       });
 
-      asset = { ...asset, status: selectedStatus };
+      const newNote = statusRemark.trim() || null;
+      if (newNote && asset) {
+        await apiFetch(API_ENDPOINTS.ASSET_DETAIL(assetId), {
+          method: 'PUT',
+          body: JSON.stringify({
+            equipmentCode: asset.equipmentCode || null,
+            equipmentName: asset.equipmentName,
+            equipmentNumber: asset.equipmentNumber || null,
+            price: asset.price || null,
+            unit: asset.unit || null,
+            company: asset.company || null,
+            sizeDetail: asset.sizeDetail || null,
+            note: newNote,
+            acquisitionDate: asset.acquisitionDate || null,
+            fiscalYear: asset.fiscalYear || null,
+            departmentId: asset.departmentId,
+            activity: asset.activity || null,
+            fundId: asset.fundId,
+            equipmentTypeId: asset.equipmentTypeId,
+            acquisitionSourceId: asset.acquisitionSourceId,
+            acquisitionMethodId: asset.acquisitionMethodId,
+            projectId: asset.projectId,
+            buildingId: asset.buildingId,
+            roomId: asset.roomId,
+            warrantyYears: asset.warrantyYears ?? null,
+            warrantyMonths: asset.warrantyMonths ?? null,
+            warrantyEnd: asset.warrantyEnd || null,
+            receivingMhesiId: asset.receivingMhesiId || null,
+          }),
+        });
+        asset = { ...asset, status: selectedStatus, note: newNote };
+      } else {
+        asset = { ...asset, status: selectedStatus };
+      }
       await fetchHistory();
       showStatusModal = false;
     } catch (err: any) {

@@ -336,10 +336,6 @@
     font-weight: 600;
   }
 
-  .child-label-active {
-    border-bottom: 1px solid rgba(255, 255, 255, 0.7);
-    padding-bottom: 1px;
-  }
 
   /* ซ่อน Scrollbar สำหรับความสวยงาม */
   nav::-webkit-scrollbar {
@@ -385,59 +381,6 @@
     z-index: 50;
   }
 
-  .user-popup-profile {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    padding: 1rem 1rem 0.875rem;
-  }
-
-  .user-popup-avatar {
-    width: 2.5rem;
-    height: 2.5rem;
-    border-radius: 50%;
-    border: 2px solid #f0f0f0;
-    flex-shrink: 0;
-    object-fit: cover;
-  }
-
-  .user-popup-info {
-    display: flex;
-    flex-direction: column;
-    gap: 0.1rem;
-    overflow: hidden;
-  }
-
-  .user-popup-name {
-    font-size: 0.8125rem;
-    font-weight: 600;
-    color: #111827;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  .user-popup-email {
-    font-size: 0.75rem;
-    color: #6b7280;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  .user-popup-role {
-    font-size: 0.6875rem;
-    color: #f39c12;
-    font-weight: 500;
-    text-transform: capitalize;
-    margin-top: 0.1rem;
-  }
-
-  .user-popup-divider {
-    height: 1px;
-    background: #f3f4f6;
-    margin: 0;
-  }
 
   .user-popup-logout {
     display: flex;
