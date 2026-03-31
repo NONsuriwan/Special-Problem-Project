@@ -410,7 +410,7 @@
               class="input"
               class:input-error={errors.assetNumber}
             />
-            <p class="number-preview">ตัวอย่าง: วท65-343-33-355</p>
+            <p class="number-preview">ตัวอย่าง: 65วท.343-33-355</p>
           </div>
 
           <!-- ถึง -->
