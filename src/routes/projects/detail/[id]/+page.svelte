@@ -726,13 +726,13 @@
             {@const diffFields = getDiffFields(h.before, h.after)}
             <div class="tl-item">
               <div class="tl-line-wrap">
-                <div class="tl-dot"></div>
+                <div class="tl-dot tl-dot-edit"></div>
                 {#if idx < history.length - 1}<div class="tl-line"></div>{/if}
               </div>
               <div class="tl-body">
                 <div class="tl-header">
                   <div class="tl-header-left">
-                    <span class="tl-badge">แก้ไขข้อมูล</span>
+                    <span class="tl-badge tl-badge-edit">แก้ไขข้อมูล</span>
                     <span class="tl-user">{h.changedBy || 'ไม่ระบุ'}</span>
                   </div>
                   <span class="tl-time">{new Date(h.createdAt).toLocaleString('th-TH', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' })}</span>

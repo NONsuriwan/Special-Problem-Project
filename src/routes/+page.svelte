@@ -47,7 +47,8 @@
     }
   }
 
-  $: fetchActivityStats(selectedPeriod);
+  let mounted = false;
+  $: if (mounted) fetchActivityStats(selectedPeriod);
 
   // ─── Chart geometry ──────────────────────────────────────────────────────────
   const W = 600, H = 230;
@@ -77,6 +78,7 @@
 
   // ─── On mount ────────────────────────────────────────────────────────────────
   onMount(async () => {
+    mounted = true;
     try {
       const { data } = await apiFetch<{ data: { total: string; byStatus: { status: string; count: number }[] } }>(API_ENDPOINTS.ASSET_STATS);
       const by = data.byStatus ?? [];
