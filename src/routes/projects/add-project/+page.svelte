@@ -136,8 +136,9 @@
 
           <!-- ชื่อโครงการ -->
           <div class="form-group">
-            <label class="label">ชื่อโครงการ <span class="required">*</span></label>
+            <label class="label" for="project-name">ชื่อโครงการ <span class="required">*</span></label>
             <input
+              id="project-name"
               type="text"
               bind:value={formData.projectName}
               class="input"
@@ -147,6 +148,7 @@
 
           <!-- ประเภทโครงการ -->
           <div class="form-group" class:error-wrapper={errors.projectTypeId}>
+            <!-- svelte-ignore a11y_label_has_associated_control -->
             <label class="label">ประเภทโครงการ <span class="required">*</span></label>
             <Dropdown
               fullWidth
@@ -158,6 +160,7 @@
 
           <!-- วันที่ -->
           <div class="form-group">
+            <!-- svelte-ignore a11y_label_has_associated_control -->
             <label class="label">วันที่ <span class="required">*</span></label>
             <ThaiDatePicker
               bind:value={formData.projectDate}
@@ -168,6 +171,7 @@
 
           <!-- ปีงบประมาณ -->
           <div class="form-group" class:error-wrapper={errors.fiscalYear}>
+            <!-- svelte-ignore a11y_label_has_associated_control -->
             <label class="label">ปีงบประมาณ <span class="required">*</span></label>
             <Dropdown
               fullWidth
@@ -179,8 +183,9 @@
 
           <!-- จำนวนเงิน -->
           <div class="form-group">
-            <label class="label">จำนวนเงิน <span class="required">*</span></label>
+            <label class="label" for="project-budget">จำนวนเงิน <span class="required">*</span></label>
             <input
+              id="project-budget"
               type="text"
               inputmode="decimal"
               bind:value={formData.budget}
@@ -192,8 +197,9 @@
 
           <!-- จำนวนครุภัณฑ์ -->
           <div class="form-group">
-            <label class="label">จำนวนครุภัณฑ์</label>
+            <label class="label" for="project-qty">จำนวนครุภัณฑ์</label>
             <input
+              id="project-qty"
               type="text"
               inputmode="numeric"
               bind:value={formData.qtyOrdered}
@@ -204,6 +210,7 @@
 
           <!-- ทรัพย์สินได้มาโดย -->
           <div class="form-group" class:error-wrapper={errors.acquisitionSourceId}>
+            <!-- svelte-ignore a11y_label_has_associated_control -->
             <label class="label">ทรัพย์สินได้มาโดย <span class="required">*</span></label>
             <Dropdown
               fullWidth
@@ -215,6 +222,7 @@
 
           <!-- วิธีการได้มา -->
           <div class="form-group" class:error-wrapper={errors.acquisitionMethodId}>
+            <!-- svelte-ignore a11y_label_has_associated_control -->
             <label class="label">วิธีการได้มา <span class="required">*</span></label>
             <Dropdown
               fullWidth
@@ -226,8 +234,9 @@
 
           <!-- หมายเหตุ -->
           <div class="form-group full-width">
-            <label class="label">หมายเหตุ</label>
+            <label class="label" for="project-note">หมายเหตุ</label>
             <textarea
+              id="project-note"
               bind:value={formData.note}
               class="input textarea"
               rows="4"
@@ -279,32 +288,6 @@
 {/if}
 
 <style>
-  .date-wrapper {
-    position: relative;
-  }
-
-  .date-picker-hidden {
-    position: absolute;
-    inset: 0;
-    opacity: 0;
-    width: 100%;
-    cursor: pointer;
-  }
-
-  .date-display {
-    cursor: pointer;
-    padding-right: 2.5rem;
-  }
-
-  .cal-icon {
-    position: absolute;
-    right: 0.75rem;
-    top: 50%;
-    transform: translateY(-50%);
-    pointer-events: none;
-    color: #9ca3af;
-  }
-
   .textarea {
     resize: vertical;
     min-height: 100px;

@@ -217,10 +217,15 @@
       <!-- Additional Equipment -->
       <div class="extra-label">เพิ่มครุภัณฑ์อื่น ๆ</div>
       <div class="dropdown-wrap" bind:this={dropdownEl}>
-        <button
+        <div
           class="dropdown-trigger"
-          type="button"
+          role="combobox"
+          aria-expanded={showDropdown}
+          aria-controls="equipment-dropdown-list"
+          aria-haspopup="listbox"
+          tabindex="0"
           on:click={() => showDropdown = !showDropdown}
+          on:keydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); showDropdown = !showDropdown; } }}
         >
           <input
             class="dropdown-search"
@@ -228,13 +233,14 @@
             bind:value={searchQ}
             on:focus={() => showDropdown = true}
             on:click|stopPropagation
+            tabindex="-1"
           />
           <svg class="chevron {showDropdown ? 'open' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
           </svg>
-        </button>
+        </div>
         {#if showDropdown}
-          <div class="dropdown-menu">
+          <div class="dropdown-menu" id="equipment-dropdown-list" role="listbox">
             {#if filteredEquipment.length === 0}
               <div class="dropdown-empty">ไม่พบครุภัณฑ์</div>
             {:else}
@@ -255,7 +261,7 @@
           {#each extraEquipment as eq (eq.uuid)}
             <div class="chip">
               <span>{eq.equipmentName} • {eq.equipmentCode}</span>
-              <button class="chip-remove" type="button" on:click={() => removeEquipment(eq.uuid)}>
+              <button class="chip-remove" type="button" aria-label="ลบ" on:click={() => removeEquipment(eq.uuid)}>
                 <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="14" height="14">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
                 </svg>
@@ -274,12 +280,12 @@
         {#if selectedStatus === 'borrowed'}
           <div class="form-grid">
             <div class="form-group" class:has-error={errors.borrowerName}>
-              <label class="label">ผู้ยืม <span class="required">*</span></label>
-              <input class="input" bind:value={borrowerName} placeholder="ชื่อผู้ยืม" />
+              <label class="label" for="cs-borrowerName">ผู้ยืม <span class="required">*</span></label>
+              <input id="cs-borrowerName" class="input" bind:value={borrowerName} placeholder="ชื่อผู้ยืม" />
             </div>
             <div class="form-group" class:has-error={errors.borrowUnitId}>
-              <label class="label">หน่วยงานที่ยืม <span class="required">*</span></label>
-              <select class="input" bind:value={borrowUnitId}>
+              <label class="label" for="cs-borrowUnitId">หน่วยงานที่ยืม <span class="required">*</span></label>
+              <select id="cs-borrowUnitId" class="input" bind:value={borrowUnitId}>
                 <option value={0}>กรุณาเลือก</option>
                 {#each supportUnits as u}
                   <option value={u.id}>{u.name}</option>
@@ -287,10 +293,12 @@
               </select>
             </div>
             <div class="form-group" class:has-error={errors.borrowDate}>
+              <!-- svelte-ignore a11y_label_has_associated_control -->
               <label class="label">วันที่ยืม <span class="required">*</span></label>
               <ThaiDatePicker bind:value={borrowDate} error={errors.borrowDate} inputClass="form-input" />
             </div>
             <div class="form-group" class:has-error={errors.returnDate}>
+              <!-- svelte-ignore a11y_label_has_associated_control -->
               <label class="label">วันที่คืน <span class="required">*</span></label>
               <ThaiDatePicker bind:value={returnDate} error={errors.returnDate} inputClass="form-input" />
             </div>
@@ -299,15 +307,17 @@
         {:else if selectedStatus === 'repair'}
           <div class="form-grid">
             <div class="form-group" class:has-error={errors.repairDate}>
+              <!-- svelte-ignore a11y_label_has_associated_control -->
               <label class="label">วันที่ยืม <span class="required">*</span></label>
               <ThaiDatePicker bind:value={repairDate} error={errors.repairDate} inputClass="form-input" />
             </div>
             <div class="form-group" class:has-error={errors.repairBy}>
-              <label class="label">ผู้ยืม <span class="required">*</span></label>
-              <input class="input" bind:value={repairBy} placeholder="ชื่อผู้แจ้งซ่อม" />
+              <label class="label" for="cs-repairBy">ผู้ยืม <span class="required">*</span></label>
+              <input id="cs-repairBy" class="input" bind:value={repairBy} placeholder="ชื่อผู้แจ้งซ่อม" />
             </div>
           </div>
           <div class="form-group">
+            <!-- svelte-ignore a11y_label_has_associated_control -->
             <label class="label">เอกสารการซ่อม</label>
             <label class="file-input-label">
               <input type="file" class="file-input-hidden" on:change={(e) => {
@@ -323,22 +333,24 @@
 
         {:else if selectedStatus === 'unavailable'}
           <div class="form-group" class:has-error={errors.unavailableReason}>
-            <label class="label">เหตุผลที่ไม่พร้อมใช้งาน <span class="required">*</span></label>
-            <textarea class="textarea" bind:value={unavailableReason} rows="4" placeholder="ระบุเหตุผล..."></textarea>
+            <label class="label" for="cs-unavailableReason">เหตุผลที่ไม่พร้อมใช้งาน <span class="required">*</span></label>
+            <textarea id="cs-unavailableReason" class="textarea" bind:value={unavailableReason} rows="4" placeholder="ระบุเหตุผล..."></textarea>
           </div>
 
         {:else if selectedStatus === 'disposed'}
           <div class="form-grid">
             <div class="form-group" class:has-error={errors.disposeDate}>
+              <!-- svelte-ignore a11y_label_has_associated_control -->
               <label class="label">วันที่จำหน่าย <span class="required">*</span></label>
               <ThaiDatePicker bind:value={disposeDate} error={errors.disposeDate} inputClass="form-input" />
             </div>
             <div class="form-group">
-              <label class="label">ราคาจำหน่าย</label>
-              <input class="input" type="number" bind:value={disposePrice} placeholder="0.00" />
+              <label class="label" for="cs-disposePrice">ราคาจำหน่าย</label>
+              <input id="cs-disposePrice" class="input" type="number" bind:value={disposePrice} placeholder="0.00" />
             </div>
           </div>
           <div class="form-group">
+            <!-- svelte-ignore a11y_label_has_associated_control -->
             <label class="label">เอกสารการจำหน่าย</label>
             <label class="file-input-label">
               <input type="file" class="file-input-hidden" on:change={(e) => {
@@ -357,8 +369,8 @@
 
     <!-- Remark -->
     <div class="card">
-      <label class="label">หมายเหตุ</label>
-      <textarea class="textarea" bind:value={remark} rows="3" placeholder="หมายเหตุเพิ่มเติม (ถ้ามี)"></textarea>
+      <label class="label" for="cs-remark">หมายเหตุ</label>
+      <textarea id="cs-remark" class="textarea" bind:value={remark} rows="3" placeholder="หมายเหตุเพิ่มเติม (ถ้ามี)"></textarea>
     </div>
 
     {#if saveError}

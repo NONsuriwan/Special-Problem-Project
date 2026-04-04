@@ -56,7 +56,7 @@
       basePath: "/reports",
       children: [
         { href: "/reports/depreciation",    label: "รายงานค่าเสื่อม",     subtitle: "รายงานค่าเสื่อมราคาของครุภัณฑ์" },
-        { href: "/reports",                 label: "รายงานสำรวจครุภัณฑ์", subtitle: "จัดการและสรุปข้อมูลของครุภัณฑ์" },
+        { href: "/reports/survey",           label: "รายงานสำรวจครุภัณฑ์", subtitle: "จัดการและสรุปข้อมูลของครุภัณฑ์" },
       ]
     },
   ];

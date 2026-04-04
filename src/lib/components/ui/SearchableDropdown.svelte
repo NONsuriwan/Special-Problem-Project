@@ -214,8 +214,11 @@
   <div
     class="dropdown-button {isOpen ? 'open' : ''}"
     on:click={() => isOpen ? close() : open()}
-    role="combobox"
+    on:keydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); isOpen ? close() : open(); } }}
+    role="button"
+    tabindex="0"
     aria-expanded={isOpen}
+    aria-haspopup="listbox"
   >
     <input
       bind:this={inputEl}
@@ -226,6 +229,7 @@
       on:focus={open}
       on:click|stopPropagation
       readonly={!isOpen}
+      tabindex="-1"
     />
     <span class="chevron"></span>
   </div>

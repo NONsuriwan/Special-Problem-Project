@@ -392,7 +392,7 @@
 
 {#if showPreviewModal && previewUrl}
   <div class="preview-overlay" on:click={closePreview} role="presentation">
-    <div class="preview-modal" on:click|stopPropagation>
+    <div class="preview-modal" on:click|stopPropagation on:keydown|stopPropagation role="dialog" tabindex="-1" aria-modal="true">
       <div class="preview-header">
         <span class="preview-title">{previewFileName}</span>
         <button class="preview-close" on:click={closePreview}>✕</button>
@@ -410,41 +410,48 @@
 
 {#if showFilter}
   <div class="filter-backdrop" on:click={() => showFilter = false} role="presentation">
-  <div class="filter-popup" on:click|stopPropagation>
+  <div class="filter-popup" on:click|stopPropagation on:keydown|stopPropagation role="dialog" tabindex="-1" aria-modal="true">
     <h2 class="filter-title">ตัวกรองขั้นสูง</h2>
     <div class="filter-grid">
       <div class="filter-field">
+        <!-- svelte-ignore a11y_label_has_associated_control -->
         <label class="filter-label">สถานะ</label>
         <Dropdown options={statusOptions} bind:value={draftStatus} placeholder="ทั้งหมด" />
       </div>
       <div class="filter-field">
+        <!-- svelte-ignore a11y_label_has_associated_control -->
         <label class="filter-label">หน่วยงาน</label>
         <Dropdown options={[{ value: 0, label: 'ทั้งหมด' }, ...supportUnits.map(u => ({ value: u.id, label: u.name }))]} bind:value={draftUnitId} placeholder="ทั้งหมด" />
       </div>
       <div class="filter-field">
+        <!-- svelte-ignore a11y_label_has_associated_control -->
         <label class="filter-label">ประเภทครุภัณฑ์</label>
         <Dropdown options={[{ value: 0, label: 'ทั้งหมด' }, ...assetTypes.map(t => ({ value: t.id, label: t.name }))]} bind:value={draftTypeId} placeholder="ทั้งหมด" />
       </div>
       <div class="filter-field">
+        <!-- svelte-ignore a11y_label_has_associated_control -->
         <label class="filter-label">ทรัพย์สินได้มาโดย</label>
         <Dropdown options={[{ value: 0, label: 'ทั้งหมด' }, ...acquisitionSources.map(s => ({ value: s.id, label: s.name }))]} bind:value={draftSourceId} placeholder="ทั้งหมด" />
       </div>
       <div class="filter-field">
+        <!-- svelte-ignore a11y_label_has_associated_control -->
         <label class="filter-label">ปีงบประมาณ</label>
         <Dropdown options={[{ value: 0, label: 'ทั้งหมด' }, ...budgetYears.map(y => ({ value: y, label: String(y) }))]} bind:value={draftBudgetYear} placeholder="ทั้งหมด" />
       </div>
       <div class="filter-field">
-        <label class="filter-label">ช่วงมูลค่า</label>
+        <label class="filter-label" for="price-min">ช่วงมูลค่า</label>
         <div class="price-range">
-          <input class="filter-input" type="number" placeholder="มูลค่าขั้นต่ำ" bind:value={draftPriceMin} />
+          <input id="price-min" class="filter-input" type="number" placeholder="มูลค่าขั้นต่ำ" bind:value={draftPriceMin} />
           <input class="filter-input" type="number" placeholder="มูลค่าสูงสุด" bind:value={draftPriceMax} />
         </div>
       </div>
       <div class="filter-field">
+        <!-- svelte-ignore a11y_label_has_associated_control -->
         <label class="filter-label">อาคาร</label>
         <Dropdown options={[{ value: 0, label: 'ทั้งหมด' }, ...buildings.map(b => ({ value: b.id, label: b.name }))]} bind:value={draftBuildingId} placeholder="ทั้งหมด" />
       </div>
       <div class="filter-field">
+        <!-- svelte-ignore a11y_label_has_associated_control -->
         <label class="filter-label">ห้อง</label>
         <Dropdown options={[{ value: 0, label: 'ทั้งหมด' }, ...rooms.map(r => ({ value: r.id, label: r.name }))]} bind:value={draftRoomId} placeholder="ทั้งหมด" />
       </div>

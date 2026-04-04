@@ -88,18 +88,20 @@
         <form on:submit|preventDefault={handleSubmit}>
           <div class="form-grid">
             <div class="form-group">
-              <label class="label">ชื่อ</label>
-              <input type="text" bind:value={formData.firstName} class="input" />
+              <label class="label" for="edit-firstName">ชื่อ</label>
+              <input id="edit-firstName" type="text" bind:value={formData.firstName} class="input" />
             </div>
             <div class="form-group">
-              <label class="label">นามสกุล</label>
-              <input type="text" bind:value={formData.lastName} class="input" />
+              <label class="label" for="edit-lastName">นามสกุล</label>
+              <input id="edit-lastName" type="text" bind:value={formData.lastName} class="input" />
             </div>
             <div class="form-group">
+              <!-- svelte-ignore a11y_label_has_associated_control -->
               <label class="label">Role <span class="required">*</span></label>
               <Dropdown fullWidth options={roleOptions} bind:value={formData.role} />
             </div>
             <div class="form-group">
+              <!-- svelte-ignore a11y_label_has_associated_control -->
               <label class="label">หน่วยงาน</label>
               <Dropdown fullWidth options={[{ value: null, label: 'ไม่ระบุ' }, ...departments.map(d => ({ value: d.id, label: d.name }))]} bind:value={formData.departmentId} />
             </div>
