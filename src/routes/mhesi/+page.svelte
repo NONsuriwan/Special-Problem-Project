@@ -4,7 +4,7 @@
   import { page } from '$app/stores';
   import Dropdown from '$lib/components/ui/Dropdown.svelte';
   import ThaiDatePicker from '$lib/components/ui/ThaiDatePicker.svelte';
-  import '../../styles/pagination.css';
+  import Pagination from '$lib/components/ui/Pagination.svelte';
   import '../../styles/filter.css';
 
    $: canAccessRestricted =
@@ -120,7 +120,6 @@
   let limit = 10;
   let totalItems = 0;
   let totalPages = 1;
-  const limitOptions = [10, 25, 50, 100];
 
   // Master data
   let departments: MasterData[] = [];
@@ -222,37 +221,6 @@
     return projects.find(p => p.id === id)?.projectName || '-';
   }
 
-  $: pageNumbers = (() => {
-    if (totalPages <= 7) return Array.from({ length: totalPages }, (_, i) => i + 1);
-    const pages: (number | '...')[] = [];
-    if (currentPage <= 4) {
-      pages.push(1, 2, 3, 4, 5, '...', totalPages);
-    } else if (currentPage >= totalPages - 3) {
-      pages.push(1, '...', totalPages - 4, totalPages - 3, totalPages - 2, totalPages - 1, totalPages);
-    } else {
-      pages.push(1, '...', currentPage - 1, currentPage, currentPage + 1, '...', totalPages);
-    }
-    return pages;
-  })();
-
-  let jumpPage = '';
-  function handleJump() {
-    const p = parseInt(jumpPage);
-    if (!isNaN(p) && p >= 1 && p <= totalPages) goToPage(p);
-    jumpPage = '';
-  }
-
-  function goToPage(p: number) {
-    if (p < 1 || p > totalPages) return;
-    currentPage = p;
-    fetchMhesi();
-  }
-
-  function onLimitChange(e: Event) {
-    limit = parseInt((e.target as HTMLSelectElement).value);
-    currentPage = 1;
-    fetchMhesi();
-  }
 
   function formatCurrency(amount: string | number): string {
     if (!amount) return '0.00';
@@ -430,62 +398,14 @@
       </div>
 
       <!-- Pagination -->
-      <div class="pagination-bar">
-        <div class="pagination-info">
-          <span class="pagination-label">แสดง</span>
-          <Dropdown
-            compact
-            dropUp
-            options={limitOptions.map(o => ({ value: o, label: String(o) }))}
-            bind:value={limit}
-            on:change={() => { currentPage = 1; fetchMhesi(); }}
-          />
-          <span class="pagination-label">รายการต่อหน้า</span>
-          <span class="pagination-count">({totalItems.toLocaleString('th-TH')} รายการทั้งหมด)</span>
-        </div>
-
-        <div class="pagination-nav">
-          <button
-            class="page-btn nav-btn"
-            disabled={currentPage === 1}
-            on:click={() => goToPage(currentPage - 1)}
-            aria-label="หน้าก่อนหน้า"
-          >
-            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
-            </svg>
-          </button>
-
-          {#each pageNumbers as p}
-            {#if p === '...'}
-              <span class="page-ellipsis">…</span>
-            {:else}
-              <button
-                class="page-btn {currentPage === p ? 'active' : ''}"
-                disabled={currentPage === p}
-                on:click={() => goToPage(p)}
-              >{p}</button>
-            {/if}
-          {/each}
-
-          <button
-            class="page-btn nav-btn"
-            disabled={currentPage === totalPages}
-            on:click={() => goToPage(currentPage + 1)}
-            aria-label="หน้าถัดไป"
-          >
-            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-            </svg>
-          </button>
-          <div class="pagination-jump">
-            <span>ไปหน้า</span>
-            <input class="pagination-jump-input" type="number" min="1" max={totalPages}
-              bind:value={jumpPage} on:keydown={e => e.key === 'Enter' && handleJump()} />
-            <button class="pagination-jump-btn" on:click={handleJump}>ไป</button>
-          </div>
-        </div>
-      </div>
+      <Pagination
+        bind:currentPage
+        bind:limit
+        {totalPages}
+        {totalItems}
+        onpagechange={fetchMhesi}
+        onlimitchange={fetchMhesi}
+      />
     </div>
   {/if}
 </div>

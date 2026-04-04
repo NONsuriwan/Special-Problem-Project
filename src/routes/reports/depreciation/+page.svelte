@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import Dropdown from '$lib/components/ui/Dropdown.svelte';
+  import Pagination from '$lib/components/ui/Pagination.svelte';
 
   const API_URL = 'http://localhost:3000';
 
@@ -62,6 +63,13 @@
   let submitted = false;
   let errorMsg = '';
   let errors: Record<string, boolean> = {};
+
+  // Pagination
+  let currentPage = 1;
+  let pageSize = 20;
+
+  $: totalPages = Math.max(1, Math.ceil(details.length / pageSize));
+  $: paginatedDetails = details.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
   // Snapshot of filter labels at submit time
   let snapFilters: { label: string; value: string }[] = [];
@@ -168,6 +176,7 @@
       const json = await res.json();
       details = json.data?.details || [];
       summary = json.data?.summary || null;
+      currentPage = 1;
 
       // Snapshot filter labels
       reportDateStr = formatDateLong(new Date());
@@ -340,7 +349,7 @@
               </tr>
             </thead>
             <tbody>
-              {#each details as row, i (row.equipmentNumber + i)}
+              {#each paginatedDetails as row, i (row.equipmentNumber + i)}
                 <tr class:row-alt={i % 2 === 1}>
                   <td class="mono">{row.equipmentNumber}</td>
                   <td>{row.equipmentName}</td>
@@ -361,6 +370,17 @@
             </tbody>
           </table>
         </div>
+
+        <!-- Pagination -->
+        {#if details.length > 0}
+          <Pagination
+            bind:currentPage
+            bind:limit={pageSize}
+            {totalPages}
+            totalItems={details.length}
+            limitOptions={[10, 20, 50, 100]}
+          />
+        {/if}
       {/if}
 
       <!-- Summary -->

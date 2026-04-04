@@ -9,6 +9,7 @@
   import ThaiDatePicker from '$lib/components/ui/ThaiDatePicker.svelte';
   import Dropdown from '$lib/components/ui/Dropdown.svelte';
   import Icon from '$lib/components/ui/Icon.svelte';
+  import Pagination from '$lib/components/ui/Pagination.svelte';
   import '../../../../styles/timeline.css';
   import { apiFetchBlob } from '$lib/api/client';
 
@@ -76,12 +77,11 @@
   let history: HistoryEntry[] = [];
   let historyLoading = false;
 
-  const TABLE_LIMIT = 10;
-  let showAllMhesi = false;
-  let showAllEquipment = false;
-
-  $: mhesiDisplay    = showAllMhesi    ? mhesiList     : mhesiList.slice(0, TABLE_LIMIT);
-  $: equipmentDisplay = showAllEquipment ? equipmentList : equipmentList.slice(0, TABLE_LIMIT);
+  // Equipment pagination
+  let pendingPage = 1;
+  let pendingPageSize = 10;
+  let disbursedPage = 1;
+  let disbursedPageSize = 10;
 
   let acquisitionSources: MasterData[] = [];
   let acquisitionMethods: MasterData[] = [];
@@ -192,6 +192,11 @@
 
   $: pendingEquipment   = equipmentList.filter(e => e.status === 'pending');
   $: disbursedEquipment = equipmentList.filter(e => e.status !== 'pending');
+
+  $: pendingTotalPages   = Math.max(1, Math.ceil(pendingEquipment.length / pendingPageSize));
+  $: disbursedTotalPages = Math.max(1, Math.ceil(disbursedEquipment.length / disbursedPageSize));
+  $: pendingPaged   = pendingEquipment.slice((pendingPage - 1) * pendingPageSize, pendingPage * pendingPageSize);
+  $: disbursedPaged = disbursedEquipment.slice((disbursedPage - 1) * disbursedPageSize, disbursedPage * disbursedPageSize);
 
   $: uuid = $page.params.id ?? '';
 
@@ -656,7 +661,7 @@
                 </tr>
               </thead>
               <tbody>
-                {#each pendingEquipment as e (e.uuid ?? e.equipmentNumber)}
+                {#each pendingPaged as e (e.uuid ?? e.equipmentNumber)}
                   <tr on:click={() => goto(`/equipments/detail/${e.uuid}`)} class="clickable-row">
                     <td class="font-medium">{e.equipmentNumber || e.equipmentCode}</td>
                     <td>{e.equipmentName}</td>
@@ -668,6 +673,12 @@
               </tbody>
             </table>
           </div>
+          <Pagination
+            bind:currentPage={pendingPage}
+            bind:limit={pendingPageSize}
+            totalPages={pendingTotalPages}
+            totalItems={pendingEquipment.length}
+          />
         {/if}
 
         <!-- เบิกจ่ายแล้ว -->
@@ -693,7 +704,7 @@
                 </tr>
               </thead>
               <tbody>
-                {#each disbursedEquipment as e (e.uuid ?? e.equipmentNumber)}
+                {#each disbursedPaged as e (e.uuid ?? e.equipmentNumber)}
                   <tr on:click={() => goto(`/equipments/detail/${e.uuid}`)} class="clickable-row">
                     <td class="font-medium">{e.equipmentNumber || e.equipmentCode}</td>
                     <td>{e.equipmentName}</td>
@@ -709,6 +720,12 @@
               </tbody>
             </table>
           </div>
+          <Pagination
+            bind:currentPage={disbursedPage}
+            bind:limit={disbursedPageSize}
+            totalPages={disbursedTotalPages}
+            totalItems={disbursedEquipment.length}
+          />
         {/if}
       {/if}
     </div>
