@@ -136,8 +136,14 @@
     addFiles(Array.from(e.dataTransfer?.files ?? []));
   }
 
-  const warrantyYearOpts = Array.from({ length: 10 }, (_, i) => ({ value: i + 1, label: `${i + 1} ปี` }));
-  const warrantyMonthOpts = Array.from({ length: 11 }, (_, i) => ({ value: i + 1, label: `${i + 1} เดือน` }));
+  const warrantyYearOpts = [
+    { value: null, label: 'ไม่มี (ปี)' },
+    ...Array.from({ length: 10 }, (_, i) => ({ value: i + 1, label: `${i + 1} ปี` }))
+  ];
+  const warrantyMonthOpts = [
+    { value: null, label: 'ไม่มี (เดือน)' },
+    ...Array.from({ length: 11 }, (_, i) => ({ value: i + 1, label: `${i + 1} เดือน` }))
+  ];
 
   // warrantyEnd: acquisitionDate + warrantyYears + warrantyMonths (pure arithmetic, no Date constructor)
   function computeWarrantyEnd(date: string, years: number, months: number): string {

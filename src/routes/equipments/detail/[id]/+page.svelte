@@ -779,7 +779,7 @@
     previewLoading = true;
     previewFileName = attachment.fileName;
     try {
-      const blob = await apiFetchBlob(`/api/attachments/${attachment.id}/file`);
+      const { blob } = await apiFetchBlob(`/api/attachments/${attachment.id}/file`);
       if (previewUrl) URL.revokeObjectURL(previewUrl);
       previewUrl = URL.createObjectURL(blob);
       previewMimeType = blob.type;
@@ -795,7 +795,7 @@
     previewLoading = true;
     previewFileName = fileName;
     try {
-      const blob = await apiFetchBlob(`/api/attachments/${id}/file`);
+      const {blob} = await apiFetchBlob(`/api/attachments/${id}/file`);
       if (previewUrl) URL.revokeObjectURL(previewUrl);
       previewUrl = URL.createObjectURL(blob);
       previewMimeType = blob.type;

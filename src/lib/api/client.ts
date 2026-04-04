@@ -23,12 +23,21 @@ export async function apiFetch<T>(path: string, options?: RequestInit): Promise<
 
 }
 
-export async function apiFetchBlob(path: string): Promise<Blob> {
+export async function apiFetchBlob(path: string): Promise<{ blob: Blob; filename: string }> {
   const res = await fetch(path, { credentials: 'include' });
   if (res.status === 401) {
     window.location.href = '/login';
     throw new Error('Session expired');
   }
   if (!res.ok) throw new Error(`Error! status: ${res.status}`);
-  return res.blob();
+
+  const blob = await res.blob();
+
+  // ดึงชื่อไฟล์จาก Content-Disposition header
+  // ตัวอย่าง header: attachment; filename="report.pdf"
+  const disposition = res.headers.get('Content-Disposition') ?? '';
+  const match = disposition.match(/filename\*?=(?:UTF-8'')?["']?([^"';\r\n]+)["']?/i);
+  const filename = match?.[1] ? decodeURIComponent(match[1]) : 'download.pdf';
+
+  return { blob, filename };
 }

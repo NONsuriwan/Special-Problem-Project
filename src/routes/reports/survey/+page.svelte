@@ -40,10 +40,12 @@
     try {
       let query = `budgetYear=${budgetYear}`;
       if (departmentId) query += `&departmentId=${departmentId}`;
-      const blob = await apiFetchBlob(`${API_ENDPOINTS.REPORTS_SURVEY}?${query}`);
+      const { blob, filename } = await apiFetchBlob(`${API_ENDPOINTS.REPORTS_SURVEY}?${query}`);
       if (pdfUrl) URL.revokeObjectURL(pdfUrl);
       pdfUrl = URL.createObjectURL(blob);
-      pdfFileName = `survey_report_${budgetYear}.pdf`;
+      pdfFileName = filename || `survey_report_${budgetYear}.pdf`;
+      console.log(blob);
+      console.log(pdfUrl);
     } catch (e) {
       generateError = e instanceof Error ? e.message : 'สร้างรายงานไม่สำเร็จ';
     } finally {
