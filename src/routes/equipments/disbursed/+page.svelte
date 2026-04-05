@@ -39,7 +39,7 @@
     previewLoading = true;
     previewFileName = fileName;
     try {
-      const {blob} = await apiFetchBlob(`/api/attachments/${id}/file`);
+      const { blob } = await apiFetchBlob(`/api/attachments/${id}/file`);
       if (previewUrl) URL.revokeObjectURL(previewUrl);
       previewUrl = URL.createObjectURL(blob);
       previewMimeType = blob.type;
@@ -158,7 +158,7 @@
         apiFetch<{ data: MasterData[] }>(API_ENDPOINTS.MASTERS.ASSET_TYPES),
         apiFetch<{ data: MasterData[] }>(API_ENDPOINTS.MASTERS.BUILDINGS),
         apiFetch<{ data: MasterData[] }>(API_ENDPOINTS.MASTERS.ROOMS),
-        apiFetch<{ data: MasterData[] }>(API_ENDPOINTS.MASTERS.SUPPORT_UNITS),
+        apiFetch<{ data: MasterData[] }>(API_ENDPOINTS.MASTERS.DEPARTMENTS),
         apiFetch<{ data: MasterData[] }>(API_ENDPOINTS.MASTERS.ACQUISITION_SOURCES),
       ]);
       assetTypes = typesData.data || []; buildings = buildingsData.data || [];
@@ -180,7 +180,7 @@
       if (activeTypeId)     params.set('equipmentTypeId',     String(activeTypeId));
       if (activeBuildingId) params.set('buildingId',          String(activeBuildingId));
       if (activeRoomId)     params.set('roomId',              String(activeRoomId));
-      if (activeUnitId)     params.set('supportUnitId',       String(activeUnitId));
+      if (activeUnitId)     params.set('departmentId',         String(activeUnitId));
       if (activeSourceId)   params.set('acquisitionSourceId', String(activeSourceId));
       if (activeBudgetYear) params.set('fiscalYear',          String(activeBudgetYear));
       if (activePriceMin)   params.set('priceMin',            activePriceMin);

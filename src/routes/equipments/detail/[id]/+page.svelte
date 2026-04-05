@@ -80,16 +80,8 @@
   };
 
   type HistoryEntry = {
-    type: 'status_change' | 'edit' | 'disbursement';
-    status?: string;
-    remark?: string;
+    action: 'status_change' | 'update' | 'create';
     detail?: {
-      borrowerName?: string;
-      borrowDate?: string;
-      expectedReturnDate?: string;
-      borrowingBuildingId?: number;
-      borrowingRoomId?: number;
-      reason?: string | null;
       repairReason?: string;
       startDate?: string;
       repairCompany?: string;
@@ -102,12 +94,6 @@
       attachmentId?: number;
       fileName?: string;
       fileUrl?: string;
-      // disbursement fields
-      disbursedTo?: string;
-      disbursedDate?: string;
-      roomId?: number;
-      departmentId?: number;
-      buildingId?: number;
     };
     before?: Record<string, any>;
     after?: Record<string, any>;
@@ -361,7 +347,7 @@
 
   async function prefetchWarrantyNames(entries: DisplayEntry[]) {
     const ids = entries
-      .filter(h => h.type === 'edit' && h.after?.warrantyAttachmentId)
+      .filter(h => h.action === 'update' && h.after?.warrantyAttachmentId)
       .map(h => h.after!.warrantyAttachmentId as number)
       .filter(id => !(id in attachmentNameCache));
     for (const id of [...new Set(ids)]) {
@@ -375,7 +361,7 @@
   const FILE_ONLY_KEYS = new Set(['attachmentId', 'fileName', 'fileUrl']);
 
   function isFileOnlyEdit(h: HistoryEntry): boolean {
-    return h.type === 'edit' &&
+    return h.action === 'update' &&
       !!h.after?.attachmentId &&
       !!h.after?.fileName &&
       Object.keys(h.before ?? {}).length === 0 &&
@@ -726,40 +712,8 @@
         body: JSON.stringify({ equipmentUuids: targets, newStatus: selectedStatus, data }),
       });
 
-      const newNote = statusRemark.trim() || null;
-      if (newNote && asset) {
-        await apiFetch(API_ENDPOINTS.ASSET_DETAIL(assetId), {
-          method: 'PUT',
-          body: JSON.stringify({
-            equipmentCode: asset.equipmentCode || null,
-            equipmentName: asset.equipmentName,
-            equipmentNumber: asset.equipmentNumber || null,
-            price: asset.price || null,
-            unit: asset.unit || null,
-            company: asset.company || null,
-            sizeDetail: asset.sizeDetail || null,
-            note: newNote,
-            acquisitionDate: asset.acquisitionDate || null,
-            fiscalYear: asset.fiscalYear || null,
-            departmentId: asset.departmentId,
-            activity: asset.activity || null,
-            fundId: asset.fundId,
-            equipmentTypeId: asset.equipmentTypeId,
-            acquisitionSourceId: asset.acquisitionSourceId,
-            acquisitionMethodId: asset.acquisitionMethodId,
-            projectId: asset.projectId,
-            buildingId: asset.buildingId,
-            roomId: asset.roomId,
-            warrantyYears: asset.warrantyYears ?? null,
-            warrantyMonths: asset.warrantyMonths ?? null,
-            warrantyEnd: asset.warrantyEnd || null,
-            receivingMhesiId: asset.receivingMhesiId || null,
-          }),
-        });
-        asset = { ...asset, status: selectedStatus, note: newNote };
-      } else {
-        asset = { ...asset, status: selectedStatus };
-      }
+  
+      await fetchAssetDetail();
       await fetchHistory();
       showStatusModal = false;
     } catch (err: any) {
@@ -1466,24 +1420,28 @@
       {:else}
         <div class="timeline">
           {#each displayHistory as h, idx}
-            {@const diffFields = h.type === 'edit' ? getDiffFields(h.before, h.after) : []}
-            {@const isFileUploadEdit = h.type === 'edit' && (h.after?.fileUrls != null || (h.after?.uploadedFiles ?? 0) > 0) && Object.keys(h.before ?? {}).length === 0}
+            {@const isDisbursement = h.action === 'status_change' && !!h.after?.disbursedTo}
+            {@const isBorrow = h.action === 'status_change' && !!h.after?.borrowerName}
+            {@const diffFields = h.action === 'update' ? getDiffFields(h.before, h.after) : []}
+            {@const isFileUploadEdit = h.action === 'update' && (h.after?.fileUrls != null || (h.after?.uploadedFiles ?? 0) > 0) && Object.keys(h.before ?? {}).length === 0}
             {@const isGroupedFileUpload = !!h.groupedFiles && h.groupedFiles.length > 0}
-            {@const isWarrantyEdit = h.type === 'edit' && diffFields.length > 0 && diffFields.every(f => f === 'warrantyAttachmentId')}
+            {@const isWarrantyEdit = h.action === 'update' && diffFields.length > 0 && diffFields.every(f => f === 'warrantyAttachmentId')}
             <div class="tl-item">
               <div class="tl-line-wrap">
-                <div class="tl-dot" class:tl-dot-edit={h.type === 'edit'} class:tl-dot-disburse={h.type === 'disbursement'}></div>
+                <div class="tl-dot" class:tl-dot-edit={h.action === 'update'} class:tl-dot-disburse={isDisbursement} class:tl-dot-create={h.action === 'create'}></div>
                 {#if idx < history.length - 1}<div class="tl-line"></div>{/if}
               </div>
               <div class="tl-body">
                 <div class="tl-header">
                   <div class="tl-header-left">
-                    {#if h.type === 'status_change'}
-                      <span class="tl-badge tl-badge-status" style="color:{getStatusDotColor(h.status ?? '')}; background:{getStatusDotColor(h.status ?? '')}18; border-color:{getStatusDotColor(h.status ?? '')}40">
-                        เปลี่ยนสถานะ → {getStatusText(h.status ?? '')}
-                      </span>
-                    {:else if h.type === 'disbursement'}
+                    {#if h.action === 'create'}
+                      <span class="tl-badge tl-badge-create">สร้างครุภัณฑ์</span>
+                    {:else if isDisbursement}
                       <span class="tl-badge tl-badge-disburse">เบิกจ่าย</span>
+                    {:else if h.action === 'status_change'}
+                      <span class="tl-badge tl-badge-status" style="color:{getStatusDotColor(h.after?.status ?? '')}; background:{getStatusDotColor(h.after?.status ?? '')}18; border-color:{getStatusDotColor(h.after?.status ?? '')}40">
+                        เปลี่ยนสถานะ → {getStatusText(h.after?.status ?? '')}
+                      </span>
                     {:else if isGroupedFileUpload}
                       <span class="tl-badge tl-badge-upload">เพิ่มไฟล์ {h.groupedFiles!.length} รายการ</span>
                     {:else if isFileUploadEdit}
@@ -1498,23 +1456,74 @@
                   <span class="tl-time">{formatDateOnly(h.createdAt)} {formatTimeOnly(h.createdAt)}</span>
                 </div>
 
-                {#if h.type === 'status_change' && h.detail}
+                {#if h.action === 'create' && h.after}
                   <div class="tl-detail-grid">
-                    {#if h.detail.borrowerName}
-                      <span class="tl-detail-label">ผู้ยืม:</span><span class="tl-detail-val">{h.detail.borrowerName}</span>
+                    {#if h.after.equipmentName}
+                      <span class="tl-detail-label">ชื่อครุภัณฑ์:</span><span class="tl-detail-val">{h.after.equipmentName}</span>
                     {/if}
-                    {#if h.detail.borrowDate}
-                      <span class="tl-detail-label">วันที่ยืม:</span><span class="tl-detail-val">{formatDate(h.detail.borrowDate)}</span>
+                    {#if h.after.equipmentNumber}
+                      <span class="tl-detail-label">หมายเลข:</span><span class="tl-detail-val">{h.after.equipmentNumber}</span>
                     {/if}
-                    {#if h.detail.expectedReturnDate}
-                      <span class="tl-detail-label">กำหนดคืน:</span><span class="tl-detail-val">{formatDate(h.detail.expectedReturnDate)}</span>
+                    {#if h.after.status}
+                      <span class="tl-detail-label">สถานะ:</span><span class="tl-detail-val">{getStatusText(h.after.status)}</span>
                     {/if}
-                    {#if h.detail.borrowingBuildingId}
-                      <span class="tl-detail-label">อาคาร:</span><span class="tl-detail-val">{getMasterName(buildings, h.detail.borrowingBuildingId)}</span>
+                  </div>
+                {/if}
+
+                {#if isDisbursement && h.after}
+                  <div class="tl-detail-grid">
+                    {#if h.after.disbursedTo}
+                      <span class="tl-detail-label">เบิกจ่ายให้:</span><span class="tl-detail-val">{h.after.disbursedTo}</span>
                     {/if}
-                    {#if h.detail.borrowingRoomId}
-                      <span class="tl-detail-label">ห้อง:</span><span class="tl-detail-val">{getMasterName(rooms, h.detail.borrowingRoomId)}</span>
+                    {#if h.after.disbursedDate}
+                      <span class="tl-detail-label">วันที่เบิกจ่าย:</span><span class="tl-detail-val">{formatDate(h.after.disbursedDate)}</span>
                     {/if}
+                    {#if h.after.departmentId}
+                      <span class="tl-detail-label">หน่วยงาน:</span><span class="tl-detail-val">{getMasterName(departments, h.after.departmentId)}</span>
+                    {/if}
+                    {#if h.after.buildingId}
+                      <span class="tl-detail-label">อาคาร:</span><span class="tl-detail-val">{getMasterName(buildings, h.after.buildingId)}</span>
+                    {/if}
+                    {#if h.after.roomId}
+                      <span class="tl-detail-label">ห้อง:</span><span class="tl-detail-val">{getMasterName(rooms, h.after.roomId)}</span>
+                    {/if}
+                    {#if h.after.reason}
+                      <span class="tl-detail-label">เหตุผล:</span><span class="tl-detail-val">{h.after.reason}</span>
+                    {/if}
+                  </div>
+                {/if}
+
+                {#if isBorrow && h.after}
+                  <div class="tl-detail-grid">
+                    {#if h.after.borrowerName}
+                      <span class="tl-detail-label">ผู้ยืม:</span><span class="tl-detail-val">{h.after.borrowerName}</span>
+                    {/if}
+                    {#if h.after.borrowDate}
+                      <span class="tl-detail-label">วันที่ยืม:</span><span class="tl-detail-val">{formatDate(h.after.borrowDate)}</span>
+                    {/if}
+                    {#if h.after.expectedReturnDate}
+                      <span class="tl-detail-label">กำหนดคืน:</span><span class="tl-detail-val">{formatDate(h.after.expectedReturnDate)}</span>
+                    {/if}
+                    {#if h.after.borrowingBuildingId}
+                      <span class="tl-detail-label">อาคาร:</span><span class="tl-detail-val">{getMasterName(buildings, h.after.borrowingBuildingId)}</span>
+                    {/if}
+                    {#if h.after.borrowingRoomId}
+                      <span class="tl-detail-label">ห้อง:</span><span class="tl-detail-val">{getMasterName(rooms, h.after.borrowingRoomId)}</span>
+                    {/if}
+                    {#if h.after.reason}
+                      <span class="tl-detail-label">เหตุผล:</span><span class="tl-detail-val">{h.after.reason}</span>
+                    {/if}
+                  </div>
+                  {#if h.after.remark}
+                    <div class="tl-remark">
+                      <svg width="13" height="13" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10M7 12h6"/></svg>
+                      {h.after.remark}
+                    </div>
+                  {/if}
+                {/if}
+
+                {#if h.action === 'status_change' && !isDisbursement && !isBorrow && h.detail}
+                  <div class="tl-detail-grid">
                     {#if h.detail.repairReason}
                       <span class="tl-detail-label">สาเหตุ:</span><span class="tl-detail-val">{h.detail.repairReason}</span>
                     {/if}
@@ -1542,12 +1551,10 @@
                     {#if h.detail.disposalCost}
                       <span class="tl-detail-label">ราคาจำหน่าย:</span><span class="tl-detail-val">{Number(h.detail.disposalCost).toLocaleString('th-TH', {minimumFractionDigits:2})} บาท</span>
                     {/if}
-                    {#if h.detail.reason}
-                      <span class="tl-detail-label">เหตุผล:</span><span class="tl-detail-val">{h.detail.reason}</span>
-                    {/if}
                   </div>
                 {/if}
-                {#if h.type === 'status_change' && h.detail?.attachmentId}
+
+                {#if h.action === 'status_change' && h.detail?.attachmentId}
                   <div class="tl-attachment">
                     <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/>
@@ -1562,35 +1569,22 @@
                     </button>
                   </div>
                 {/if}
-                {#if h.type === 'disbursement' && h.detail}
-                  <div class="tl-detail-grid">
-                    {#if h.detail.disbursedTo}
-                      <span class="tl-detail-label">เบิกจ่ายให้:</span><span class="tl-detail-val">{h.detail.disbursedTo}</span>
-                    {/if}
-                    {#if h.detail.disbursedDate}
-                      <span class="tl-detail-label">วันที่เบิกจ่าย:</span><span class="tl-detail-val">{formatDate(h.detail.disbursedDate)}</span>
-                    {/if}
-                    {#if h.detail.departmentId}
-                      <span class="tl-detail-label">หน่วยงาน:</span><span class="tl-detail-val">{getMasterName(departments, h.detail.departmentId)}</span>
-                    {/if}
-                    {#if h.detail.buildingId}
-                      <span class="tl-detail-label">อาคาร:</span><span class="tl-detail-val">{getMasterName(buildings, h.detail.buildingId)}</span>
-                    {/if}
-                    {#if h.detail.roomId}
-                      <span class="tl-detail-label">ห้อง:</span><span class="tl-detail-val">{getMasterName(rooms, h.detail.roomId)}</span>
-                    {/if}
-                    {#if h.detail.reason}
-                      <span class="tl-detail-label">เหตุผล:</span><span class="tl-detail-val">{h.detail.reason}</span>
-                    {/if}
-                  </div>
-                {/if}
 
-                {#if h.type === 'status_change' && h.remark}
-                  <div class="tl-remark">
-                    <svg width="13" height="13" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10M7 12h6"/></svg>
-                    {h.remark}
-                  </div>
-                {:else if h.type === 'edit' && diffFields.length > 0 && !isWarrantyEdit}
+                {#if h.action === 'status_change' && !isDisbursement && !isBorrow}
+                  {#if h.after?.reason}
+                    <div class="tl-remark">
+                      <svg width="13" height="13" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10M7 12h6"/></svg>
+                      เหตุผล: {h.after.reason}
+                    </div>
+                  {/if}
+                  {#if h.after?.remark}
+                    <div class="tl-remark">
+                      <svg width="13" height="13" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10M7 12h6"/></svg>
+                      {h.after.remark}
+                    </div>
+                  {/if}
+                {/if}
+                {#if h.action === 'update' && diffFields.length > 0 && !isWarrantyEdit}
                   <div class="tl-changes">
                     {#each diffFields.filter(f => f !== 'warrantyAttachmentId') as field}
                       <div class="tl-change-row">
@@ -1637,7 +1631,7 @@
                       </div>
                     {/each}
                   </div>
-                {:else if h.type === 'edit' && h.after?.attachmentId && h.after?.fileName}
+                {:else if h.action === 'update' && h.after?.attachmentId && h.after?.fileName}
                   <div class="tl-attachment">
                     <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/>

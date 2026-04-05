@@ -115,6 +115,18 @@
   border-color: #bae6fd;
 }
 
+.tl-dot-create {
+  background: #7c3aed;
+  border-color: #faf5ff;
+  box-shadow: 0 0 0 2px #7c3aed;
+}
+
+.tl-badge-create {
+  color: #5b21b6;
+  background: #f5f3ff;
+  border-color: #ddd6fe;
+}
+
 .tl-user {
   font-size: 0.875rem;
   font-weight: 600;

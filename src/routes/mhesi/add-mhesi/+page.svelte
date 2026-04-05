@@ -7,7 +7,7 @@
   import { apiFetch } from '$lib/api/client';
   import { API_ENDPOINTS } from '$lib/api/endpoints';
 
-  type Project = { id: number; projectName: string; projectNumber?: string; budget?: number | string | null };
+  type Project = { id: number; projectName: string; projectNumber?: string; budget?: number | string | null; projectDate?: string | null };
   type MhesiOption = { mhesiNumber: string; activityName?: string; taken: boolean };
 
   const roleOptions = [
@@ -52,13 +52,14 @@
   let mhesiOpen = false;
   let mhesiInputEl: HTMLInputElement;
 
-  // Auto-fill amount from selected project's budget (only when projectId changes)
+  // Auto-fill amount and date from selected project (only when projectId changes)
   let prevAutoFillProjectId: number | null = null;
   $: {
     if (formData.projectId !== prevAutoFillProjectId) {
       prevAutoFillProjectId = formData.projectId;
       const proj = projects.find(p => p.id === formData.projectId);
       if (proj?.budget != null) formData.amount = String(proj.budget);
+      if (proj?.projectDate) formData.date = proj.projectDate.slice(0, 10);
     }
   }
 
