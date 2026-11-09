@@ -1,17 +1,16 @@
 # Equipment Management System: Front-end
 
-Web front-end of the **Equipment Management System for the School of Science, KMITL**: a special problem project (academic year 2025) that replaces paper and spreadsheet records of university equipment with a digital system.
+Web front-end of the Equipment Management System for the School of Science, KMITL: a special problem project (2025–2026, two semesters) that replaces paper and spreadsheet records of university equipment with a digital system.
 
-Built with **SvelteKit** and TypeScript. The user interface is in Thai and designed for desktop and tablet.
+Built with SvelteKit and TypeScript. The user interface is in Thai and designed for desktop and tablet.
 
 > **Status:** a working demo built to show the direction for the next development team. All baseline requirements passed the system tests (see the thesis, Table 4.1). There is no public live demo, because the system needs the back-end, a database and Google sign-in.
 
 ## Screenshots
 
-<!-- Add 3-5 screenshots to /docs and link them here, for example: -->
-<!-- ![Dashboard](docs/dashboard.png) -->
-<!-- ![Equipment list](docs/equipment-list.png) -->
-<!-- ![Equipment detail and history](docs/equipment-detail.png) -->
+<img width="1901" height="908" alt="Dashboard" src="https://github.com/user-attachments/assets/57ed6e5c-1f4e-48b2-96d8-7a0a0711d167" />
+<img width="1893" height="905" alt="Equipment list with filter" src="https://github.com/user-attachments/assets/a955302b-be51-4a17-92ce-71850db56c15" />
+<img width="1896" height="907" alt="Equipment detail, with the change-history timeline(1)" src="https://github.com/user-attachments/assets/812cd086-7620-4275-84fe-cd8a45ed25b9" />
 
 ## Features
 
