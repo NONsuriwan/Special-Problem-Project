@@ -51,7 +51,7 @@ Environment variables: `<list the variable names from your .env here>`
 
 ## Authors
 
-- **Thananon Suriwan**: requirements, system design, UI design, front-end
-- **Siwakorn Boonkaew**: back-end, API, database
+- **Thananon Suriwan**: requirements, system design, front-end, UI design
+- **Siwakorn Boonkaew**: requirements, system design, back-end, API, database
 
 Advisor: Suntana Oudomying. Department of Computer Science, School of Science, KMITL.
