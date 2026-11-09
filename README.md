@@ -61,6 +61,6 @@ The real `.env` holds credentials, so it is not committed. Copy `.env.example` a
 ## Authors
 
 - **Thananon Suriwan**: requirements, system design, UI design, front-end
-- **Siwakorn Boonkaew**: back-end, API, database
+- **Siwakorn Boonkaew**: requirements,system design, API, database, back-end
 
 Advisor: Suntana Oudomying. Department of Computer Science, School of Science, KMITL.
