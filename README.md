@@ -23,11 +23,12 @@ Built with **SvelteKit** and TypeScript. The user interface is in Thai and desig
 - **Reports:** straight-line daily depreciation report and physical inventory report, both filterable.
 - **Roles:** User and Admin. Admins manage user accounts.
 
-## Design
+Design
 
 The UI was designed in Figma first (design system and screens) and then built in SvelteKit.
 
-- Figma: design system and UI design (add link)
+Design System (Figma): colors, typography, spacing, icons and components
+UI Design (Figma): all screens (dashboard, lists, forms, detail pages, reports)
 
 ## Tech stack
 
